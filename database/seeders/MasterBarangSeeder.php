@@ -18,18 +18,18 @@ class MasterBarangSeeder extends Seeder
         */
 
         $batang = Satuan::firstOrCreate(
-            ['nama_satuan' => 'Batang'],
+            ['kode_satuan' => 'BTG'],
             [
-                'kode_satuan' => 'BTG',
+                'nama_satuan' => 'Batang',
                 'keterangan' => 'Satuan batang',
                 'is_active' => true,
             ]
         );
 
         $lembar = Satuan::firstOrCreate(
-            ['nama_satuan' => 'Lembar'],
+            ['kode_satuan' => 'LBR'],
             [
-                'kode_satuan' => 'LBR',
+                'nama_satuan' => 'Lembar',
                 'keterangan' => 'Satuan lembar',
                 'is_active' => true,
             ]
@@ -45,72 +45,72 @@ class MasterBarangSeeder extends Seeder
         $kategori = [];
 
         $kategori['baja_ringan'] = KategoriBarang::firstOrCreate(
-            ['nama_kategori' => 'Baja Ringan'],
+            ['kode_kategori' => 'KAT-BR'],
             [
-                'kode_kategori' => 'KAT-BR',
+                'nama_kategori' => 'Baja Ringan',
                 'keterangan' => 'Produk baja ringan',
                 'is_active' => true,
             ]
         );
 
         $kategori['spandek'] = KategoriBarang::firstOrCreate(
-            ['nama_kategori' => 'Spandek'],
+            ['kode_kategori' => 'KAT-SP'],
             [
-                'kode_kategori' => 'KAT-SP',
+                'nama_kategori' => 'Spandek',
                 'keterangan' => 'Produk atap spandek',
                 'is_active' => true,
             ]
         );
 
         $kategori['bondek'] = KategoriBarang::firstOrCreate(
-            ['nama_kategori' => 'Bondek'],
+            ['kode_kategori' => 'KAT-BD'],
             [
-                'kode_kategori' => 'KAT-BD',
+                'nama_kategori' => 'Bondek',
                 'keterangan' => 'Produk bondek',
                 'is_active' => true,
             ]
         );
 
         $kategori['hollow'] = KategoriBarang::firstOrCreate(
-            ['nama_kategori' => 'Hollow'],
+            ['kode_kategori' => 'KAT-HL'],
             [
-                'kode_kategori' => 'KAT-HL',
+                'nama_kategori' => 'Hollow',
                 'keterangan' => 'Produk besi hollow',
                 'is_active' => true,
             ]
         );
 
         $kategori['besi_beton'] = KategoriBarang::firstOrCreate(
-            ['nama_kategori' => 'Besi Beton'],
+            ['kode_kategori' => 'KAT-BB'],
             [
-                'kode_kategori' => 'KAT-BB',
+                'nama_kategori' => 'Besi Beton',
                 'keterangan' => 'Produk besi beton',
                 'is_active' => true,
             ]
         );
 
         $kategori['besi_siku'] = KategoriBarang::firstOrCreate(
-            ['nama_kategori' => 'Besi Siku'],
+            ['kode_kategori' => 'KAT-BS'],
             [
-                'kode_kategori' => 'KAT-BS',
+                'nama_kategori' => 'Besi Siku',
                 'keterangan' => 'Produk besi siku',
                 'is_active' => true,
             ]
         );
 
         $kategori['pipa_hitam'] = KategoriBarang::firstOrCreate(
-            ['nama_kategori' => 'Pipa Hitam'],
+            ['kode_kategori' => 'KAT-PH'],
             [
-                'kode_kategori' => 'KAT-PH',
+                'nama_kategori' => 'Pipa Hitam',
                 'keterangan' => 'Produk pipa hitam',
                 'is_active' => true,
             ]
         );
 
         $kategori['plat_hitam'] = KategoriBarang::firstOrCreate(
-            ['nama_kategori' => 'Plat Hitam'],
+            ['kode_kategori' => 'KAT-PL'],
             [
-                'kode_kategori' => 'KAT-PL',
+                'nama_kategori' => 'Plat Hitam',
                 'keterangan' => 'Produk plat hitam',
                 'is_active' => true,
             ]
