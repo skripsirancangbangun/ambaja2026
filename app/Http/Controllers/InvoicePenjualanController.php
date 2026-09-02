@@ -57,7 +57,8 @@ class InvoicePenjualanController extends Controller
         $customers = Customer::where('is_active', true)->orderBy('nama_customer')->get();
         $gudangs = Gudang::where('is_active', true)->orderBy('nama_gudang')->get();
         $rekeningKasBanks = RekeningKasBank::where('is_active', true)->orderBy('nama_rekening')->get();
-        $barangs = Barang::where('is_active', true)->orderBy('nama_barang')->get();
+        $barangs = Barang::withSum('stoks', 'jumlah')->where('is_active', true)->orderBy('nama_barang')->get();
+        $nomorInvoice = $this->generateNomorInvoice();
 
         // Optional Sales Orders to convert
         $penjualans = Penjualan::with(['customer', 'items.barang'])
@@ -97,7 +98,38 @@ class InvoicePenjualanController extends Controller
         ));
     }
 
-    public function store(Request $request, InventoryService $inventoryService, KasBankService $kasBankService)
+    private function generateNomorInvoice(): string
+{
+    $prefix = 'INV-' . now()->format('Ym') . '-';
+
+    $lastInvoice = InvoicePenjualan::where(
+        'nomor_invoice',
+        'like',
+        $prefix . '%'
+    )
+        ->orderByDesc('nomor_invoice')
+        ->first();
+
+    if (!$lastInvoice) {
+        return $prefix . '0001';
+    }
+
+    $lastNumber = (int) substr(
+        $lastInvoice->nomor_invoice,
+        -4
+    );
+
+    $nextNumber = $lastNumber + 1;
+
+    return $prefix . str_pad(
+        $nextNumber,
+        4,
+        '0',
+        STR_PAD_LEFT
+    );
+}
+
+    public function store(Request $request, InventoryService $inventoryService, KasBankService $kasBankService, \App\Services\SystemAccountingService $systemAccountingService)
     {
         $validated = $request->validate([
             'nomor_invoice' => 'required|string|unique:invoice_penjualans,nomor_invoice',
@@ -116,6 +148,10 @@ class InvoicePenjualanController extends Controller
             'items.*.harga_satuan' => 'required|numeric|min:0',
             'items.*.diskon' => 'nullable|numeric|min:0',
         ]);
+
+        if ($systemAccountingService->isPeriodLocked($validated['tanggal_invoice'])) {
+            return back()->withInput()->with('error', 'Transaksi pada tanggal ini tidak dapat dibuat karena periode bulanan sudah DITUTUP (Cut-Off).');
+        }
 
         DB::beginTransaction();
         try {
@@ -197,10 +233,8 @@ class InvoicePenjualanController extends Controller
                 );
             }
 
-            // Update sales order status if applicable
-            if (!empty($validated['penjualan_id'])) {
-                Penjualan::where('id', $validated['penjualan_id'])->update(['status' => 'Selesai']);
-            }
+            // Auto-Journaling Akuntansi Otomatis
+            $systemAccountingService->autoJournalInvoicePenjualan($invoice);
 
             DB::commit();
 
@@ -239,6 +273,53 @@ class InvoicePenjualanController extends Controller
         }
 
         return back()->with('error', 'Invoice penjualan yang telah memotong stok dan mutasi tidak disarankan untuk dihapus langsung demi konsistensi akuntansi. Silakan gunakan fitur Retur Penjualan.');
+    }
+
+    /**
+     * Pembatalan Resmi Invoice Penjualan (Hanya untuk Kepala Toko / Admin)
+     */
+    public function batal(Request $request, InvoicePenjualan $invoice, \App\Services\SystemAccountingService $systemAccountingService, InventoryService $inventoryService)
+    {
+        $request->validate([
+            'alasan_pembatalan' => 'required|string|min:5',
+        ]);
+
+        if ($systemAccountingService->isPeriodLocked($invoice->tanggal_invoice)) {
+            return back()->with('error', 'Invoice tidak dapat dibatalkan karena periode bulanan sudah DITUTUP (Cut-off).');
+        }
+
+        if ($invoice->status_pembayaran === 'DIBATALKAN') {
+            return back()->with('error', 'Invoice ini sudah dibatalkan sebelumnya.');
+        }
+
+        DB::beginTransaction();
+        try {
+            // 1. Kembalikan Stok Fisik ke Gudang
+            foreach ($invoice->items as $item) {
+                $inventoryService->masuk(
+                    $invoice->gudang_id,
+                    $item->barang_id,
+                    $item->qty,
+                    $item->harga_satuan,
+                    'PEMBATALAN_INVOICE',
+                    $invoice->id,
+                    $invoice->nomor_invoice,
+                    'Restock dari Pembatalan Invoice #' . $invoice->nomor_invoice,
+                    now()
+                );
+            }
+
+            // 2. Terbitkan Jurnal Pembalik & Update Kartu Piutang
+            $systemAccountingService->cancelInvoicePenjualan($invoice, $request->alasan_pembatalan);
+
+            DB::commit();
+
+            return redirect()->route('invoice-penjualan.show', $invoice)
+                ->with('success', 'Invoice #' . $invoice->nomor_invoice . ' berhasil DIBATALKAN secara resmi. Stok telah dikembalikan dan Jurnal Pembalik telah diterbitkan.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal membatalkan invoice: ' . $e->getMessage());
+        }
     }
 
     public function pdf(InvoicePenjualan $invoicePenjualan)

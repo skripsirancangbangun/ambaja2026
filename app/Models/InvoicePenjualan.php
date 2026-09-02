@@ -74,6 +74,16 @@ class InvoicePenjualan extends Model
         return $this->hasMany(ReturPenjualan::class);
     }
 
+    public function tindakLanjuts()
+    {
+        return $this->hasMany(TindakLanjutPiutang::class)->orderByDesc('tanggal_tindak_lanjut');
+    }
+
+    public function penerimaanDetails()
+    {
+        return $this->hasMany(PenerimaanPiutangDetail::class);
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');

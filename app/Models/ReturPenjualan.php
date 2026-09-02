@@ -2,25 +2,31 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ReturPenjualan extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'nomor_retur',
         'invoice_penjualan_id',
         'customer_id',
         'gudang_id',
         'tanggal_retur',
-        'total_retur',
-        'alasan',
-        'status',
-        'created_by',
+        'subtotal',
+        'pajak',
+        'total',
+        'alasan_retur',
+        'created_by_user_id',
     ];
 
     protected $casts = [
         'tanggal_retur' => 'date',
-        'total_retur' => 'decimal:2',
+        'subtotal' => 'decimal:2',
+        'pajak' => 'decimal:2',
+        'total' => 'decimal:2',
     ];
 
     public function invoicePenjualan()
@@ -38,13 +44,13 @@ class ReturPenjualan extends Model
         return $this->belongsTo(Gudang::class);
     }
 
-    public function details()
+    public function items()
     {
-        return $this->hasMany(ReturPenjualanDetail::class);
+        return $this->hasMany(ReturPenjualanItem::class);
     }
 
     public function creator()
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(User::class, 'created_by_user_id');
     }
 }

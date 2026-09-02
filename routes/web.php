@@ -36,7 +36,18 @@ use App\Http\Controllers\InvoicePenjualanController;
 use App\Http\Controllers\PembayaranPenjualanController;
 use App\Http\Controllers\ReturPenjualanController;
 use App\Http\Controllers\PiutangController;
-
+use App\Http\Controllers\CoaController;
+use App\Http\Controllers\JurnalUmumController;
+use App\Http\Controllers\BukuBesarController;
+use App\Http\Controllers\LaporanKeuanganController;
+use App\Http\Controllers\LaporanPenjualanController;
+use App\Http\Controllers\LaporanPiutangController;
+use App\Http\Controllers\PengaturanAkunController;
+use App\Http\Controllers\PenutupanPeriodeController;
+use App\Http\Controllers\CustomerImportController;
+use App\Http\Controllers\PenerimaanPiutangController;
+use App\Http\Controllers\KartuPiutangController;
+use App\Http\Controllers\PengaturanPenomoranController;
 
 /*
 |--------------------------------------------------------------------------
@@ -586,20 +597,87 @@ Route::post(
     |--------------------------------------------------------------------------
     */
 
-    Route::get(
-        '/laporan/utang',
-        [LaporanUtangController::class, 'index']
-    )->name('laporan.utang');
+    Route::get('/laporan/utang', [LaporanPembelianController::class, 'index'])
+    ->name('laporan.utang');
 
-    Route::get(
-        '/laporan/utang/pdf',
-        [LaporanUtangController::class, 'pdf']
-    )->name('laporan.utang.pdf');
+    /*
+    |--------------------------------------------------------------------------
+    | AKUNTANSI (ACCOUNTING)
+    |--------------------------------------------------------------------------
+    */
 
-    Route::get(
-        '/laporan/utang/excel',
-        [LaporanUtangController::class, 'excel']
-    )->name('laporan.utang.excel');
+    Route::resource('coa', CoaController::class)->except('show');
+    Route::resource('jurnal-umum', JurnalUmumController::class)->except(['edit', 'update']);
+    Route::get('buku-besar', [BukuBesarController::class, 'index'])->name('buku-besar.index');
+
+    // 1. Penjualan
+    Route::get('laporan/penjualan', [LaporanPenjualanController::class, 'index'])->name('laporan.penjualan');
+    Route::get('laporan/penjualan/pdf', [LaporanPenjualanController::class, 'pdf'])->name('laporan.penjualan.pdf');
+    Route::get('laporan/penjualan/excel', [LaporanPenjualanController::class, 'excel'])->name('laporan.penjualan.excel');
+
+    // 2. Piutang
+    Route::get('laporan/piutang', [LaporanPiutangController::class, 'index'])->name('laporan.piutang');
+    Route::get('laporan/piutang/pdf', [LaporanPiutangController::class, 'pdf'])->name('laporan.piutang.pdf');
+    Route::get('laporan/piutang/excel', [LaporanPiutangController::class, 'excel'])->name('laporan.piutang.excel');
+
+    // 3. Laba Rugi
+    Route::get('laporan/laba-rugi', [LaporanKeuanganController::class, 'labaRugi'])->name('laporan.laba-rugi');
+    Route::get('laporan/laba-rugi/pdf', [LaporanKeuanganController::class, 'labaRugiPdf'])->name('laporan.laba-rugi.pdf');
+    Route::get('laporan/laba-rugi/excel', [LaporanKeuanganController::class, 'labaRugiExcel'])->name('laporan.laba-rugi.excel');
+
+    // 4. Neraca
+    Route::get('laporan/neraca', [LaporanKeuanganController::class, 'neraca'])->name('laporan.neraca');
+    Route::get('laporan/neraca/pdf', [LaporanKeuanganController::class, 'neracaPdf'])->name('laporan.neraca.pdf');
+    Route::get('laporan/neraca/excel', [LaporanKeuanganController::class, 'neracaExcel'])->name('laporan.neraca.excel');
+
+    // 5. Arus Kas
+    Route::get('laporan/arus-kas', [LaporanKeuanganController::class, 'arusKas'])->name('laporan.arus-kas');
+    Route::get('laporan/arus-kas/pdf', [LaporanKeuanganController::class, 'arusKasPdf'])->name('laporan.arus-kas.pdf');
+    Route::get('laporan/arus-kas/excel', [LaporanKeuanganController::class, 'arusKasExcel'])->name('laporan.arus-kas.excel');
+
+    // 6. Perubahan Ekuitas
+    Route::get('laporan/perubahan-ekuitas', [LaporanKeuanganController::class, 'perubahanEkuitas'])->name('laporan.perubahan-ekuitas');
+    Route::get('laporan/perubahan-ekuitas/pdf', [LaporanKeuanganController::class, 'perubahanEkuitasPdf'])->name('laporan.perubahan-ekuitas.pdf');
+    Route::get('laporan/perubahan-ekuitas/excel', [LaporanKeuanganController::class, 'perubahanEkuitasExcel'])->name('laporan.perubahan-ekuitas.excel');
+
+    // Neraca Saldo
+    Route::get('laporan/neraca-saldo', [LaporanKeuanganController::class, 'neracaSaldo'])->name('laporan.neraca-saldo');
+
+    // Pengaturan Akun Sistem
+    Route::get('pengaturan-akun', [PengaturanAkunController::class, 'index'])->name('pengaturan-akun.index');
+    Route::put('pengaturan-akun', [PengaturanAkunController::class, 'update'])->name('pengaturan-akun.update');
+
+    // Import Customer & Template
+    Route::get('customer/import/template', [CustomerImportController::class, 'downloadTemplate'])->name('customer.import.template');
+    Route::post('customer/import', [CustomerImportController::class, 'import'])->name('customer.import');
+
+    // Penerimaan Piutang & Kwitansi
+    Route::get('piutang/penerimaan', [PenerimaanPiutangController::class, 'index'])->name('piutang.penerimaan.index');
+    Route::get('piutang/penerimaan/create', [PenerimaanPiutangController::class, 'create'])->name('piutang.penerimaan.create');
+    Route::post('piutang/penerimaan', [PenerimaanPiutangController::class, 'store'])->name('piutang.penerimaan.store');
+    Route::get('piutang/penerimaan/{penerimaan}/pdf', [PenerimaanPiutangController::class, 'kwitansiPdf'])->name('piutang.kwitansi.pdf');
+
+    // Kartu Piutang Customer & Detail Penagihan
+    Route::get('piutang/kartu', [KartuPiutangController::class, 'index'])->name('piutang.kartu');
+    Route::get('piutang/{invoice}', [PiutangController::class, 'show'])->name('piutang.show');
+    Route::post('piutang/{invoice}/tindak-lanjut', [PiutangController::class, 'storeTindakLanjut'])->name('piutang.tindak-lanjut.store');
+    Route::get('piutang/{invoice}/surat-tagihan/pdf', [PiutangController::class, 'cetakSuratTagihan'])->name('piutang.surat-tagihan.pdf');
+    Route::get('piutang/{invoice}/surat-peringatan/{level}/pdf', [PiutangController::class, 'cetakSuratPeringatan'])->name('piutang.surat-peringatan.pdf');
+
+    // Retur Penjualan
+    Route::resource('retur-penjualan', ReturPenjualanController::class)->only(['index', 'create', 'store']);
+
+    // Pengaturan Format Penomoran Jurnal & Dokumen
+    Route::get('pengaturan-penomoran', [PengaturanPenomoranController::class, 'index'])->name('pengaturan-penomoran.index');
+    Route::put('pengaturan-penomoran', [PengaturanPenomoranController::class, 'update'])->name('pengaturan-penomoran.update');
+
+    // Pembatalan Resmi Invoice (Kepala Toko / Admin Only)
+    Route::post('invoice-penjualan/{invoice}/batal', [InvoicePenjualanController::class, 'batal'])->name('invoice-penjualan.batal');
+
+    // Penutupan Periode (Cut-off Bulanan)
+    Route::get('penutupan-periode', [PenutupanPeriodeController::class, 'index'])->name('penutupan-periode.index');
+    Route::post('penutupan-periode/close', [PenutupanPeriodeController::class, 'close'])->name('penutupan-periode.close');
+    Route::put('penutupan-periode/{penutupanPeriode}/reopen', [PenutupanPeriodeController::class, 'reopen'])->name('penutupan-periode.reopen');
 
 });
 

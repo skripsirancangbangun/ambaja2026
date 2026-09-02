@@ -14,13 +14,74 @@
             </p>
         </div>
 
-        <a
-            href="{{ route('customer.create') }}"
-            class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#15235F] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#101b4d]"
-        >
-            <span>+</span>
-            Tambah Customer
-        </a>
+        <div class="flex flex-wrap items-center gap-2" x-data="{ showImportModal: false }">
+            <a
+                href="{{ route('customer.import.template') }}"
+                class="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+            >
+                📥 Download Template Import
+            </a>
+
+            <button
+                type="button"
+                @click="showImportModal = true"
+                class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+                📊 Import Customer & Saldo Awal
+            </button>
+
+            <a
+                href="{{ route('customer.create') }}"
+                class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#15235F] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#101b4d]"
+            >
+                <span>+</span>
+                Tambah Customer
+            </a>
+
+            {{-- MODAL IMPORT --}}
+            <div
+                x-show="showImportModal"
+                x-cloak
+                class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
+            >
+                <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl space-y-4 text-left">
+                    <div class="border-b border-slate-100 pb-3">
+                        <h3 class="text-base font-bold text-[#15235F]">Import Customer & Saldo Awal Piutang</h3>
+                        <p class="text-xs text-slate-500">Gunakan file Excel (.xlsx / .csv) sesuai format template.</p>
+                    </div>
+
+                    <form action="{{ route('customer.import') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+                        @csrf
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Pilih File Excel</label>
+                            <input
+                                type="file"
+                                name="file"
+                                accept=".xlsx,.xls,.csv"
+                                required
+                                class="mt-1.5 w-full rounded-xl border border-slate-200 p-2 text-sm text-slate-700 focus:border-[#32AAA6]"
+                            >
+                        </div>
+
+                        <div class="flex justify-end gap-2 pt-2">
+                            <button
+                                type="button"
+                                @click="showImportModal = false"
+                                class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="submit"
+                                class="rounded-xl bg-[#15235F] px-5 py-2 text-sm font-semibold text-white hover:bg-[#101b4d]"
+                            >
+                                Process Import
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 
     @if(session('success'))

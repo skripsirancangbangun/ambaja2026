@@ -48,7 +48,7 @@ class PenjualanController extends Controller
     {
         $customers = Customer::where('is_active', true)->orderBy('nama_customer')->get();
         $gudangs = Gudang::where('is_active', true)->orderBy('nama_gudang')->get();
-        $barangs = Barang::where('is_active', true)->orderBy('nama_barang')->get();
+        $barangs = Barang::withSum('stoks', 'jumlah')->where('is_active', true)->orderBy('nama_barang')->get();
 
         $year = date('Y');
         $lastOrder = Penjualan::whereYear('tanggal_penjualan', $year)->latest('id')->first();

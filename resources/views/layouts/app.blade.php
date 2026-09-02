@@ -292,8 +292,8 @@
                     </a>
 
                     <a
-                        href="#"
-                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F]"
+                        href="{{ route('coa.index') }}"
+                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('coa.*') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
                     >
                         Chart of Accounts
                     </a>
@@ -436,9 +436,16 @@
 
                     <a
                         href="{{ route('piutang.index') }}"
-                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('piutang.*') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
+                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('piutang.*') && !request()->routeIs('piutang.kartu') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
                     >
-                        Piutang Dagang
+                        Piutang Dagang (Daftar Tagihan)
+                    </a>
+
+                    <a
+                        href="{{ route('piutang.kartu') }}"
+                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('piutang.kartu') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
+                    >
+                        📖 Buku Pembantu Piutang
                     </a>
 
                 </div>
@@ -895,38 +902,47 @@
                 >
 
                     <a
-                        href="#"
-                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F]"
+                        href="{{ route('jurnal-umum.index') }}"
+                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('jurnal-umum.*') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
                     >
-                        Jurnal
+                        Jurnal Umum
                     </a>
 
                     <a
-                        href="#"
-                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F]"
+                        href="{{ route('buku-besar.index') }}"
+                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('buku-besar.*') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
                     >
                         Buku Besar
                     </a>
 
                     <a
-                        href="#"
-                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F]"
+                        href="{{ route('laporan.neraca-saldo') }}"
+                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('laporan.neraca-saldo') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
                     >
                         Neraca Saldo
                     </a>
 
+                    <div class="my-1 border-t border-slate-200"></div>
+
                     <a
-                        href="#"
-                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F]"
+                        href="{{ route('pengaturan-akun.index') }}"
+                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('pengaturan-akun.*') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
                     >
-                        Penyesuaian
+                        Pengaturan Akun Sistem
                     </a>
 
                     <a
-                        href="#"
-                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F]"
+                        href="{{ route('pengaturan-penomoran.index') }}"
+                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('pengaturan-penomoran.*') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
                     >
-                        Tutup Periode
+                        Format Penomoran Jurnal & Dokumen
+                    </a>
+
+                    <a
+                        href="{{ route('penutupan-periode.index') }}"
+                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('penutupan-periode.*') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
+                    >
+                        🔒 Cut-Off (Penutupan Periode)
                     </a>
 
                 </div>
@@ -1014,8 +1030,8 @@
                 >
 
                     <a
-                        href="#"
-                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F]"
+                        href="{{ route('laporan.penjualan') }}"
+                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('laporan.penjualan') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
                     >
                         Penjualan
                     </a>
@@ -1035,8 +1051,8 @@
                     </a>
 
                     <a
-                        href="#"
-                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F]"
+                        href="{{ route('laporan.piutang') }}"
+                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('laporan.piutang') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
                     >
                         Piutang
                     </a>
@@ -1060,29 +1076,29 @@
 
 
                     <a
-                        href="#"
-                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F]"
+                        href="{{ route('laporan.laba-rugi') }}"
+                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('laporan.laba-rugi') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
                     >
                         Laba Rugi
                     </a>
 
                     <a
-                        href="#"
-                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F]"
+                        href="{{ route('laporan.neraca') }}"
+                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('laporan.neraca') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
                     >
-                        Posisi Keuangan
+                        Posisi Keuangan (Neraca)
                     </a>
 
                     <a
-                        href="#"
-                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F]"
+                        href="{{ route('laporan.arus-kas') }}"
+                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('laporan.arus-kas') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
                     >
                         Arus Kas
                     </a>
 
                     <a
-                        href="#"
-                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F]"
+                        href="{{ route('laporan.perubahan-ekuitas') }}"
+                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('laporan.perubahan-ekuitas') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
                     >
                         Perubahan Ekuitas
                     </a>

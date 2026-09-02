@@ -180,8 +180,8 @@
                                     >
                                         <option value="">-- Pilih Barang --</option>
                                         @foreach($barangs as $barang)
-                                            <option value="{{ $barang->id }}" data-harga="{{ $barang->harga_jual }}">
-                                                {{ $barang->kode_barang }} - {{ $barang->nama_barang }}
+                                            <option value="{{ $barang->id }}" data-harga="{{ $barang->harga_jual }}" data-stok="{{ $barang->stoks_sum_jumlah ?? 0 }}">
+                                                {{ $barang->kode_barang }} - {{ $barang->nama_barang }} (Stok: {{ number_format($barang->stoks_sum_jumlah ?? 0, 0, ',', '.') }})
                                             </option>
                                         @endforeach
                                     </select>

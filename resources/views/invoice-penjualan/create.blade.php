@@ -239,8 +239,8 @@
                                     >
                                         <option value="">-- Pilih Barang --</option>
                                         @foreach($barangs as $barang)
-                                            <option value="{{ $barang->id }}" data-harga="{{ $barang->harga_jual }}">
-                                                {{ $barang->kode_barang }} - {{ $barang->nama_barang }}
+                                            <option value="{{ $barang->id }}" data-harga="{{ $barang->harga_jual }}" data-stok="{{ $barang->stoks_sum_jumlah ?? 0 }}">
+                                                {{ $barang->kode_barang }} - {{ $barang->nama_barang }} (Stok: {{ number_format($barang->stoks_sum_jumlah ?? 0, 0, ',', '.') }})
                                             </option>
                                         @endforeach
                                     </select>
@@ -342,18 +342,7 @@ function invoiceForm() {
         customerId: '{{ old('customer_id', $selectedPenjualan->customer_id ?? '') }}',
         tipePembayaran: '{{ old('tipe_pembayaran', 'Tunai') }}',
         pajakPersen: {{ $selectedPenjualan->pajak_persen ?? 0 }},
-        items: @json(
-            $selectedPenjualan && $selectedPenjualan->items->isNotEmpty()
-            ? $selectedPenjualan->items->map(function($i) {
-                return [
-                    'barang_id' => $i->barang_id,
-                    'qty' => (float) $i->qty,
-                    'harga_satuan' => (float) $i->harga_satuan,
-                    'diskon' => (float) $i->diskon,
-                ];
-            })
-            : [ ['barang_id' => '', 'qty' => 1, 'harga_satuan' => 0, 'diskon' => 0] ]
-        ),
+        items: @json($initialItems),
         penjualansData: @json($penjualans->keyBy('id')),
         barangsData: @json($barangs->keyBy('id')),
 

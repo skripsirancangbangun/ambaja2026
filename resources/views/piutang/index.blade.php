@@ -7,11 +7,20 @@
 <div class="space-y-6">
 
     {{-- HEADER --}}
-    <div>
-        <h2 class="text-xl font-semibold text-slate-800">Piutang Dagang (Customer)</h2>
-        <p class="mt-1 text-sm text-slate-500">
-            Monitoring tagihan invoice penjualan kepada customer yang masih memiliki saldo piutang.
-        </p>
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <h2 class="text-xl font-semibold text-slate-800">Piutang Dagang (Customer)</h2>
+            <p class="mt-1 text-sm text-slate-500">
+                Monitoring tagihan invoice penjualan, status pembayaran, dan histori tindak lanjut penagihan.
+            </p>
+        </div>
+
+        <a
+            href="{{ route('piutang.kartu') }}"
+            class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+            📖 Buku Pembantu Piutang
+        </a>
     </div>
 
     {{-- SUMMARY CARDS --}}
@@ -43,7 +52,7 @@
 
     {{-- FILTER --}}
     <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <form method="GET" action="{{ route('piutang.index') }}" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <form method="GET" action="{{ route('piutang.index') }}" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <div>
                 <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500">Pencarian</label>
                 <input
@@ -71,7 +80,21 @@
             </div>
 
             <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500">Status Jatuh Tempo</label>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500">Status Piutang</label>
+                <select
+                    name="status_pembayaran"
+                    class="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-700 focus:border-[#32AAA6] focus:bg-white focus:outline-none"
+                >
+                    <option value="BELUM_LUNAS_ALL" {{ ($statusPembayaran ?? '') == 'BELUM_LUNAS_ALL' ? 'selected' : '' }}>Belum Lunas & Sebagian (Default)</option>
+                    <option value="Belum Lunas" {{ ($statusPembayaran ?? '') == 'Belum Lunas' ? 'selected' : '' }}>Belum Lunas Saja</option>
+                    <option value="Sebagian" {{ ($statusPembayaran ?? '') == 'Sebagian' ? 'selected' : '' }}>Sebagian Saja</option>
+                    <option value="Lunas" {{ ($statusPembayaran ?? '') == 'Lunas' ? 'selected' : '' }}>Sudah Lunas</option>
+                    <option value="SEMUA" {{ ($statusPembayaran ?? '') == 'SEMUA' ? 'selected' : '' }}>Semua Status</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500">Jatuh Tempo</label>
                 <select
                     name="jatuh_tempo"
                     class="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-700 focus:border-[#32AAA6] focus:bg-white focus:outline-none"
@@ -87,9 +110,9 @@
                     type="submit"
                     class="w-full rounded-xl bg-[#15235F] py-2.5 text-sm font-medium text-white transition hover:bg-[#101b4d]"
                 >
-                    Terapkan Filter
+                    Filter
                 </button>
-                @if(request()->hasAny(['search', 'customer_id', 'jatuh_tempo']))
+                @if(request()->hasAny(['search', 'customer_id', 'status_pembayaran', 'jatuh_tempo']))
                     <a
                         href="{{ route('piutang.index') }}"
                         class="rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-200"
@@ -104,7 +127,7 @@
     {{-- TABLE --}}
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div class="border-b border-slate-200 px-6 py-4">
-            <h3 class="text-sm font-semibold text-slate-700">Daftar Tagihan Piutang Terbuka</h3>
+            <h3 class="text-sm font-semibold text-slate-700">Daftar Tagihan Piutang Dagang</h3>
         </div>
 
         <div class="overflow-x-auto">
@@ -118,7 +141,7 @@
                         <th class="px-6 py-3 text-right font-medium">Total Tagihan</th>
                         <th class="px-6 py-3 text-right font-medium">Sudah Dibayar</th>
                         <th class="px-6 py-3 text-right font-medium">Sisa Piutang</th>
-                        <th class="px-6 py-3 font-medium">Status Aging</th>
+                        <th class="px-6 py-3 font-medium">Status Status</th>
                         <th class="px-6 py-3 text-right font-medium">Aksi</th>
                     </tr>
                 </thead>
@@ -126,12 +149,12 @@
                 <tbody class="divide-y divide-slate-100">
                     @forelse($invoices as $invoice)
                         @php
-                            $isOverdue = $invoice->tanggal_jatuh_tempo && $invoice->tanggal_jatuh_tempo->isPast();
+                            $isOverdue = $invoice->tanggal_jatuh_tempo && $invoice->tanggal_jatuh_tempo->isPast() && $invoice->sisa_piutang > 0;
                             $daysDiff = $invoice->tanggal_jatuh_tempo ? (int) now()->diffInDays($invoice->tanggal_jatuh_tempo, false) : 0;
                         @endphp
                         <tr class="transition hover:bg-slate-50">
                             <td class="px-6 py-4 font-semibold text-[#15235F]">
-                                <a href="{{ route('invoice-penjualan.show', $invoice) }}" class="hover:underline">
+                                <a href="{{ route('piutang.show', $invoice) }}" class="hover:underline">
                                     {{ $invoice->nomor_invoice }}
                                 </a>
                             </td>
@@ -150,33 +173,35 @@
                             <td class="px-6 py-4 text-right text-emerald-600">
                                 Rp {{ number_format($invoice->sudah_dibayar, 0, ',', '.') }}
                             </td>
-                            <td class="px-6 py-4 text-right font-bold text-rose-600">
+                            <td class="px-6 py-4 text-right font-bold {{ $invoice->sisa_piutang > 0 ? 'text-rose-600' : 'text-slate-500' }}">
                                 Rp {{ number_format($invoice->sisa_piutang, 0, ',', '.') }}
                             </td>
                             <td class="px-6 py-4">
-                                @if($isOverdue)
+                                @if($invoice->status_pembayaran === 'Lunas')
+                                    <span class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">Lunas</span>
+                                @elseif($isOverdue)
                                     <span class="inline-flex rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">
                                         Lewat {{ abs($daysDiff) }} hari
                                     </span>
                                 @else
-                                    <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                                        {{ $daysDiff }} hari lagi
+                                    <span class="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+                                        {{ $invoice->status_pembayaran }} ({{ $daysDiff }}hr lagi)
                                     </span>
                                 @endif
                             </td>
                             <td class="px-6 py-4 text-right">
                                 <a
-                                    href="{{ route('pembayaran-penjualan.create', ['customer_id' => $invoice->customer_id]) }}"
-                                    class="inline-flex items-center rounded-lg bg-[#15235F] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#101b4d]"
+                                    href="{{ route('piutang.show', $invoice) }}"
+                                    class="inline-flex items-center gap-1.5 rounded-lg bg-[#15235F] px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-[#101b4d]"
                                 >
-                                    Bayar
+                                    🔍 Detail & Penagihan
                                 </a>
                             </td>
                         </tr>
                     @empty
                         <tr>
                             <td colspan="9" class="px-6 py-8 text-center text-slate-400">
-                                Tidak ada saldo piutang dagang yang belum lunas.
+                                Tidak ada data piutang dagang yang sesuai filter.
                             </td>
                         </tr>
                     @endforelse
