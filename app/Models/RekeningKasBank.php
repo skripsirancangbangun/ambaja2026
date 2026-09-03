@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class RekeningKasBank extends Model
 {
     protected $fillable = [
+        'akun_id',
         'kode_rekening',
         'nama_rekening',
         'jenis',
@@ -22,6 +23,17 @@ class RekeningKasBank extends Model
         'saldo_awal' => 'decimal:2',
         'is_active' => 'boolean',
     ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | RELATIONSHIPS
+    |--------------------------------------------------------------------------
+    */
+
+    public function akun()
+    {
+        return $this->belongsTo(Akun::class, 'akun_id');
+    }
 
     /*
     |--------------------------------------------------------------------------

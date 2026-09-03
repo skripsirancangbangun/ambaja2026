@@ -85,21 +85,11 @@
 
                 <div>
                     <div class="text-xs font-semibold uppercase text-slate-500">
-                        Jumlah
+                        Total Pengeluaran
                     </div>
 
                     <div class="mt-1 text-xl font-bold text-slate-900">
                         Rp {{ number_format((float) $uangKeluar->jumlah, 0, ',', '.') }}
-                    </div>
-                </div>
-
-                <div>
-                    <div class="text-xs font-semibold uppercase text-slate-500">
-                        Tujuan Pengeluaran
-                    </div>
-
-                    <div class="mt-1 text-sm font-medium text-slate-900">
-                        {{ $uangKeluar->tujuan }}
                     </div>
                 </div>
 
@@ -113,16 +103,6 @@
                     </div>
                 </div>
 
-                <div class="md:col-span-2">
-                    <div class="text-xs font-semibold uppercase text-slate-500">
-                        Keterangan
-                    </div>
-
-                    <div class="mt-1 text-sm text-slate-700">
-                        {{ $uangKeluar->keterangan ?: '-' }}
-                    </div>
-                </div>
-
                 <div>
                     <div class="text-xs font-semibold uppercase text-slate-500">
                         Dibuat Oleh
@@ -132,6 +112,155 @@
                         {{ $uangKeluar->creator?->name ?? '-' }}
                     </div>
                 </div>
+
+                <div class="md:col-span-2">
+                    <div class="text-xs font-semibold uppercase text-slate-500">
+                        Keterangan Umum
+                    </div>
+
+                    <div class="mt-1 text-sm text-slate-700">
+                        {{ $uangKeluar->keterangan ?: '-' }}
+                    </div>
+                </div>
+
+            </div>
+
+            {{-- RINCIAN PENGELUARAN --}}
+            <div class="border-t border-slate-200 px-6 py-5">
+
+                <div class="mb-4">
+                    <h3 class="font-semibold text-slate-900">
+                        Rincian Pengeluaran
+                    </h3>
+
+                    <p class="mt-1 text-xs text-slate-500">
+                        Daftar akun biaya yang dibayarkan dalam transaksi ini.
+                    </p>
+                </div>
+
+                @if ($uangKeluar->details->isNotEmpty())
+
+                    <div class="overflow-hidden rounded-xl border border-slate-200">
+
+                        <div class="overflow-x-auto">
+
+                            <table class="min-w-full divide-y divide-slate-200">
+
+                                <thead class="bg-slate-100">
+
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">
+                                            No
+                                        </th>
+
+                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">
+                                            Akun Biaya
+                                        </th>
+
+                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">
+                                            Keterangan
+                                        </th>
+
+                                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-600">
+                                            Jumlah
+                                        </th>
+                                    </tr>
+
+                                </thead>
+
+                                <tbody class="divide-y divide-slate-100">
+
+                                    @foreach ($uangKeluar->details as $detail)
+
+                                        <tr>
+
+                                            <td class="px-4 py-3 text-sm text-slate-500">
+                                                {{ $loop->iteration }}
+                                            </td>
+
+                                            <td class="px-4 py-3 text-sm">
+
+                                                @if ($detail->akun)
+
+                                                    <div class="font-semibold text-slate-900">
+                                                        {{ $detail->akun->kode_akun }}
+                                                        -
+                                                        {{ $detail->akun->nama_akun }}
+                                                    </div>
+
+                                                    <div class="mt-0.5 text-xs text-slate-500">
+                                                        {{ $detail->akun->sub_kategori ?? $detail->akun->kategori_akun }}
+                                                    </div>
+
+                                                @else
+
+                                                    <span class="text-slate-400">
+                                                        Akun belum ditentukan
+                                                    </span>
+
+                                                @endif
+
+                                            </td>
+
+                                            <td class="px-4 py-3 text-sm text-slate-700">
+                                                {{ $detail->tujuan }}
+                                            </td>
+
+                                            <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-semibold text-slate-900">
+                                                Rp {{ number_format((float) $detail->jumlah, 0, ',', '.') }}
+                                            </td>
+
+                                        </tr>
+
+                                    @endforeach
+
+                                </tbody>
+
+                                <tfoot class="border-t border-slate-200 bg-slate-50">
+
+                                    <tr>
+
+                                        <td
+                                            colspan="3"
+                                            class="px-4 py-3 text-right text-sm font-semibold text-slate-700"
+                                        >
+                                            TOTAL
+                                        </td>
+
+                                        <td class="whitespace-nowrap px-4 py-3 text-right text-base font-bold text-[#15235F]">
+                                            Rp {{ number_format((float) $uangKeluar->details->sum('jumlah'), 0, ',', '.') }}
+                                        </td>
+
+                                    </tr>
+
+                                </tfoot>
+
+                            </table>
+
+                        </div>
+
+                    </div>
+
+                @else
+
+                    {{-- KOMPATIBILITAS TRANSAKSI LAMA --}}
+                    <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+
+                        <div class="text-xs font-semibold uppercase text-amber-700">
+                            Transaksi Lama
+                        </div>
+
+                        <div class="mt-2 text-sm text-slate-700">
+                            {{ $uangKeluar->tujuan ?: '-' }}
+                        </div>
+
+                        <div class="mt-1 font-semibold text-slate-900">
+                            Rp {{ number_format((float) $uangKeluar->jumlah, 0, ',', '.') }}
+                        </div>
+
+                    </div>
+
+                @endif
 
             </div>
 
@@ -202,6 +331,7 @@
                         >
                             Hapus
                         </button>
+
                     </form>
 
                     <a
@@ -224,6 +354,7 @@
                         >
                             Catat Transaksi
                         </button>
+
                     </form>
 
                 @else

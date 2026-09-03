@@ -10,6 +10,7 @@ class Jurnal extends Model
         'nomor_jurnal',
         'tanggal',
         'keterangan',
+        'is_system_generated',
         'referensi_type',
         'referensi_id',
         'total_debit',
@@ -20,6 +21,7 @@ class Jurnal extends Model
 
     protected $casts = [
         'tanggal' => 'date',
+        'is_system_generated' => 'boolean',
         'total_debit' => 'decimal:2',
         'total_kredit' => 'decimal:2',
         'is_posted' => 'boolean',
@@ -27,11 +29,17 @@ class Jurnal extends Model
 
     public function details()
     {
-        return $this->hasMany(JurnalDetail::class);
+        return $this->hasMany(
+            JurnalDetail::class,
+            'jurnal_id'
+        );
     }
 
     public function creator()
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(
+            User::class,
+            'created_by'
+        );
     }
 }

@@ -49,4 +49,9 @@ class UangKeluar extends Model
             'UANG_KELUAR'
         );
     }
+
+    public function details()
+{
+    return $this->hasMany(UangKeluarDetail::class);
+}
 }
