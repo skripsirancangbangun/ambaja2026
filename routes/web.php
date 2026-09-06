@@ -151,6 +151,16 @@ Route::middleware('auth')->group(function () {
         [PenjualanController::class, 'pdf']
     )->name('penjualan.pdf');
 
+    Route::post(
+        'penjualan/{penjualan}/konfirmasi',
+        [PenjualanController::class, 'konfirmasi']
+    )->name('penjualan.konfirmasi');
+
+    Route::post(
+        'penjualan/{penjualan}/batalkan',
+        [PenjualanController::class, 'batalkan']
+    )->name('penjualan.batalkan');
+
     Route::resource(
         'penjualan',
         PenjualanController::class
@@ -160,6 +170,11 @@ Route::middleware('auth')->group(function () {
         'invoice-penjualan/{invoicePenjualan}/pdf',
         [InvoicePenjualanController::class, 'pdf']
     )->name('invoice-penjualan.pdf');
+
+    Route::post(
+        'invoice-penjualan/{invoicePenjualan}/kirim-email',
+        [InvoicePenjualanController::class, 'kirimEmail']
+    )->name('invoice-penjualan.kirim-email');
 
     Route::resource(
         'invoice-penjualan',
@@ -606,6 +621,8 @@ Route::post(
     |--------------------------------------------------------------------------
     */
 
+    Route::get('coa/import/template', [CoaController::class, 'downloadTemplate'])->name('coa.import.template');
+    Route::post('coa/import', [CoaController::class, 'import'])->name('coa.import');
     Route::resource('coa', CoaController::class)->except('show');
     Route::resource('jurnal-umum', JurnalUmumController::class)->except(['edit', 'update']);
     Route::get('buku-besar', [BukuBesarController::class, 'index'])->name('buku-besar.index');

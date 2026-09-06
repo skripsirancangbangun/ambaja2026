@@ -5,6 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Akun;
 use App\Models\MutasiKasBank;
 use App\Models\JurnalDetail;
+use App\Models\InvoicePenjualan;
+use App\Models\PenerimaanPiutang;
+use App\Models\UangMasuk;
+use App\Models\UangKeluar;
+use App\Models\PembayaranSupplier;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -101,8 +106,8 @@ class LaporanKeuanganController extends Controller
         $tanggalMulai = $request->input('tanggal_mulai', date('Y-01-01'));
         $tanggalSelesai = $request->input('tanggal_selesai', date('Y-m-d'));
 
-        $pendapatanAkuns = Akun::where('kategori_akun', 'Pendapatan')->orderBy('kode_akun')->get();
-        $bebanAkuns = Akun::where('kategori_akun', 'Beban')->orderBy('kode_akun')->get();
+        $pendapatanAkuns = Akun::whereIn('kategori_akun', ['Penjualan', 'Pendapatan', 'Pendapatan Lain-lain'])->orderBy('kode_akun')->get();
+        $bebanAkuns = Akun::whereIn('kategori_akun', ['HPP', 'Beban', 'Beban Lain-lain', 'Beban Pajak'])->orderBy('kode_akun')->get();
 
         $pendapatanData = [];
         $totalPendapatan = 0;
@@ -234,8 +239,8 @@ class LaporanKeuanganController extends Controller
         $kewajibanData = []; $totalKewajiban = 0;
         foreach ($kewajibanAkuns as $k) { $val = $calcSaldoKumulatif($k); $kewajibanData[] = ['akun' => $k, 'nominal' => $val]; $totalKewajiban += $val; }
 
-        $totPendapatan = Akun::where('kategori_akun', 'Pendapatan')->get()->sum(fn($p) => $calcSaldoKumulatif($p));
-        $totBeban = Akun::where('kategori_akun', 'Beban')->get()->sum(fn($b) => $calcSaldoKumulatif($b));
+        $totPendapatan = Akun::whereIn('kategori_akun', ['Penjualan', 'Pendapatan', 'Pendapatan Lain-lain'])->get()->sum(fn($p) => $calcSaldoKumulatif($p));
+        $totBeban = Akun::whereIn('kategori_akun', ['HPP', 'Beban', 'Beban Lain-lain', 'Beban Pajak'])->get()->sum(fn($b) => $calcSaldoKumulatif($b));
         $labaRugiKumulatif = $totPendapatan - $totBeban;
 
         $ekuitasData = []; $totalEkuitas = 0;
@@ -247,47 +252,46 @@ class LaporanKeuanganController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | ARUS KAS (METODE TIDAK LANGSUNG / INDIRECT METHOD)
+    | ARUS KAS (METODE LANGSUNG / DIRECT METHOD)
     |--------------------------------------------------------------------------
     */
 
     public function arusKas(Request $request)
     {
-        $data = $this->getArusKasIndirectData($request);
+        $data = $this->getArusKasDirectData($request);
         return view('laporan.arus-kas-index', $data);
     }
 
     public function arusKasPdf(Request $request)
     {
-        $data = $this->getArusKasIndirectData($request);
+        $data = $this->getArusKasDirectData($request);
         $pdf = Pdf::loadView('laporan.arus-kas-pdf', $data)->setPaper('a4', 'portrait');
-        return $pdf->stream('laporan-arus-kas-indirect-' . now()->format('Y-m-d-His') . '.pdf');
+        return $pdf->stream('laporan-arus-kas-direct-' . now()->format('Y-m-d-His') . '.pdf');
     }
 
     public function arusKasExcel(Request $request): StreamedResponse
     {
-        $data = $this->getArusKasIndirectData($request);
+        $data = $this->getArusKasDirectData($request);
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Laporan Arus Kas');
 
         $sheet->mergeCells('A1:B1');
-        $sheet->setCellValue('A1', 'LAPORAN ARUS KAS (METODE TIDAK LANGSUNG)');
+        $sheet->setCellValue('A1', 'LAPORAN ARUS KAS (METODE LANGSUNG)');
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
         $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         $rows = [
             ['ARUS KAS DARI AKTIVITAS OPERASIONAL', ''],
-            ['  Laba / (Rugi) Bersih Periode Berjalan', (float) $data['labaBersih']],
-            ['  Penyesuaian untuk merekonsiliasi Laba Bersih:', ''],
-            ['    (Kenaikan) / Penurunan Piutang Dagang', (float) $data['perubahanPiutang']],
-            ['    (Kenaikan) / Penurunan Persediaan Barang', (float) $data['perubahanPersediaan']],
-            ['    Kenaikan / (Penurunan) Utang Dagang', (float) $data['perubahanUtang']],
+            ['  Penerimaan Kas dari Pelanggan & Penjualan', (float) $data['penerimaanPelanggan']],
+            ['  Penerimaan Kas Operasional Lainnya', (float) $data['penerimaanLainnya']],
+            ['  Pembayaran Kas kepada Supplier / Pembelian', -(float) $data['pembayaranSupplier']],
+            ['  Pembayaran Kas untuk Beban Operasional', -(float) $data['pembayaranBeban']],
             ['Arus Kas Bersih dari Aktivitas Operasional', (float) $data['arusKasOperasional']],
             ['', ''],
             ['ARUS KAS DARI AKTIVITAS INVESTASI', ''],
-            ['  Pembelian Aset Tetap / Peralatan', (float) $data['arusKasInvestasi']],
+            ['  Pembelian Aset Tetap / Peralatan', -(float) $data['pembelianAsetTetap']],
             ['Arus Kas Bersih dari Aktivitas Investasi', (float) $data['arusKasInvestasi']],
             ['', ''],
             ['ARUS KAS DARI AKTIVITAS PENDANAAN', ''],
@@ -312,7 +316,7 @@ class LaporanKeuanganController extends Controller
         $sheet->getStyle('B5:B' . $r)->getNumberFormat()->setFormatCode('"Rp" #,##0');
         foreach (range('A', 'B') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
 
-        $filename = 'laporan-arus-kas-indirect-' . now()->format('Y-m-d-His') . '.xlsx';
+        $filename = 'laporan-arus-kas-direct-' . now()->format('Y-m-d-His') . '.xlsx';
         return response()->streamDownload(function () use ($spreadsheet) {
             $writer = new Xlsx($spreadsheet);
             $writer->save('php://output');
@@ -320,66 +324,89 @@ class LaporanKeuanganController extends Controller
         }, $filename, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
     }
 
-    private function getArusKasIndirectData(Request $request): array
+    private function getArusKasDirectData(Request $request): array
     {
         $tanggalMulai = $request->input('tanggal_mulai', date('Y-01-01'));
         $tanggalSelesai = $request->input('tanggal_selesai', date('Y-m-d'));
 
-        // 1. Laba Bersih Periode Ini
-        $labaData = $this->getLabaRugiData($request);
-        $labaBersih = $labaData['labaRugiBersih'];
+        // 1. OPERASIONAL
+        $penjualanTunai = (float) InvoicePenjualan::whereBetween('tanggal_invoice', [$tanggalMulai, $tanggalSelesai])
+            ->where('tipe_pembayaran', 'Tunai')
+            ->where('status_pembayaran', '!=', 'DIBATALKAN')
+            ->sum('total');
 
-        // 2. Perubahan Modal Kerja (Working Capital Adjustments)
-        // Piutang (Kenaikan Debit Piutang = - Kas, Kenaikan Kredit Piutang = + Kas)
-        $piutangAkun = Akun::where('nama_akun', 'like', '%Piutang%')->first();
-        $perubahanPiutang = 0;
-        if ($piutangAkun) {
-            $d = JurnalDetail::where('akun_id', $piutangAkun->id)->whereHas('jurnal', fn($q) => $q->whereDate('tanggal', '>=', $tanggalMulai)->whereDate('tanggal', '<=', $tanggalSelesai))->sum('debit');
-            $k = JurnalDetail::where('akun_id', $piutangAkun->id)->whereHas('jurnal', fn($q) => $q->whereDate('tanggal', '>=', $tanggalMulai)->whereDate('tanggal', '<=', $tanggalSelesai))->sum('kredit');
-            $perubahanPiutang = $k - $d; // Inverted for Cash Flow
-        }
+        $pelunasanPiutang = (float) PenerimaanPiutang::whereBetween('tanggal', [$tanggalMulai, $tanggalSelesai])
+            ->sum('total_dibayar');
 
-        // Persediaan
-        $persediaanAkun = Akun::where('nama_akun', 'like', '%Persediaan%')->first();
-        $perubahanPersediaan = 0;
-        if ($persediaanAkun) {
-            $d = JurnalDetail::where('akun_id', $persediaanAkun->id)->whereHas('jurnal', fn($q) => $q->whereDate('tanggal', '>=', $tanggalMulai)->whereDate('tanggal', '<=', $tanggalSelesai))->sum('debit');
-            $k = JurnalDetail::where('akun_id', $persediaanAkun->id)->whereHas('jurnal', fn($q) => $q->whereDate('tanggal', '>=', $tanggalMulai)->whereDate('tanggal', '<=', $tanggalSelesai))->sum('kredit');
-            $perubahanPersediaan = $k - $d;
-        }
+        $penerimaanPelanggan = $penjualanTunai + $pelunasanPiutang;
 
-        // Utang Dagang (Kenaikan Kredit Utang = + Kas, Kenaikan Debit Utang = - Kas)
-        $utangAkun = Akun::where('nama_akun', 'like', '%Utang%')->first();
-        $perubahanUtang = 0;
-        if ($utangAkun) {
-            $d = JurnalDetail::where('akun_id', $utangAkun->id)->whereHas('jurnal', fn($q) => $q->whereDate('tanggal', '>=', $tanggalMulai)->whereDate('tanggal', '<=', $tanggalSelesai))->sum('debit');
-            $k = JurnalDetail::where('akun_id', $utangAkun->id)->whereHas('jurnal', fn($q) => $q->whereDate('tanggal', '>=', $tanggalMulai)->whereDate('tanggal', '<=', $tanggalSelesai))->sum('kredit');
-            $perubahanUtang = $k - $d;
-        }
+        $penerimaanLainnya = (float) UangMasuk::whereBetween('tanggal', [$tanggalMulai, $tanggalSelesai])
+            ->sum('nominal');
 
-        $arusKasOperasional = $labaBersih + $perubahanPiutang + $perubahanPersediaan + $perubahanUtang;
+        $pembayaranSupplier = (float) PembayaranSupplier::whereBetween('tanggal', [$tanggalMulai, $tanggalSelesai])
+            ->sum('total_dibayar');
 
-        // Investasi & Pendanaan
-        $pembelianAset = MutasiKasBank::whereBetween('tanggal', [$tanggalMulai, $tanggalSelesai])->where('jenis_transaksi', 'KELUAR')->where('ref_type', 'INVESTASI')->sum('nominal');
-        $arusKasInvestasi = -$pembelianAset;
+        $pembayaranBeban = (float) UangKeluar::whereBetween('tanggal', [$tanggalMulai, $tanggalSelesai])
+            ->sum('total');
 
-        $setoranModal = MutasiKasBank::whereBetween('tanggal', [$tanggalMulai, $tanggalSelesai])->where('jenis_transaksi', 'MASUK')->where('ref_type', 'MODAL_SETOR')->sum('nominal');
-        $penarikanPrive = MutasiKasBank::whereBetween('tanggal', [$tanggalMulai, $tanggalSelesai])->where('jenis_transaksi', 'KELUAR')->where('ref_type', 'PRIVE')->sum('nominal');
+        $totalPenerimaanOperasional = $penerimaanPelanggan + $penerimaanLainnya;
+        $totalPengeluaranOperasional = $pembayaranSupplier + $pembayaranBeban;
+        $arusKasOperasional = $totalPenerimaanOperasional - $totalPengeluaranOperasional;
+
+        // 2. INVESTASI
+        $pembelianAsetTetap = (float) MutasiKasBank::whereBetween('tanggal', [$tanggalMulai, $tanggalSelesai])
+            ->where('kredit', '>', 0)
+            ->where('reference_type', 'INVESTASI')
+            ->sum('kredit');
+
+        $arusKasInvestasi = -$pembelianAsetTetap;
+
+        // 3. PENDANAAN
+        $setoranModal = (float) MutasiKasBank::whereBetween('tanggal', [$tanggalMulai, $tanggalSelesai])
+            ->where('debit', '>', 0)
+            ->where('reference_type', 'MODAL_SETOR')
+            ->sum('debit');
+
+        $penarikanPrive = (float) MutasiKasBank::whereBetween('tanggal', [$tanggalMulai, $tanggalSelesai])
+            ->where('kredit', '>', 0)
+            ->where('reference_type', 'PRIVE')
+            ->sum('kredit');
+
         $arusKasPendanaan = $setoranModal - $penarikanPrive;
 
+        // SUMMARY KAS & BANK
         $kenaikanBersihKas = $arusKasOperasional + $arusKasInvestasi + $arusKasPendanaan;
-        $kasAkuns = Akun::where('kategori_akun', 'Aset')->where('sub_kategori', 'Aset Lancar')->where(fn($q) => $q->where('nama_akun', 'like', '%Kas%')->orWhere('nama_akun', 'like', '%Bank%'))->get();
-        $saldoKasAwal = $kasAkuns->sum(fn($k) => $k->saldo_awal);
+
+        $kasAkuns = Akun::where('kategori_akun', 'Aset')
+            ->where('sub_kategori', 'Aset Lancar')
+            ->where(fn($q) => $q->where('nama_akun', 'like', '%Kas%')->orWhere('nama_akun', 'like', '%Bank%'))
+            ->get();
+
+        $saldoKasAwal = $kasAkuns->sum(function ($akun) use ($tanggalMulai) {
+            $debit = JurnalDetail::where('akun_id', $akun->id)
+                ->whereHas('jurnal', fn($q) => $q->whereDate('tanggal', '<', $tanggalMulai))
+                ->sum('debit');
+
+            $kredit = JurnalDetail::where('akun_id', $akun->id)
+                ->whereHas('jurnal', fn($q) => $q->whereDate('tanggal', '<', $tanggalMulai))
+                ->sum('kredit');
+
+            return (float) $akun->saldo_awal + ($debit - $kredit);
+        });
+
         $saldoKasAkhir = $saldoKasAwal + $kenaikanBersihKas;
 
         return compact(
             'tanggalMulai',
             'tanggalSelesai',
-            'labaBersih',
-            'perubahanPiutang',
-            'perubahanPersediaan',
-            'perubahanUtang',
+            'penerimaanPelanggan',
+            'penerimaanLainnya',
+            'pembayaranSupplier',
+            'pembayaranBeban',
+            'totalPenerimaanOperasional',
+            'totalPengeluaranOperasional',
             'arusKasOperasional',
+            'pembelianAsetTetap',
             'arusKasInvestasi',
             'setoranModal',
             'penarikanPrive',
@@ -453,8 +480,8 @@ class LaporanKeuanganController extends Controller
         $modalAkuns = Akun::where('kategori_akun', 'Ekuitas')->get();
         $modalAwal = $modalAkuns->where('nama_akun', '!=', 'Prive Owner')->sum('saldo_awal');
 
-        $pendapatanAkuns = Akun::where('kategori_akun', 'Pendapatan')->get();
-        $bebanAkuns = Akun::where('kategori_akun', 'Beban')->get();
+        $pendapatanAkuns = Akun::whereIn('kategori_akun', ['Penjualan', 'Pendapatan', 'Pendapatan Lain-lain'])->get();
+        $bebanAkuns = Akun::whereIn('kategori_akun', ['HPP', 'Beban', 'Beban Lain-lain', 'Beban Pajak'])->get();
 
         $totPendapatan = 0;
         foreach ($pendapatanAkuns as $p) {

@@ -79,7 +79,7 @@
                         class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:border-[#32AAA6] focus:bg-white focus:outline-none"
                     >
                         <option value="">-- Pilih Kategori --</option>
-                        @foreach(['Aset', 'Kewajiban', 'Ekuitas', 'Pendapatan', 'Beban'] as $kat)
+                        @foreach(['Aset', 'Kewajiban', 'Ekuitas', 'Penjualan', 'HPP', 'Beban', 'Pendapatan Lain-lain', 'Beban Lain-lain', 'Beban Pajak'] as $kat)
                             <option value="{{ $kat }}" {{ old('kategori_akun') == $kat ? 'selected' : '' }}>{{ $kat }}</option>
                         @endforeach
                     </select>
@@ -112,20 +112,6 @@
                         <option value="DEBIT" {{ old('saldo_normal') == 'DEBIT' ? 'selected' : '' }}>DEBIT</option>
                         <option value="KREDIT" {{ old('saldo_normal') == 'KREDIT' ? 'selected' : '' }}>KREDIT</option>
                     </select>
-                </div>
-
-                {{-- Saldo Awal --}}
-                <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">
-                        Saldo Awal (Rp)
-                    </label>
-                    <input
-                        type="number"
-                        name="saldo_awal"
-                        value="{{ old('saldo_awal', 0) }}"
-                        step="100"
-                        class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:border-[#32AAA6] focus:bg-white focus:outline-none"
-                    >
                 </div>
             </div>
 

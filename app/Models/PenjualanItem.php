@@ -10,6 +10,7 @@ class PenjualanItem extends Model
         'penjualan_id',
         'barang_id',
         'qty',
+        'qty_terinvoice',
         'harga_satuan',
         'diskon',
         'subtotal',
@@ -18,6 +19,7 @@ class PenjualanItem extends Model
 
     protected $casts = [
         'qty' => 'decimal:2',
+        'qty_terinvoice' => 'decimal:2',
         'harga_satuan' => 'decimal:2',
         'diskon' => 'decimal:2',
         'subtotal' => 'decimal:2',

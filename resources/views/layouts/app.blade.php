@@ -932,13 +932,6 @@
                     </a>
 
                     <a
-                        href="{{ route('pengaturan-penomoran.index') }}"
-                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('pengaturan-penomoran.*') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
-                    >
-                        Format Penomoran Jurnal & Dokumen
-                    </a>
-
-                    <a
                         href="{{ route('penutupan-periode.index') }}"
                         class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('penutupan-periode.*') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
                     >

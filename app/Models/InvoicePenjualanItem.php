@@ -11,6 +11,8 @@ class InvoicePenjualanItem extends Model
         'barang_id',
         'qty',
         'harga_satuan',
+        'hpp_satuan',
+        'total_hpp',
         'diskon',
         'subtotal',
         'catatan',
@@ -19,6 +21,8 @@ class InvoicePenjualanItem extends Model
     protected $casts = [
         'qty' => 'decimal:2',
         'harga_satuan' => 'decimal:2',
+        'hpp_satuan' => 'decimal:2',
+        'total_hpp' => 'decimal:2',
         'diskon' => 'decimal:2',
         'subtotal' => 'decimal:2',
     ];

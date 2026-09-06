@@ -38,6 +38,32 @@
             >
                 🖨️ Cetak PDF
             </a>
+            @if($penjualan->status === 'Draft')
+                <form action="{{ route('penjualan.konfirmasi', $penjualan) }}" method="POST" class="inline">
+                    @csrf
+                    <button
+                        type="submit"
+                        class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                        onclick="return confirm('Konfirmasi Sales Order ini?')"
+                    >
+                        ✓ Konfirmasi SO
+                    </button>
+                </form>
+            @endif
+
+            @if(in_array($penjualan->status, ['Draft', 'Dikonfirmasi']))
+                <form action="{{ route('penjualan.batalkan', $penjualan) }}" method="POST" class="inline">
+                    @csrf
+                    <button
+                        type="submit"
+                        class="rounded-xl bg-rose-50 px-4 py-2 text-sm font-medium text-rose-600 transition hover:bg-rose-100"
+                        onclick="return confirm('Batalkan Sales Order ini?')"
+                    >
+                        ✕ Batalkan SO
+                    </button>
+                </form>
+            @endif
+
             @if(!in_array($penjualan->status, ['Selesai', 'Dibatalkan']))
                 <a
                     href="{{ route('penjualan.edit', $penjualan) }}"

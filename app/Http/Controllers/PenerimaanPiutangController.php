@@ -7,6 +7,7 @@ use App\Models\InvoicePenjualan;
 use App\Models\PenerimaanPiutang;
 use App\Models\PenerimaanPiutangDetail;
 use App\Models\RekeningKasBank;
+use App\Services\KasBankService;
 use App\Services\SystemAccountingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,6 +41,7 @@ class PenerimaanPiutangController extends Controller
         $invoices = collect();
         if ($selectedCustomerId) {
             $invoices = InvoicePenjualan::where('customer_id', $selectedCustomerId)
+                ->whereNotIn('status_pembayaran', ['Lunas', 'DIBATALKAN'])
                 ->where('sisa_piutang', '>', 0)
                 ->orderBy('tanggal_jatuh_tempo')
                 ->get();
@@ -56,7 +58,7 @@ class PenerimaanPiutangController extends Controller
         ));
     }
 
-    public function store(Request $request)
+    public function store(Request $request, KasBankService $kasBankService)
     {
         $validated = $request->validate([
             'nomor_penerimaan' => 'required|string|unique:penerimaan_piutangs,nomor_penerimaan',
@@ -86,12 +88,29 @@ class PenerimaanPiutangController extends Controller
                 'rekening_kas_bank_id' => $validated['rekening_kas_bank_id'],
                 'tanggal' => $validated['tanggal'],
                 'total_dibayar' => $totalDibayar,
-                'catatan' => $validated['catatan'],
+                'catatan' => $validated['catatan'] ?? null,
                 'created_by_user_id' => auth()->id() ?? 1,
             ]);
 
             foreach ($validated['alokasi'] as $item) {
                 if ($item['bayar'] > 0) {
+                    $inv = InvoicePenjualan::lockForUpdate()->findOrFail($item['invoice_id']);
+
+                    // Security Check 1: Invoice customer_id must match
+                    if ($inv->customer_id != $validated['customer_id']) {
+                        throw new \RuntimeException("Invoice {$inv->nomor_invoice} bukan milik customer yang dipilih.");
+                    }
+
+                    // Security Check 2: Exclude DIBATALKAN / Lunas
+                    if (in_array($inv->status_pembayaran, ['Lunas', 'DIBATALKAN']) || $inv->sisa_piutang <= 0) {
+                        throw new \RuntimeException("Invoice {$inv->nomor_invoice} sudah lunas atau dibatalkan.");
+                    }
+
+                    // Security Check 3: Overpayment prevention
+                    if ($item['bayar'] > (float) $inv->sisa_piutang) {
+                        throw new \RuntimeException("Nominal bayar untuk invoice {$inv->nomor_invoice} (Rp " . number_format($item['bayar'], 0, ',', '.') . ") melebihi sisa piutang (Rp " . number_format($inv->sisa_piutang, 0, ',', '.') . ").");
+                    }
+
                     PenerimaanPiutangDetail::create([
                         'penerimaan_piutang_id' => $penerimaan->id,
                         'invoice_penjualan_id' => $item['invoice_id'],
@@ -99,10 +118,9 @@ class PenerimaanPiutangController extends Controller
                     ]);
 
                     // Update sisa piutang di Invoice Penjualan
-                    $inv = InvoicePenjualan::find($item['invoice_id']);
                     $sudahDibayarBaru = $inv->sudah_dibayar + $item['bayar'];
                     $sisaPiutangBaru = max(0, $inv->total - $sudahDibayarBaru);
-                    $statusPembayaranBaru = $sisaPiutangBaru <= 0 ? 'Lunas' : 'Sebagian';
+                    $statusPembayaranBaru = $sisaPiutangBaru <= 0.01 ? 'Lunas' : 'Sebagian';
 
                     $inv->update([
                         'sudah_dibayar' => $sudahDibayarBaru,
@@ -112,13 +130,25 @@ class PenerimaanPiutangController extends Controller
                 }
             }
 
+            // Catat Mutasi Kas/Bank Masuk
+            $customer = Customer::find($validated['customer_id']);
+            $kasBankService->uangMasuk(
+                $validated['rekening_kas_bank_id'],
+                $totalDibayar,
+                'PENERIMAAN_PIUTANG',
+                $penerimaan->id,
+                $penerimaan->nomor_penerimaan,
+                'Penerimaan Pembayaran Piutang - ' . ($customer->nama_customer ?? ''),
+                $validated['tanggal']
+            );
+
             // Auto-Journaling Pelunasan & Kartu Piutang
             $this->accountingService->autoJournalPenerimaanPiutang($penerimaan);
 
             DB::commit();
 
             return redirect()->route('piutang.penerimaan.index')
-                ->with('success', 'Penerimaan piutang berhasil disimpan, kartu piutang & jurnal telah diperbarui.');
+                ->with('success', 'Penerimaan piutang berhasil disimpan, Kas/Bank, kartu piutang & jurnal telah diperbarui.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withInput()->with('error', 'Gagal menyimpan penerimaan piutang: ' . $e->getMessage());
@@ -132,6 +162,7 @@ class PenerimaanPiutangController extends Controller
         $pdf = Pdf::loadView('piutang.kwitansi-pdf', compact('penerimaan'))
             ->setPaper('a5', 'landscape');
 
-        return $pdf->stream('kwitansi-' . $penerimaan->nomor_penerimaan . '.pdf');
+        $safeNumber = str_replace(['/', '\\'], '-', $penerimaan->nomor_penerimaan);
+        return $pdf->stream('kwitansi-' . $safeNumber . '.pdf');
     }
 }

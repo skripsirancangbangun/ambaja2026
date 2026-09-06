@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Laporan Arus Kas (Metode Tidak Langsung)</title>
+    <title>Laporan Arus Kas (Metode Langsung)</title>
     <style>
         @page { margin: 25px 30px; }
         body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #1e293b; }
@@ -21,27 +21,27 @@
 <body>
 
     <div class="header">
-        <h1>LAPORAN ARUS KAS (METODE TIDAK LANGSUNG)</h1>
+        <h1>LAPORAN ARUS KAS (METODE LANGSUNG)</h1>
         <p>CV Andika Mustika (Ambaja) | Periode: {{ date('d/m/Y', strtotime($tanggalMulai)) }} s/d {{ date('d/m/Y', strtotime($tanggalSelesai)) }}</p>
     </div>
 
     <div class="section-title">1. ARUS KAS DARI AKTIVITAS OPERASIONAL</div>
     <table class="data">
         <tr>
-            <td><strong>Laba / (Rugi) Bersih Periode Berjalan</strong></td>
-            <td class="right"><strong>Rp {{ number_format($labaBersih, 0, ',', '.') }}</strong></td>
+            <td style="padding-left: 10px;">Penerimaan Kas dari Pelanggan & Penjualan</td>
+            <td class="right" style="color: #059669;">Rp {{ number_format($penerimaanPelanggan, 0, ',', '.') }}</td>
         </tr>
         <tr>
-            <td style="padding-left: 15px;">(Kenaikan) / Penurunan Piutang Dagang</td>
-            <td class="right">{{ $perubahanPiutang >= 0 ? '+' : '' }} Rp {{ number_format($perubahanPiutang, 0, ',', '.') }}</td>
+            <td style="padding-left: 10px;">Penerimaan Kas Operasional Lainnya</td>
+            <td class="right" style="color: #059669;">Rp {{ number_format($penerimaanLainnya, 0, ',', '.') }}</td>
         </tr>
         <tr>
-            <td style="padding-left: 15px;">(Kenaikan) / Penurunan Persediaan Barang</td>
-            <td class="right">{{ $perubahanPersediaan >= 0 ? '+' : '' }} Rp {{ number_format($perubahanPersediaan, 0, ',', '.') }}</td>
+            <td style="padding-left: 10px;">Pembayaran Kas kepada Supplier / Pembelian</td>
+            <td class="right" style="color: #e11d48;">- Rp {{ number_format($pembayaranSupplier, 0, ',', '.') }}</td>
         </tr>
         <tr>
-            <td style="padding-left: 15px;">Kenaikan / (Penurunan) Utang Dagang</td>
-            <td class="right">{{ $perubahanUtang >= 0 ? '+' : '' }} Rp {{ number_format($perubahanUtang, 0, ',', '.') }}</td>
+            <td style="padding-left: 10px;">Pembayaran Kas untuk Beban Operasional & Administrasi</td>
+            <td class="right" style="color: #e11d48;">- Rp {{ number_format($pembayaranBeban, 0, ',', '.') }}</td>
         </tr>
         <tr class="total-row">
             <td>Arus Kas Bersih Operasional</td>

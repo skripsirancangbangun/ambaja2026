@@ -12,7 +12,7 @@
             Laporan Arus Kas (Cash Flow)
         </h2>
         <p class="mt-1 text-sm text-slate-500">
-            Metode Tidak Langsung (Indirect Method) berdasarkan rekonsiliasi Laba Bersih & Modal Kerja.
+            Metode Langsung (Direct Method) berdasarkan penerimaan & pengeluaran kas riil operasional, investasi, dan pendanaan.
         </p>
     </div>
 
@@ -70,7 +70,7 @@
         <div class="flex flex-col gap-4 border-b border-slate-200 pb-4 md:flex-row md:items-center md:justify-between">
             <div>
                 <h3 class="text-lg font-bold text-[#15235F]">CV AMBAJA (ANDIKA MUSTIKA)</h3>
-                <p class="text-sm font-semibold text-slate-700">LAPORAN ARUS KAS (METODE TIDAK LANGSUNG)</p>
+                <p class="text-sm font-semibold text-slate-700">LAPORAN ARUS KAS (METODE LANGSUNG)</p>
                 <p class="text-xs text-slate-500">Periode {{ date('d/m/Y', strtotime($tanggalMulai)) }} s/d {{ date('d/m/Y', strtotime($tanggalSelesai)) }}</p>
             </div>
 
@@ -99,41 +99,45 @@
             </div>
         </div>
 
-        {{-- 1. OPERASIONAL (INDIRECT) --}}
+        {{-- 1. OPERASIONAL (DIRECT) --}}
         <div class="space-y-3">
             <h4 class="text-sm font-bold uppercase tracking-wider text-[#15235F] border-b border-slate-100 pb-2">
                 1. ARUS KAS DARI AKTIVITAS OPERASIONAL
             </h4>
             <div class="space-y-2 text-sm pl-4">
-                <div class="flex justify-between font-semibold text-slate-800">
-                    <span>Laba / (Rugi) Bersih Periode Berjalan</span>
-                    <span class="{{ $labaBersih >= 0 ? 'text-emerald-700' : 'text-rose-600' }}">
-                        Rp {{ number_format($labaBersih, 0, ',', '.') }}
+                <div class="text-xs font-semibold uppercase tracking-wider text-slate-400 pt-1">
+                    Penerimaan Kas Operasional:
+                </div>
+
+                <div class="flex justify-between text-slate-700 pl-4">
+                    <span>Penerimaan Kas dari Pelanggan & Penjualan</span>
+                    <span class="font-semibold text-emerald-600">
+                        Rp {{ number_format($penerimaanPelanggan, 0, ',', '.') }}
+                    </span>
+                </div>
+
+                <div class="flex justify-between text-slate-700 pl-4">
+                    <span>Penerimaan Kas Operasional Lainnya</span>
+                    <span class="font-semibold text-emerald-600">
+                        Rp {{ number_format($penerimaanLainnya, 0, ',', '.') }}
                     </span>
                 </div>
 
                 <div class="text-xs font-semibold uppercase tracking-wider text-slate-400 pt-2">
-                    Penyesuaian Modal Kerja (Working Capital):
+                    Pengeluaran Kas Operasional:
                 </div>
 
                 <div class="flex justify-between text-slate-700 pl-4">
-                    <span>(Kenaikan) / Penurunan Piutang Dagang</span>
-                    <span class="{{ $perubahanPiutang >= 0 ? 'text-emerald-600' : 'text-rose-600' }}">
-                        {{ $perubahanPiutang >= 0 ? '+' : '' }} Rp {{ number_format($perubahanPiutang, 0, ',', '.') }}
+                    <span>Pembayaran Kas kepada Supplier / Pembelian</span>
+                    <span class="font-semibold text-rose-600">
+                        - Rp {{ number_format($pembayaranSupplier, 0, ',', '.') }}
                     </span>
                 </div>
 
                 <div class="flex justify-between text-slate-700 pl-4">
-                    <span>(Kenaikan) / Penurunan Persediaan Barang</span>
-                    <span class="{{ $perubahanPersediaan >= 0 ? 'text-emerald-600' : 'text-rose-600' }}">
-                        {{ $perubahanPersediaan >= 0 ? '+' : '' }} Rp {{ number_format($perubahanPersediaan, 0, ',', '.') }}
-                    </span>
-                </div>
-
-                <div class="flex justify-between text-slate-700 pl-4">
-                    <span>Kenaikan / (Penurunan) Utang Dagang</span>
-                    <span class="{{ $perubahanUtang >= 0 ? 'text-emerald-600' : 'text-rose-600' }}">
-                        {{ $perubahanUtang >= 0 ? '+' : '' }} Rp {{ number_format($perubahanUtang, 0, ',', '.') }}
+                    <span>Pembayaran Kas untuk Beban Operasional & Administrasi</span>
+                    <span class="font-semibold text-rose-600">
+                        - Rp {{ number_format($pembayaranBeban, 0, ',', '.') }}
                     </span>
                 </div>
             </div>

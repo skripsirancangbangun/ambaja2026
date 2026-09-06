@@ -94,10 +94,20 @@ public function invoiceSupplierItems()
 |--------------------------------------------------------------------------
 */
 
-public function returPembelianDetails()
-{
-    return $this->hasMany(
-        ReturPembelianDetail::class
-    );
-}
+    public function returPembelianDetails()
+    {
+        return $this->hasMany(
+            ReturPembelianDetail::class
+        );
+    }
+
+    public function stokGudangs()
+    {
+        return $this->hasMany(StokGudang::class);
+    }
+
+    public function getStokQty($gudangId)
+    {
+        return $this->stokGudangs->where('gudang_id', $gudangId)->first()?->qty ?? 0;
+    }
 }

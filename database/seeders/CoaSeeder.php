@@ -38,15 +38,15 @@ class CoaSeeder extends Seeder
             ['kode_akun' => '3102', 'nama_akun' => 'Laba Ditahan', 'kategori_akun' => 'Ekuitas', 'sub_kategori' => 'Ekuitas', 'saldo_normal' => 'KREDIT', 'saldo_awal' => 31100000],
             ['kode_akun' => '3103', 'nama_akun' => 'Prive Owner', 'kategori_akun' => 'Ekuitas', 'sub_kategori' => 'Ekuitas', 'saldo_normal' => 'DEBIT', 'saldo_awal' => 0],
 
-            // PENDAPATAN (4-1000s)
-            ['kode_akun' => '4101', 'nama_akun' => 'Pendapatan Penjualan Barang', 'kategori_akun' => 'Pendapatan', 'sub_kategori' => 'Pendapatan', 'saldo_normal' => 'KREDIT', 'saldo_awal' => 0],
-            ['kode_akun' => '4102', 'nama_akun' => 'Diskon Penjualan', 'kategori_akun' => 'Pendapatan', 'sub_kategori' => 'Pendapatan', 'saldo_normal' => 'DEBIT', 'saldo_awal' => 0],
+            // PENDAPATAN / PENJUALAN (4-1000s)
+            ['kode_akun' => '4101', 'nama_akun' => 'Pendapatan Penjualan Barang', 'kategori_akun' => 'Penjualan', 'sub_kategori' => 'Penjualan', 'saldo_normal' => 'KREDIT', 'saldo_awal' => 0],
+            ['kode_akun' => '4102', 'nama_akun' => 'Diskon Penjualan', 'kategori_akun' => 'Penjualan', 'sub_kategori' => 'Penjualan', 'saldo_normal' => 'DEBIT', 'saldo_awal' => 0],
 
             // PENDAPATAN LAIN-LAIN (4-2000s)
-            ['kode_akun' => '4201', 'nama_akun' => 'Pendapatan Lain-lain', 'kategori_akun' => 'Pendapatan', 'sub_kategori' => 'Pendapatan Lain-Lain', 'saldo_normal' => 'KREDIT', 'saldo_awal' => 0],
+            ['kode_akun' => '4201', 'nama_akun' => 'Pendapatan Lain-lain', 'kategori_akun' => 'Pendapatan Lain-lain', 'sub_kategori' => 'Pendapatan Lain-Lain', 'saldo_normal' => 'KREDIT', 'saldo_awal' => 0],
 
             // HARGA POKOK PENJUALAN / HPP (5-0000s)
-            ['kode_akun' => '5101', 'nama_akun' => 'Harga Pokok Penjualan (HPP)', 'kategori_akun' => 'Beban', 'sub_kategori' => 'Harga Pokok Penjualan', 'saldo_normal' => 'DEBIT', 'saldo_awal' => 0],
+            ['kode_akun' => '5101', 'nama_akun' => 'Harga Pokok Penjualan (HPP)', 'kategori_akun' => 'HPP', 'sub_kategori' => 'Harga Pokok Penjualan', 'saldo_normal' => 'DEBIT', 'saldo_awal' => 0],
 
             // BEBAN OPERASIONAL (6-1000s)
             ['kode_akun' => '6101', 'nama_akun' => 'Beban Gaji Karyawan', 'kategori_akun' => 'Beban', 'sub_kategori' => 'Beban Operasional', 'saldo_normal' => 'DEBIT', 'saldo_awal' => 0],
@@ -57,10 +57,10 @@ class CoaSeeder extends Seeder
             ['kode_akun' => '6106', 'nama_akun' => 'Beban Penyusutan Aset', 'kategori_akun' => 'Beban', 'sub_kategori' => 'Beban Operasional', 'saldo_normal' => 'DEBIT', 'saldo_awal' => 0],
 
             // BEBAN LAIN-LAIN (6-2000s)
-            ['kode_akun' => '6201', 'nama_akun' => 'Beban Administrasi Bank', 'kategori_akun' => 'Beban', 'sub_kategori' => 'Beban Lain-Lain', 'saldo_normal' => 'DEBIT', 'saldo_awal' => 0],
+            ['kode_akun' => '6201', 'nama_akun' => 'Beban Administrasi Bank', 'kategori_akun' => 'Beban Lain-lain', 'sub_kategori' => 'Beban Lain-Lain', 'saldo_normal' => 'DEBIT', 'saldo_awal' => 0],
 
-            // PAJAK (6-3000s)
-            ['kode_akun' => '6301', 'nama_akun' => 'Beban Pajak Penghasilan (PPh)', 'kategori_akun' => 'Beban', 'sub_kategori' => 'Pajak', 'saldo_normal' => 'DEBIT', 'saldo_awal' => 0],
+            // BEBAN PAJAK (6-3000s)
+            ['kode_akun' => '6301', 'nama_akun' => 'Beban Pajak Penghasilan (PPh)', 'kategori_akun' => 'Beban Pajak', 'sub_kategori' => 'Pajak', 'saldo_normal' => 'DEBIT', 'saldo_awal' => 0],
         ];
 
         foreach ($akuns as $a) {

@@ -62,17 +62,14 @@
                     </select>
                 </div>
 
-                {{-- Status --}}
+                {{-- Status (Read-Only) --}}
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Status</label>
-                    <select
-                        name="status"
-                        class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:border-[#32AAA6] focus:bg-white focus:outline-none"
-                    >
-                        @foreach(['Draft', 'Dikonfirmasi', 'Diproses', 'Selesai', 'Dibatalkan'] as $st)
-                            <option value="{{ $st }}" {{ old('status', $penjualan->status) == $st ? 'selected' : '' }}>{{ $st }}</option>
-                        @endforeach
-                    </select>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Status SO</label>
+                    <div class="mt-2.5">
+                        <span class="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 border border-blue-200">
+                            {{ $penjualan->status }} (Otomatis)
+                        </span>
+                    </div>
                 </div>
 
                 {{-- Gudang --}}
@@ -169,8 +166,9 @@
                                     >
                                         <option value="">-- Pilih Barang --</option>
                                         @foreach($barangs as $barang)
-                                            <option value="{{ $barang->id }}" data-harga="{{ $barang->harga_jual }}">
-                                                {{ $barang->kode_barang }} - {{ $barang->nama_barang }}
+                                            @php $stokTotal = $barang->stokGudangs->sum('qty'); @endphp
+                                            <option value="{{ $barang->id }}" data-harga="{{ $barang->harga_jual }}" data-stok="{{ $stokTotal }}">
+                                                {{ $barang->kode_barang }} - {{ $barang->nama_barang }} (Stok: {{ number_format($stokTotal, 0, ',', '.') }})
                                             </option>
                                         @endforeach
                                     </select>
@@ -269,14 +267,7 @@
 function salesOrderEditForm() {
     return {
         pajakPersen: {{ $penjualan->pajak_persen ?? 0 }},
-        items: @json($penjualan->items->map(function($i) {
-            return [
-                'barang_id' => $i->barang_id,
-                'qty' => (float) $i->qty,
-                'harga_satuan' => (float) $i->harga_satuan,
-                'diskon' => (float) $i->diskon,
-            ];
-        })),
+        items: @json($initialItems),
         barangsData: @json($barangs->keyBy('id')),
 
         addItem() {
@@ -288,7 +279,12 @@ function salesOrderEditForm() {
         onBarangChange(index) {
             const barangId = this.items[index].barang_id;
             if (barangId && this.barangsData[barangId]) {
-                this.items[index].harga_satuan = parseFloat(this.barangsData[barangId].harga_jual) || 0;
+                const b = this.barangsData[barangId];
+                let harga = parseFloat(b.harga_jual) || 0;
+                if (harga <= 0 && parseFloat(b.harga_beli_default) > 0) {
+                    harga = Math.round(parseFloat(b.harga_beli_default) * 1.15);
+                }
+                this.items[index].harga_satuan = harga;
             }
         },
         calculateSubtotal() {

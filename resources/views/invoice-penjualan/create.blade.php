@@ -239,8 +239,9 @@
                                     >
                                         <option value="">-- Pilih Barang --</option>
                                         @foreach($barangs as $barang)
-                                            <option value="{{ $barang->id }}" data-harga="{{ $barang->harga_jual }}" data-stok="{{ $barang->stoks_sum_jumlah ?? 0 }}">
-                                                {{ $barang->kode_barang }} - {{ $barang->nama_barang }} (Stok: {{ number_format($barang->stoks_sum_jumlah ?? 0, 0, ',', '.') }})
+                                            @php $stokTotal = $barang->stokGudangs->sum('qty'); @endphp
+                                            <option value="{{ $barang->id }}" data-harga="{{ $barang->harga_jual }}" data-stok="{{ $stokTotal }}">
+                                                {{ $barang->kode_barang }} - {{ $barang->nama_barang }} (Stok: {{ number_format($stokTotal, 0, ',', '.') }})
                                             </option>
                                         @endforeach
                                     </select>
@@ -355,7 +356,12 @@ function invoiceForm() {
         onBarangChange(index) {
             const barangId = this.items[index].barang_id;
             if (barangId && this.barangsData[barangId]) {
-                this.items[index].harga_satuan = parseFloat(this.barangsData[barangId].harga_jual) || 0;
+                const b = this.barangsData[barangId];
+                let harga = parseFloat(b.harga_jual) || 0;
+                if (harga <= 0 && parseFloat(b.harga_beli_default) > 0) {
+                    harga = Math.round(parseFloat(b.harga_beli_default) * 1.15);
+                }
+                this.items[index].harga_satuan = harga;
             }
         },
         onPenjualanChange() {

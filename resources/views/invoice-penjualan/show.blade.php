@@ -28,10 +28,22 @@
                         Belum Lunas
                     </span>
                 @endif
+                @if($invoicePenjualan->is_email_sent)
+                    <span class="inline-flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700 border border-teal-200" title="Terkirim ke {{ $invoicePenjualan->email_sent_to }}">
+                        ✓ Email Terkirim ({{ $invoicePenjualan->email_sent_at ? $invoicePenjualan->email_sent_at->format('d/m/Y H:i') : '' }})
+                    </span>
+                @endif
             </div>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2" x-data="{ showEmailModal: false }">
+            <button
+                type="button"
+                @click="showEmailModal = true"
+                class="rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-medium text-teal-800 transition hover:bg-teal-100"
+            >
+                📧 Kirim Email Bukti Invoice
+            </button>
             <a
                 href="{{ route('invoice-penjualan.pdf', $invoicePenjualan) }}"
                 target="_blank"
@@ -53,6 +65,43 @@
             >
                 ↩️ Buat Retur
             </a>
+
+            {{-- MODAL KIRIM EMAIL --}}
+            <div x-show="showEmailModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+                <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" @click.away="showEmailModal = false">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <h3 class="text-base font-semibold text-slate-800">Kirim Bukti Invoice via Email</h3>
+                        <button type="button" @click="showEmailModal = false" class="text-slate-400 hover:text-slate-600">✕</button>
+                    </div>
+                    <form action="{{ route('invoice-penjualan.kirim-email', $invoicePenjualan) }}" method="POST" class="mt-4 space-y-4">
+                        @csrf
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Email Pengirim (CV Andika)</label>
+                            <input type="email" value="ezicraft88@gmail.com" readonly class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2 text-sm text-slate-600">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Email Pelanggan / Penerima <span class="text-rose-500">*</span></label>
+                            <input
+                                type="email"
+                                name="email_tujuan"
+                                value="{{ old('email_tujuan', $invoicePenjualan->customer->email ?? 'ezicraft88@gmail.com') }}"
+                                required
+                                class="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-800 focus:border-[#32AAA6] focus:outline-none"
+                                placeholder="nama@pelanggan.com"
+                            >
+                            <p class="mt-1 text-[11px] text-slate-400">File bukti PDF Invoice #{{ $invoicePenjualan->nomor_invoice }} akan disertakan secara otomatis.</p>
+                        </div>
+                        <div class="flex justify-end gap-2 pt-2">
+                            <button type="button" @click="showEmailModal = false" class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                                Batal
+                            </button>
+                            <button type="submit" class="rounded-xl bg-[#15235F] px-5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#101b4d]">
+                                📤 Kirim Email Sekarang
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 

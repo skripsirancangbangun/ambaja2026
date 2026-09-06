@@ -190,9 +190,18 @@ class InventoryService
                     ->first();
 
                 if (!$stok) {
-                    throw new RuntimeException(
-                        'Stok barang di gudang tidak ditemukan.'
-                    );
+                    StokGudang::create([
+                        'barang_id' => $barangId,
+                        'gudang_id' => $gudangId,
+                        'qty' => 0,
+                        'harga_rata_rata' => 0,
+                        'nilai_persediaan' => 0,
+                    ]);
+
+                    $stok = StokGudang::where('barang_id', $barangId)
+                        ->where('gudang_id', $gudangId)
+                        ->lockForUpdate()
+                        ->firstOrFail();
                 }
 
                 $this->validateUrutanTanggal(
@@ -204,8 +213,10 @@ class InventoryService
                 $qtyLama = (float) $stok->qty;
 
                 if ($qty > $qtyLama) {
+                    $barang = \App\Models\Barang::find($barangId);
+                    $namaBarang = $barang ? "{$barang->kode_barang} - {$barang->nama_barang}" : "ID {$barangId}";
                     throw new RuntimeException(
-                        'Stok tidak mencukupi.'
+                        "Stok barang '{$namaBarang}' di gudang yang dipilih tidak mencukupi. (Stok tersedia: " . number_format($qtyLama, 0, ',', '.') . ", Dibutuhkan: " . number_format($qty, 0, ',', '.') . ")"
                     );
                 }
 

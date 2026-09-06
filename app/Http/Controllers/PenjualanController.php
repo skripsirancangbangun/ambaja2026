@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Gudang;
 use App\Models\Penjualan;
 use App\Models\PenjualanItem;
+use App\Models\StokGudang;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -48,12 +49,9 @@ class PenjualanController extends Controller
     {
         $customers = Customer::where('is_active', true)->orderBy('nama_customer')->get();
         $gudangs = Gudang::where('is_active', true)->orderBy('nama_gudang')->get();
-        $barangs = Barang::withSum('stoks', 'jumlah')->where('is_active', true)->orderBy('nama_barang')->get();
+        $barangs = Barang::with(['stokGudangs'])->where('is_active', true)->orderBy('nama_barang')->get();
 
-        $year = date('Y');
-        $lastOrder = Penjualan::whereYear('tanggal_penjualan', $year)->latest('id')->first();
-        $nextNum = $lastOrder ? ($lastOrder->id + 1) : 1;
-        $nomorPenjualan = 'SO-' . $year . '-' . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
+        $nomorPenjualan = app(\App\Services\SystemAccountingService::class)->generateDocumentNumber('SO');
 
         return view('penjualan.create', compact('customers', 'gudangs', 'barangs', 'nomorPenjualan'));
     }
@@ -81,7 +79,6 @@ class PenjualanController extends Controller
             $totalDiskonItem = 0;
 
             foreach ($validated['items'] as $item) {
-                $itemSubtotal = ($item['qty'] * $item['harga_satuan']) - ($item['diskon'] ?? 0);
                 $subtotal += ($item['qty'] * $item['harga_satuan']);
                 $totalDiskonItem += ($item['diskon'] ?? 0);
             }
@@ -113,6 +110,7 @@ class PenjualanController extends Controller
                     'penjualan_id' => $penjualan->id,
                     'barang_id' => $item['barang_id'],
                     'qty' => $item['qty'],
+                    'qty_terinvoice' => 0,
                     'harga_satuan' => $item['harga_satuan'],
                     'diskon' => $item['diskon'] ?? 0,
                     'subtotal' => $itemSubtotal,
@@ -139,26 +137,35 @@ class PenjualanController extends Controller
 
     public function edit(Penjualan $penjualan)
     {
-        if (in_array($penjualan->status, ['Selesai', 'Dibatalkan'])) {
+        if ($penjualan->status !== 'Draft') {
             return redirect()
                 ->route('penjualan.show', $penjualan)
-                ->with('error', 'Pesanan penjualan yang sudah Selesai atau Dibatalkan tidak dapat diedit.');
+                ->with('error', 'Pesanan penjualan yang sudah Dikonfirmasi, Diproses, Selesai, atau Dibatalkan tidak dapat diedit lagi.');
         }
 
         $penjualan->load('items');
+        $initialItems = $penjualan->items->map(function ($i) {
+            return [
+                'barang_id' => (string) $i->barang_id,
+                'qty' => (float) $i->qty,
+                'harga_satuan' => (float) $i->harga_satuan,
+                'diskon' => (float) $i->diskon,
+            ];
+        });
+
         $customers = Customer::where('is_active', true)->orderBy('nama_customer')->get();
         $gudangs = Gudang::where('is_active', true)->orderBy('nama_gudang')->get();
-        $barangs = Barang::where('is_active', true)->orderBy('nama_barang')->get();
+        $barangs = Barang::with(['stokGudangs'])->where('is_active', true)->orderBy('nama_barang')->get();
 
-        return view('penjualan.edit', compact('penjualan', 'customers', 'gudangs', 'barangs'));
+        return view('penjualan.edit', compact('penjualan', 'customers', 'gudangs', 'barangs', 'initialItems'));
     }
 
     public function update(Request $request, Penjualan $penjualan)
     {
-        if (in_array($penjualan->status, ['Selesai', 'Dibatalkan'])) {
+        if ($penjualan->status !== 'Draft') {
             return redirect()
                 ->route('penjualan.show', $penjualan)
-                ->with('error', 'Pesanan penjualan tidak dapat diedit.');
+                ->with('error', 'Pesanan penjualan yang sudah Dikonfirmasi, Diproses, Selesai, atau Dibatalkan tidak dapat diedit lagi.');
         }
 
         $validated = $request->validate([
@@ -169,7 +176,6 @@ class PenjualanController extends Controller
             'tanggal_estimasi_kirim' => 'nullable|date',
             'catatan' => 'nullable|string',
             'pajak_persen' => 'nullable|numeric|min:0|max:100',
-            'status' => 'required|in:Draft,Dikonfirmasi,Diproses,Selesai,Dibatalkan',
             'items' => 'required|array|min:1',
             'items.*.barang_id' => 'required|exists:barangs,id',
             'items.*.qty' => 'required|numeric|min:0.01',
@@ -204,7 +210,6 @@ class PenjualanController extends Controller
                 'pajak_persen' => $pajakPersen,
                 'pajak' => $pajak,
                 'total' => $total,
-                'status' => $validated['status'],
             ]);
 
             $penjualan->items()->delete();
@@ -215,6 +220,7 @@ class PenjualanController extends Controller
                     'penjualan_id' => $penjualan->id,
                     'barang_id' => $item['barang_id'],
                     'qty' => $item['qty'],
+                    'qty_terinvoice' => 0,
                     'harga_satuan' => $item['harga_satuan'],
                     'diskon' => $item['diskon'] ?? 0,
                     'subtotal' => $itemSubtotal,
@@ -233,6 +239,32 @@ class PenjualanController extends Controller
         }
     }
 
+    public function konfirmasi(Penjualan $penjualan)
+    {
+        if ($penjualan->status !== 'Draft') {
+            return back()->with('error', 'Hanya pesanan berstatus Draft yang dapat dikonfirmasi.');
+        }
+
+        $penjualan->update(['status' => 'Dikonfirmasi']);
+
+        return back()->with('success', 'Pesanan penjualan berhasil dikonfirmasi.');
+    }
+
+    public function batalkan(Penjualan $penjualan)
+    {
+        if (in_array($penjualan->status, ['Selesai', 'Dibatalkan'])) {
+            return back()->with('error', 'Pesanan penjualan ini sudah Selesai atau Dibatalkan.');
+        }
+
+        if ($penjualan->invoicePenjualans()->where('status_pembayaran', '!=', 'DIBATALKAN')->exists()) {
+            return back()->with('error', 'Tidak dapat membatalkan pesanan yang memiliki invoice aktif.');
+        }
+
+        $penjualan->update(['status' => 'Dibatalkan']);
+
+        return back()->with('success', 'Pesanan penjualan berhasil dibatalkan.');
+    }
+
     public function destroy(Penjualan $penjualan)
     {
         if ($penjualan->invoicePenjualans()->exists()) {
@@ -248,10 +280,11 @@ class PenjualanController extends Controller
     public function pdf(Penjualan $penjualan)
     {
         $penjualan->load(['customer', 'gudang', 'creator', 'items.barang.satuan']);
-        
+
         if (class_exists(Pdf::class)) {
+            $safeNumber = str_replace(['/', '\\'], '-', $penjualan->nomor_penjualan);
             $pdf = Pdf::loadView('penjualan.pdf', compact('penjualan'));
-            return $pdf->stream('Sales-Order-' . $penjualan->nomor_penjualan . '.pdf');
+            return $pdf->stream('Sales-Order-' . $safeNumber . '.pdf');
         }
 
         return view('penjualan.pdf', compact('penjualan'));

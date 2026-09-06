@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('kode_akun')->unique();
             $table->string('nama_akun');
-            $table->enum('kategori_akun', ['Aset', 'Kewajiban', 'Ekuitas', 'Pendapatan', 'Beban']);
+            $table->string('kategori_akun');
             $table->string('sub_kategori')->nullable(); // e.g. Aset Lancar, Aset Tetap, Utang Lancar, HPP, Beban Operasional
             $table->enum('saldo_normal', ['DEBIT', 'KREDIT']);
             $table->decimal('saldo_awal', 15, 2)->default(0);

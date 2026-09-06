@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Customer;
 use App\Models\InvoicePenjualan;
+use App\Models\PenerimaanPiutang;
+use App\Models\PenerimaanPiutangDetail;
 use App\Models\PembayaranPenjualan;
 use App\Models\PembayaranPenjualanDetail;
 use App\Models\RekeningKasBank;
 use App\Services\KasBankService;
+use App\Services\SystemAccountingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -44,7 +47,7 @@ class PembayaranPenjualanController extends Controller
     public function create(Request $request)
     {
         $customers = Customer::whereHas('invoicePenjualans', function ($q) {
-            $q->where('status_pembayaran', '!=', 'Lunas');
+            $q->whereNotIn('status_pembayaran', ['Lunas', 'DIBATALKAN'])->where('sisa_piutang', '>', 0);
         })->orWhere('is_active', true)->orderBy('nama_customer')->get();
 
         $rekeningKasBanks = RekeningKasBank::where('is_active', true)->orderBy('nama_rekening')->get();
@@ -54,7 +57,8 @@ class PembayaranPenjualanController extends Controller
 
         if ($selectedCustomerId) {
             $unpaidInvoices = InvoicePenjualan::where('customer_id', $selectedCustomerId)
-                ->where('status_pembayaran', '!=', 'Lunas')
+                ->whereNotIn('status_pembayaran', ['Lunas', 'DIBATALKAN'])
+                ->where('sisa_piutang', '>', 0)
                 ->orderBy('tanggal_jatuh_tempo')
                 ->get();
         }
@@ -73,8 +77,11 @@ class PembayaranPenjualanController extends Controller
         ));
     }
 
-    public function store(Request $request, KasBankService $kasBankService)
-    {
+    public function store(
+        Request $request,
+        KasBankService $kasBankService,
+        SystemAccountingService $systemAccountingService
+    ) {
         $validated = $request->validate([
             'nomor_pembayaran' => 'required|string|unique:pembayaran_penjualans,nomor_pembayaran',
             'customer_id' => 'required|exists:customers,id',
@@ -88,7 +95,10 @@ class PembayaranPenjualanController extends Controller
             'invoices.*.nominal_bayar' => 'required|numeric|min:0',
         ]);
 
-        // Filter only invoices with nominal > 0
+        if ($systemAccountingService->isPeriodLocked($validated['tanggal_pembayaran'])) {
+            return back()->withInput()->with('error', 'Pembayaran gagal disimpan karena periode tanggal tersebut sudah DITUTUP (Cut-off).');
+        }
+
         $allocatedInvoices = array_filter($validated['invoices'], function ($item) {
             return (float) ($item['nominal_bayar'] ?? 0) > 0;
         });
@@ -116,12 +126,34 @@ class PembayaranPenjualanController extends Controller
                 'created_by' => auth()->id(),
             ]);
 
+            // Sync ke model PenerimaanPiutang untuk kwitansi/jurnal terpadu
+            $penerimaan = PenerimaanPiutang::create([
+                'nomor_penerimaan' => 'KWT-' . str_replace('PAY-', '', $validated['nomor_pembayaran']),
+                'customer_id' => $validated['customer_id'],
+                'rekening_kas_bank_id' => $validated['rekening_kas_bank_id'],
+                'tanggal' => $validated['tanggal_pembayaran'],
+                'total_dibayar' => $totalBayar,
+                'catatan' => $validated['catatan'] ?? null,
+                'created_by_user_id' => auth()->id(),
+            ]);
+
             foreach ($allocatedInvoices as $item) {
                 $invoice = InvoicePenjualan::lockForUpdate()->findOrFail($item['id']);
                 $nominal = (float) $item['nominal_bayar'];
 
+                // Security Check 1: Invoice milik customer yang dipilih
+                if ($invoice->customer_id != $validated['customer_id']) {
+                    throw new \RuntimeException("Invoice {$invoice->nomor_invoice} bukan milik customer yang dipilih.");
+                }
+
+                // Security Check 2: Status bukan DIBATALKAN atau Lunas
+                if (in_array($invoice->status_pembayaran, ['Lunas', 'DIBATALKAN']) || $invoice->sisa_piutang <= 0) {
+                    throw new \RuntimeException("Invoice {$invoice->nomor_invoice} sudah lunas atau dibatalkan.");
+                }
+
+                // Security Check 3: Prevent Overpayment
                 if ($nominal > (float) $invoice->sisa_piutang) {
-                    throw new \Exception("Nominal bayar untuk invoice {$invoice->nomor_invoice} (Rp " . number_format($nominal, 0, ',', '.') . ") melebihi sisa piutang (Rp " . number_format($invoice->sisa_piutang, 0, ',', '.') . ").");
+                    throw new \RuntimeException("Nominal bayar untuk invoice {$invoice->nomor_invoice} (Rp " . number_format($nominal, 0, ',', '.') . ") melebihi sisa piutang (Rp " . number_format($invoice->sisa_piutang, 0, ',', '.') . ").");
                 }
 
                 PembayaranPenjualanDetail::create([
@@ -130,6 +162,13 @@ class PembayaranPenjualanController extends Controller
                     'nominal_bayar' => $nominal,
                 ]);
 
+                PenerimaanPiutangDetail::create([
+                    'penerimaan_piutang_id' => $penerimaan->id,
+                    'invoice_penjualan_id' => $invoice->id,
+                    'nominal_dibayar' => $nominal,
+                ]);
+
+                // 1. Update Invoice status
                 $sudahDibayarBaru = (float) $invoice->sudah_dibayar + $nominal;
                 $sisaPiutangBaru = (float) $invoice->total - $sudahDibayarBaru;
                 $statusPembayaran = $sisaPiutangBaru <= 0.01 ? 'Lunas' : 'Sebagian';
@@ -141,6 +180,7 @@ class PembayaranPenjualanController extends Controller
                 ]);
             }
 
+            // 2. Tambah saldo Kas/Bank
             $customer = Customer::find($validated['customer_id']);
             $kasBankService->uangMasuk(
                 $validated['rekening_kas_bank_id'],
@@ -152,11 +192,14 @@ class PembayaranPenjualanController extends Controller
                 $validated['tanggal_pembayaran']
             );
 
+            // 3. Jurnal Otomatis & 4. Kartu Piutang Customer
+            $systemAccountingService->autoJournalPenerimaanPiutang($penerimaan);
+
             DB::commit();
 
             return redirect()
                 ->route('pembayaran-penjualan.show', $pembayaran)
-                ->with('success', 'Penerimaan pembayaran piutang berhasil dicatat dan saldo kas/bank bertambah.');
+                ->with('success', 'Penerimaan pembayaran piutang berhasil disimpan. Kas/Bank, Kartu Piutang & Jurnal Otomatis telah diperbarui.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withInput()->with('error', 'Gagal memproses pembayaran: ' . $e->getMessage());

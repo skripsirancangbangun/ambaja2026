@@ -15,9 +15,13 @@ class ReturPenjualan extends Model
         'customer_id',
         'gudang_id',
         'tanggal_retur',
+        'tipe_retur',
         'subtotal',
         'pajak',
         'total',
+        'potong_piutang',
+        'pengembalian_kas',
+        'rekening_kas_bank_id',
         'alasan_retur',
         'created_by_user_id',
     ];
@@ -27,7 +31,14 @@ class ReturPenjualan extends Model
         'subtotal' => 'decimal:2',
         'pajak' => 'decimal:2',
         'total' => 'decimal:2',
+        'potong_piutang' => 'decimal:2',
+        'pengembalian_kas' => 'decimal:2',
     ];
+
+    public function rekeningKasBank()
+    {
+        return $this->belongsTo(RekeningKasBank::class);
+    }
 
     public function invoicePenjualan()
     {
