@@ -37,6 +37,10 @@ class PenerimaanPiutangController extends Controller
         $selectedCustomerId = $request->input('customer_id');
         $customers = Customer::where('is_active', true)->orderBy('nama_customer')->get();
         $rekeningKasBanks = RekeningKasBank::where('is_active', true)->orderBy('nama_rekening')->get();
+        if ($rekeningKasBanks->isEmpty()) {
+            (new \Database\Seeders\RekeningKasBankSeeder())->run();
+            $rekeningKasBanks = RekeningKasBank::where('is_active', true)->orderBy('nama_rekening')->get();
+        }
 
         $invoices = collect();
         if ($selectedCustomerId) {
@@ -144,6 +148,29 @@ class PenerimaanPiutangController extends Controller
 
             // Auto-Journaling Pelunasan & Kartu Piutang
             $this->accountingService->autoJournalPenerimaanPiutang($penerimaan);
+
+            // Sync to PembayaranPenjualan so it appears on /pembayaran-penjualan menu
+            $penerimaan->load('details');
+            $pembayaranSync = \App\Models\PembayaranPenjualan::firstOrCreate([
+                'nomor_pembayaran' => $penerimaan->nomor_penerimaan,
+            ], [
+                'customer_id' => $penerimaan->customer_id,
+                'rekening_kas_bank_id' => $penerimaan->rekening_kas_bank_id,
+                'tanggal_pembayaran' => $penerimaan->tanggal,
+                'metode_pembayaran' => 'Transfer',
+                'total_bayar' => $penerimaan->total_dibayar,
+                'catatan' => $penerimaan->catatan,
+                'created_by' => $penerimaan->created_by_user_id,
+            ]);
+
+            foreach ($penerimaan->details as $dt) {
+                \App\Models\PembayaranPenjualanDetail::firstOrCreate([
+                    'pembayaran_penjualan_id' => $pembayaranSync->id,
+                    'invoice_penjualan_id' => $dt->invoice_penjualan_id,
+                ], [
+                    'jumlah_dibayar' => $dt->nominal_dibayar,
+                ]);
+            }
 
             DB::commit();
 

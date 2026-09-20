@@ -56,7 +56,7 @@
             "
         >
 
-            <div class="flex items-center gap-3">
+            <a href="{{ route('profil-perusahaan.index') }}" class="flex items-center gap-3 group transition hover:opacity-90" title="Kelola Profil Perusahaan (CV Andika Mustika)">
 
                 <div
                     class="
@@ -82,18 +82,20 @@
                             font-bold
                             leading-tight
                             text-[#15235F]
+                            group-hover:text-[#32AAA6]
+                            transition
                         "
                     >
                         AMBAJA
                     </div>
 
-                    <div class="mt-0.5 text-[10px] text-slate-400">
-                        CV Andika Mustika
+                    <div class="mt-0.5 text-[10px] text-slate-400 group-hover:text-slate-600 transition">
+                        CV Andika Mustika ⚙️
                     </div>
 
                 </div>
 
-            </div>
+            </a>
 
         </div>
 
@@ -241,6 +243,13 @@
                         pl-3
                     "
                 >
+
+                    <a
+                        href="{{ route('profil-perusahaan.index') }}"
+                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('profil-perusahaan.*') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
+                    >
+                        Profil Perusahaan
+                    </a>
 
                     <a
                     href="{{ route('barang.index') }}"

@@ -84,18 +84,43 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             {{-- ASET / AKTIVA --}}
-            <div class="space-y-4">
+            <div class="space-y-6">
                 <div class="border-b-2 border-[#15235F] pb-2">
                     <h4 class="text-sm font-bold uppercase tracking-wider text-[#15235F]">ASET / AKTIVA</h4>
                 </div>
 
-                <div class="divide-y divide-slate-100">
-                    @foreach($asetData as $row)
-                        <div class="flex justify-between py-2 text-sm">
-                            <span class="text-slate-700 font-medium">{{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</span>
-                            <span class="font-semibold text-slate-800">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</span>
-                        </div>
-                    @endforeach
+                {{-- ASET LANCAR --}}
+                <div class="space-y-3">
+                    <h5 class="text-xs font-bold uppercase tracking-wider text-teal-800 border-b border-slate-100 pb-1">ASET LANCAR (CURRENT ASSETS)</h5>
+                    <div class="divide-y divide-slate-100">
+                        @foreach($asetLancarData as $row)
+                            <div class="flex justify-between py-1.5 text-sm">
+                                <span class="text-slate-700 font-medium">{{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</span>
+                                <span class="font-semibold text-slate-800">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                    <div class="flex justify-between border-t border-slate-200 pt-2 font-bold text-xs text-teal-800 bg-teal-50/50 p-2 rounded-lg">
+                        <span>TOTAL ASET LANCAR</span>
+                        <span>Rp {{ number_format($totalAsetLancar, 0, ',', '.') }}</span>
+                    </div>
+                </div>
+
+                {{-- ASET TETAP --}}
+                <div class="space-y-3">
+                    <h5 class="text-xs font-bold uppercase tracking-wider text-indigo-800 border-b border-slate-100 pb-1">ASET TETAP (FIXED ASSETS)</h5>
+                    <div class="divide-y divide-slate-100">
+                        @foreach($asetTetapData as $row)
+                            <div class="flex justify-between py-1.5 text-sm">
+                                <span class="text-slate-700 font-medium">{{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</span>
+                                <span class="font-semibold text-slate-800">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                    <div class="flex justify-between border-t border-slate-200 pt-2 font-bold text-xs text-indigo-800 bg-indigo-50/50 p-2 rounded-lg">
+                        <span>TOTAL ASET TETAP</span>
+                        <span>Rp {{ number_format($totalAsetTetap, 0, ',', '.') }}</span>
+                    </div>
                 </div>
 
                 <div class="flex justify-between border-t-2 border-slate-200 pt-3 font-bold text-base text-[#15235F]">
@@ -137,10 +162,6 @@
                                 <span class="font-semibold text-slate-800">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</span>
                             </div>
                         @endforeach
-                        <div class="flex justify-between py-2 text-sm italic">
-                            <span class="text-slate-700 font-medium">Laba / (Rugi) Kumulatif s/d Tanggal Ini</span>
-                            <span class="font-semibold text-slate-800">Rp {{ number_format($labaRugiKumulatif, 0, ',', '.') }}</span>
-                        </div>
                     </div>
                     <div class="flex justify-between border-t border-slate-200 pt-2 font-bold text-sm text-purple-700">
                         <span>TOTAL EKUITAS</span>
@@ -158,7 +179,7 @@
         {{-- BALANCE STATUS --}}
         @php $isBalanced = abs($totalAset - ($totalKewajiban + $totalEkuitas)) < 0.01; @endphp
         <div class="mt-6 rounded-2xl border p-4 text-center font-bold text-sm {{ $isBalanced ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700' }}">
-            {{ $isBalanced ? '✓ NERACA SEIMBANG: Total Aset = Total Kewajiban + Total Ekuitas' : '⚠️ NERACA TIDAK SEIMBANG: Terdapat selisih pada saldo akun' }}
+            {{ $isBalanced ? '✓ Neraca Seimbang' : '⚠️ Neraca Tidak Seimbang' }}
         </div>
     </div>
 

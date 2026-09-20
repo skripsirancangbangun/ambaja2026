@@ -20,17 +20,6 @@
                 </span>
             </div>
         </div>
-
-        <form action="{{ route('jurnal-umum.destroy', $jurnal) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus jurnal ini?')">
-            @csrf
-            @method('DELETE')
-            <button
-                type="submit"
-                class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-100"
-            >
-                🗑️ Hapus Jurnal
-            </button>
-        </form>
     </div>
 
     @if(session('success'))

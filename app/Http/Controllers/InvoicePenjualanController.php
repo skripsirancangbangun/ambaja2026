@@ -185,6 +185,27 @@ class InvoicePenjualanController extends Controller
             $totalDiskonItem = 0;
 
             foreach ($validated['items'] as $item) {
+                // Check stock availability in chosen warehouse
+                $stokGudangObj = \App\Models\StokGudang::where('barang_id', $item['barang_id'])
+                    ->where('gudang_id', $validated['gudang_id'])
+                    ->first();
+                $stokTersedia = $stokGudangObj ? (float) $stokGudangObj->qty : 0;
+
+                if ($stokTersedia <= 0 || $stokTersedia < $item['qty']) {
+                    $b = \App\Models\Barang::find($item['barang_id']);
+                    $namaB = $b ? "{$b->kode_barang} - {$b->nama_barang}" : "ID {$item['barang_id']}";
+                    
+                    if ($so) {
+                        throw new \RuntimeException(
+                            "Gagal menerbitkan invoice dari Sales Order #{$so->nomor_penjualan}: Stok barang '{$namaB}' masih 0 / tidak mencukupi di gudang yang dipilih. (Stok tersedia: " . number_format($stokTersedia, 0, ',', '.') . ", Dibutuhkan: " . number_format($item['qty'], 0, ',', '.') . "). Silakan isi stok persediaan terlebih dahulu melalui Pembelian / Penerimaan Barang."
+                        );
+                    } else {
+                        throw new \RuntimeException(
+                            "Gagal menerbitkan invoice: Barang '{$namaB}' stoknya 0 / tidak mencukupi di gudang yang dipilih. (Stok tersedia: " . number_format($stokTersedia, 0, ',', '.') . ", Diminta: " . number_format($item['qty'], 0, ',', '.') . "). Silakan isi stok persediaan terlebih dahulu melalui Pembelian / Penerimaan Barang."
+                        );
+                    }
+                }
+
                 // If SO present, validate items and remaining qty
                 if ($so) {
                     $soItem = $so->items->where('barang_id', $item['barang_id'])->first();
@@ -469,38 +490,5 @@ class InvoicePenjualanController extends Controller
         }
 
         return view('invoice-penjualan.pdf', compact('invoicePenjualan'));
-    }
-
-    public function kirimEmail(Request $request, InvoicePenjualan $invoicePenjualan)
-    {
-        $request->validate([
-            'email_tujuan' => 'required|email',
-        ]);
-
-        $emailTujuan = trim($request->email_tujuan);
-
-        try {
-            if (config('mail.default') === 'smtp' && empty(config('mail.mailers.smtp.password'))) {
-                return back()->with('error', 'Gagal mengirim email asli: Sandi Aplikasi Google (App Password) belum dimasukkan pada file .env (MAIL_PASSWORD). Silakan masukkan 16-digit App Password Google Anda.');
-            }
-
-            $invoicePenjualan->load(['customer', 'gudang', 'creator', 'items.barang.satuan', 'rekeningKasBank']);
-
-            \Illuminate\Support\Facades\Mail::to($emailTujuan)->send(new \App\Mail\InvoicePenjualanMail($invoicePenjualan));
-
-            $invoicePenjualan->update([
-                'is_email_sent' => true,
-                'email_sent_at' => now(),
-                'email_sent_to' => $emailTujuan,
-            ]);
-
-            return back()->with('success', 'Bukti Invoice Penjualan #' . $invoicePenjualan->nomor_invoice . ' berhasil dikirimkan via email ke: ' . $emailTujuan);
-        } catch (\Exception $e) {
-            $msg = $e->getMessage();
-            if (str_contains($msg, 'Authentic') || str_contains($msg, 'Password') || str_contains($msg, 'Username')) {
-                $msg = 'Gagal Autentikasi SMTP Gmail. Pastikan Sandi Aplikasi 16-digit Google (App Password) sudah diisi di .env pada MAIL_PASSWORD.';
-            }
-            return back()->with('error', 'Gagal mengirimkan email invoice: ' . $msg);
-        }
     }
 }

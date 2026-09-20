@@ -16,6 +16,12 @@
         </p>
     </div>
 
+    @if(session('error'))
+        <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-800">
+            ⚠️ {{ session('error') }}
+        </div>
+    @endif
+
     @if($errors->any())
         <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
             <p class="font-semibold">Terjadi kesalahan pada input data:</p>
@@ -240,8 +246,8 @@
                                         <option value="">-- Pilih Barang --</option>
                                         @foreach($barangs as $barang)
                                             @php $stokTotal = $barang->stokGudangs->sum('qty'); @endphp
-                                            <option value="{{ $barang->id }}" data-harga="{{ $barang->harga_jual }}" data-stok="{{ $stokTotal }}">
-                                                {{ $barang->kode_barang }} - {{ $barang->nama_barang }} (Stok: {{ number_format($stokTotal, 0, ',', '.') }})
+                                            <option value="{{ $barang->id }}" data-harga="{{ $barang->harga_jual }}" data-stok="{{ $stokTotal }}" {{ $stokTotal <= 0 ? 'disabled' : '' }}>
+                                                {{ $barang->kode_barang }} - {{ $barang->nama_barang }} (Stok: {{ number_format($stokTotal, 0, ',', '.') }}{{ $stokTotal <= 0 ? ' - STOK 0 / HABIS' : '' }})
                                             </option>
                                         @endforeach
                                     </select>
@@ -357,6 +363,16 @@ function invoiceForm() {
             const barangId = this.items[index].barang_id;
             if (barangId && this.barangsData[barangId]) {
                 const b = this.barangsData[barangId];
+                let stok = 0;
+                if (b.stok_gudangs && b.stok_gudangs.length > 0) {
+                    stok = b.stok_gudangs.reduce((sum, s) => sum + parseFloat(s.qty || 0), 0);
+                }
+                if (stok <= 0) {
+                    alert(`⚠️ Barang '${b.kode_barang} - ${b.nama_barang}' stoknya 0 (habis). Tidak dapat ditambahkan ke tabel invoice sebelum stok terisi.`);
+                    this.items[index].barang_id = '';
+                    this.items[index].harga_satuan = 0;
+                    return;
+                }
                 let harga = parseFloat(b.harga_jual) || 0;
                 if (harga <= 0 && parseFloat(b.harga_beli_default) > 0) {
                     harga = Math.round(parseFloat(b.harga_beli_default) * 1.15);

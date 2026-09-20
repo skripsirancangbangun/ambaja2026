@@ -37,9 +37,15 @@
                 <td class="right"><strong>Rp {{ number_format($modalAwal, 0, ',', '.') }}</strong></td>
             </tr>
             <tr>
-                <td style="padding-left: 20px;">(+) Laba / (Rugi) Bersih Periode Berjalan</td>
+                <td style="padding-left: 20px;">
+                    @if($labaBersihPeriode >= 0)
+                        (+) Laba Bersih Periode Berjalan
+                    @else
+                        (-) Rugi Bersih Periode Berjalan
+                    @endif
+                </td>
                 <td class="right" style="color: {{ $labaBersihPeriode >= 0 ? '#059669' : '#e11d48' }};">
-                    {{ $labaBersihPeriode >= 0 ? '+' : '' }} Rp {{ number_format($labaBersihPeriode, 0, ',', '.') }}
+                    {{ $labaBersihPeriode >= 0 ? '+' : '-' }} Rp {{ number_format(abs($labaBersihPeriode), 0, ',', '.') }}
                 </td>
             </tr>
             <tr>
@@ -47,9 +53,15 @@
                 <td class="right" style="color: #e11d48;">- Rp {{ number_format($privePeriode, 0, ',', '.') }}</td>
             </tr>
             <tr class="total-row">
-                <td>Kenaikan / (Penurunan) Bersih Ekuitas Periode Ini</td>
+                <td>
+                    @if($perubahanNet >= 0)
+                        Kenaikan Bersih Ekuitas Periode Ini
+                    @else
+                        Penurunan Bersih Ekuitas Periode Ini
+                    @endif
+                </td>
                 <td class="right" style="color: {{ $perubahanNet >= 0 ? '#059669' : '#e11d48' }};">
-                    {{ $perubahanNet >= 0 ? '+' : '' }} Rp {{ number_format($perubahanNet, 0, ',', '.') }}
+                    {{ $perubahanNet >= 0 ? '+' : '-' }} Rp {{ number_format(abs($perubahanNet), 0, ',', '.') }}
                 </td>
             </tr>
             <tr class="total-row" style="background: #e2e8f0;">

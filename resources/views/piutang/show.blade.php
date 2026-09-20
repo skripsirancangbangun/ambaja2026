@@ -144,6 +144,70 @@
         </div>
     </div>
 
+    {{-- HISTORI RETUR PENJUALAN --}}
+    @if($invoice->returPenjualans && $invoice->returPenjualans->isNotEmpty())
+        <div class="overflow-hidden rounded-2xl border border-rose-200 bg-white shadow-sm">
+            <div class="border-b border-rose-200 bg-rose-50/50 px-6 py-4 flex justify-between items-center">
+                <div>
+                    <h3 class="text-sm font-bold text-rose-800 uppercase tracking-wider">Histori Retur Penjualan</h3>
+                    <p class="text-xs text-rose-600">Pengembalian barang yang memotong sisa piutang / pengembalian dana.</p>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-rose-50/30 text-xs uppercase tracking-wider text-rose-700">
+                        <tr>
+                            <th class="px-6 py-3 font-medium">No. Retur</th>
+                            <th class="px-6 py-3 font-medium">Tanggal Retur</th>
+                            <th class="px-6 py-3 text-right font-medium">Total Retur (Rp)</th>
+                            <th class="px-6 py-3 text-right font-medium">Potong Piutang (Rp)</th>
+                            <th class="px-6 py-3 text-right font-medium">Refund Kas (Rp)</th>
+                            <th class="px-6 py-3 font-medium">Alasan</th>
+                            <th class="px-6 py-3 text-right font-medium">Aksi</th>
+                        </tr>
+                    </thead>
+
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach($invoice->returPenjualans as $retur)
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-6 py-4 font-mono font-bold text-[#15235F]">
+                                    <a href="{{ route('retur-penjualan.show', $retur) }}" class="hover:underline">
+                                        {{ $retur->nomor_retur }}
+                                    </a>
+                                </td>
+                                <td class="px-6 py-4 text-slate-600">
+                                    {{ $retur->tanggal_retur ? $retur->tanggal_retur->format('d/m/Y') : '-' }}
+                                </td>
+                                <td class="px-6 py-4 text-right font-bold text-rose-600 font-mono text-xs">
+                                    Rp {{ number_format($retur->total, 0, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 text-right font-bold text-slate-700 font-mono text-xs">
+                                    Rp {{ number_format($retur->potong_piutang, 0, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 text-right font-bold text-emerald-600 font-mono text-xs">
+                                    Rp {{ number_format($retur->pengembalian_kas, 0, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 text-xs text-slate-600 max-w-xs">
+                                    {{ $retur->alasan ?? $retur->alasan_retur ?? '-' }}
+                                </td>
+                                <td class="px-6 py-4 text-right whitespace-nowrap">
+                                    <a
+                                        href="{{ route('retur-penjualan.pdf', $retur) }}"
+                                        target="_blank"
+                                        class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                                    >
+                                        🖨️ Nota Retur PDF
+                                    </a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
     {{-- HISTORI TINDAK LANJUT PENAGIHAN & SURAT PERINGATAN --}}
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div class="border-b border-slate-200 px-6 py-4 flex justify-between items-center">

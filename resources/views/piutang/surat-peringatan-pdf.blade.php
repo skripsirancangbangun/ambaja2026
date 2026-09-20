@@ -19,12 +19,16 @@
 </head>
 <body>
 
+    @php
+        $profil = \App\Models\ProfilPerusahaan::getProfil();
+    @endphp
+
     <div class="header">
         <table width="100%">
             <tr>
                 <td>
-                    <div class="company">CV ANDIKA MUSTIKA (AMBAJA)</div>
-                    <div style="font-size: 10px; color: #64748b;">Jl. Mustika No. 88, Surabaya | Telp: (031) 888-9999</div>
+                    <div class="company">{{ strtoupper($profil->nama_perusahaan) }}</div>
+                    <div style="font-size: 10px; color: #64748b;">{{ $profil->alamat }} | Telp: {{ $profil->telepon }}</div>
                 </td>
                 <td class="right" style="font-size: 10px; color: #64748b;">
                     Tanggal: {{ date('d F Y') }}<br>
@@ -89,14 +93,14 @@
         </div>
     @endif
 
-    <p>Pembayaran dapat ditransfer ke rekening resmi BCA 123-456-7890 a.n CV Andika Mustika. Apabila Anda telah melakukan pembayaran, abaikan surat ini atau kirimkan bukti transfer kepada kami.</p>
+    <p>Pembayaran dapat ditransfer ke rekening resmi {{ $profil->nama_singkat }} (BCA: {{ $profil->rekening_bca ?? '-' }} / Mandiri: {{ $profil->rekening_mandiri ?? '-' }}). Apabila Anda telah melakukan pembayaran, abaikan surat ini atau kirimkan bukti transfer kepada kami.</p>
 
     <table class="sign">
         <tr>
             <td width="60%"></td>
             <td width="40%" style="text-align: center;">
                 Hormat kami,<br>
-                <strong>CV ANDIKA MUSTIKA</strong><br><br><br><br>
+                <strong>{{ strtoupper($profil->nama_perusahaan) }}</strong><br><br><br><br>
                 <strong>( Manajer Keuangan & Penagihan )</strong>
             </td>
         </tr>

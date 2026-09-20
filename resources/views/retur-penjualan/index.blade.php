@@ -46,6 +46,7 @@
                         <th class="px-6 py-3 text-right font-medium">Subtotal</th>
                         <th class="px-6 py-3 text-right font-medium">PPN Retur</th>
                         <th class="px-6 py-3 text-right font-medium">Total Retur (Rp)</th>
+                        <th class="px-6 py-3 text-right font-medium">Aksi</th>
                     </tr>
                 </thead>
 
@@ -53,10 +54,18 @@
                     @forelse($returs as $r)
                         <tr class="hover:bg-slate-50">
                             <td class="px-6 py-4 font-mono font-semibold text-[#15235F]">
-                                {{ $r->nomor_retur }}
+                                <a href="{{ route('retur-penjualan.show', $r) }}" class="hover:underline">
+                                    {{ $r->nomor_retur }}
+                                </a>
                             </td>
                             <td class="px-6 py-4 font-mono font-medium text-slate-700">
-                                {{ $r->invoicePenjualan?->nomor_invoice }}
+                                @if($r->invoicePenjualan)
+                                    <a href="{{ route('invoice-penjualan.show', $r->invoicePenjualan) }}" class="hover:underline hover:text-[#15235F]">
+                                        {{ $r->invoicePenjualan->nomor_invoice }}
+                                    </a>
+                                @else
+                                    -
+                                @endif
                             </td>
                             <td class="px-6 py-4 text-slate-600">
                                 {{ $r->tanggal_retur ? $r->tanggal_retur->format('d/m/Y') : '-' }}
@@ -76,10 +85,27 @@
                             <td class="px-6 py-4 text-right font-mono text-xs font-bold text-rose-600">
                                 Rp {{ number_format($r->total, 0, ',', '.') }}
                             </td>
+                            <td class="px-6 py-4 text-right whitespace-nowrap">
+                                <div class="flex items-center justify-end gap-2">
+                                    <a
+                                        href="{{ route('retur-penjualan.show', $r) }}"
+                                        class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                    >
+                                        👁️ Detail
+                                    </a>
+                                    <a
+                                        href="{{ route('retur-penjualan.pdf', $r) }}"
+                                        target="_blank"
+                                        class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                                    >
+                                        🖨️ PDF
+                                    </a>
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-6 py-8 text-center text-slate-400">
+                            <td colspan="9" class="px-6 py-8 text-center text-slate-400">
                                 Belum ada transaksi retur penjualan.
                             </td>
                         </tr>

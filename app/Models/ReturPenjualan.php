@@ -19,10 +19,13 @@ class ReturPenjualan extends Model
         'subtotal',
         'pajak',
         'total',
+        'total_retur',
         'potong_piutang',
         'pengembalian_kas',
         'rekening_kas_bank_id',
+        'alasan',
         'alasan_retur',
+        'created_by',
         'created_by_user_id',
     ];
 

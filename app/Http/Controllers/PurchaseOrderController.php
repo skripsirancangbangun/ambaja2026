@@ -1042,9 +1042,10 @@ class PurchaseOrderController extends Controller
         );
 
 
+        $safeNumber = str_replace(['/', '\\'], '-', $purchaseOrder->nomor_po);
+
         return $pdf->stream(
-            $purchaseOrder->nomor_po
-            . '.pdf'
+            'Purchase-Order-' . $safeNumber . '.pdf'
         );
     }
 

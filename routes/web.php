@@ -48,6 +48,7 @@ use App\Http\Controllers\CustomerImportController;
 use App\Http\Controllers\PenerimaanPiutangController;
 use App\Http\Controllers\KartuPiutangController;
 use App\Http\Controllers\PengaturanPenomoranController;
+use App\Http\Controllers\ProfilPerusahaanController;
 
 /*
 |--------------------------------------------------------------------------
@@ -108,6 +109,9 @@ Route::middleware('auth')->group(function () {
     | MASTER DATA
     |--------------------------------------------------------------------------
     */
+
+    Route::get('profil-perusahaan', [ProfilPerusahaanController::class, 'index'])->name('profil-perusahaan.index');
+    Route::put('profil-perusahaan', [ProfilPerusahaanController::class, 'update'])->name('profil-perusahaan.update');
 
     Route::resource(
         'kategori-barang',
@@ -170,11 +174,6 @@ Route::middleware('auth')->group(function () {
         'invoice-penjualan/{invoicePenjualan}/pdf',
         [InvoicePenjualanController::class, 'pdf']
     )->name('invoice-penjualan.pdf');
-
-    Route::post(
-        'invoice-penjualan/{invoicePenjualan}/kirim-email',
-        [InvoicePenjualanController::class, 'kirimEmail']
-    )->name('invoice-penjualan.kirim-email');
 
     Route::resource(
         'invoice-penjualan',
@@ -682,7 +681,8 @@ Route::post(
     Route::get('piutang/{invoice}/surat-peringatan/{level}/pdf', [PiutangController::class, 'cetakSuratPeringatan'])->name('piutang.surat-peringatan.pdf');
 
     // Retur Penjualan
-    Route::resource('retur-penjualan', ReturPenjualanController::class)->only(['index', 'create', 'store']);
+    Route::get('retur-penjualan/{returPenjualan}/pdf', [ReturPenjualanController::class, 'pdf'])->name('retur-penjualan.pdf');
+    Route::resource('retur-penjualan', ReturPenjualanController::class)->only(['index', 'create', 'store', 'show']);
 
     // Pengaturan Format Penomoran Jurnal & Dokumen
     Route::get('pengaturan-penomoran', [PengaturanPenomoranController::class, 'index'])->name('pengaturan-penomoran.index');

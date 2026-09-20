@@ -83,6 +83,10 @@ class PiutangController extends Controller
         ]);
 
         $rekeningKasBanks = RekeningKasBank::where('is_active', true)->orderBy('nama_rekening')->get();
+        if ($rekeningKasBanks->isEmpty()) {
+            (new \Database\Seeders\RekeningKasBankSeeder())->run();
+            $rekeningKasBanks = RekeningKasBank::where('is_active', true)->orderBy('nama_rekening')->get();
+        }
 
         return view('piutang.show', compact('invoice', 'rekeningKasBanks'));
     }
@@ -113,15 +117,17 @@ class PiutangController extends Controller
     public function cetakSuratTagihan(InvoicePenjualan $invoice)
     {
         $invoice->load(['customer', 'items.barang']);
+        $safeNumber = str_replace(['/', '\\'], '-', $invoice->nomor_invoice);
         $pdf = Pdf::loadView('piutang.surat-tagihan-pdf', compact('invoice'))->setPaper('a4');
-        return $pdf->stream('Surat-Tagihan-' . $invoice->nomor_invoice . '.pdf');
+        return $pdf->stream('Surat-Tagihan-' . $safeNumber . '.pdf');
     }
 
     public function cetakSuratPeringatan(InvoicePenjualan $invoice, $level)
     {
         $invoice->load(['customer', 'items.barang']);
         $levelText = 'SP-' . $level;
+        $safeNumber = str_replace(['/', '\\'], '-', $invoice->nomor_invoice);
         $pdf = Pdf::loadView('piutang.surat-peringatan-pdf', compact('invoice', 'level', 'levelText'))->setPaper('a4');
-        return $pdf->stream('Surat-Peringatan-' . $levelText . '-' . $invoice->nomor_invoice . '.pdf');
+        return $pdf->stream('Surat-Peringatan-' . $levelText . '-' . $safeNumber . '.pdf');
     }
 }

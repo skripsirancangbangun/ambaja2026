@@ -27,15 +27,33 @@
     <table width="100%">
         <tr>
             <td width="48%" style="vertical-align: top;">
-                <div class="section-title">ASET / AKTIVA</div>
+                <div class="section-title">ASET LANCAR (CURRENT ASSETS)</div>
                 <table class="data">
-                    @foreach($asetData as $row)
+                    @foreach($asetLancarData as $row)
                         <tr>
                             <td>{{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</td>
                             <td class="right">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</td>
                         </tr>
                     @endforeach
                     <tr class="total-row">
+                        <td>TOTAL ASET LANCAR</td>
+                        <td class="right">Rp {{ number_format($totalAsetLancar, 0, ',', '.') }}</td>
+                    </tr>
+                </table>
+
+                <div class="section-title" style="margin-top: 10px;">ASET TETAP (FIXED ASSETS)</div>
+                <table class="data">
+                    @foreach($asetTetapData as $row)
+                        <tr>
+                            <td>{{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</td>
+                            <td class="right">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</td>
+                        </tr>
+                    @endforeach
+                    <tr class="total-row">
+                        <td>TOTAL ASET TETAP</td>
+                        <td class="right">Rp {{ number_format($totalAsetTetap, 0, ',', '.') }}</td>
+                    </tr>
+                    <tr class="total-row" style="background: #e2e8f0; font-size: 10px;">
                         <td>TOTAL ASET</td>
                         <td class="right" style="color: #15235F;">Rp {{ number_format($totalAset, 0, ',', '.') }}</td>
                     </tr>
@@ -64,10 +82,6 @@
                             <td class="right">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</td>
                         </tr>
                     @endforeach
-                    <tr>
-                        <td>Laba / (Rugi) Kumulatif</td>
-                        <td class="right">Rp {{ number_format($labaRugiKumulatif, 0, ',', '.') }}</td>
-                    </tr>
                     <tr class="total-row">
                         <td>TOTAL EKUITAS</td>
                         <td class="right">Rp {{ number_format($totalEkuitas, 0, ',', '.') }}</td>

@@ -16,31 +16,31 @@ class PengaturanAkunSeeder extends Seeder
                 'kunci' => 'AKUN_PIUTANG_DAGANG',
                 'nama' => 'Akun Piutang Dagang',
                 'ket' => 'Digunakan otomatis saat transaksi Penjualan Kredit.',
-                'search' => ['Piutang Dagang', 'Piutang'],
+                'search' => ['Piutang Usaha', 'Piutang Dagang', 'Piutang'],
             ],
             [
                 'kunci' => 'AKUN_PENDAPATAN_PENJUALAN',
                 'nama' => 'Akun Pendapatan Penjualan',
                 'ket' => 'Digunakan otomatis saat transaksi Penjualan Barang.',
-                'search' => ['Pendapatan Penjualan Barang', 'Pendapatan Penjualan', 'Penjualan'],
+                'search' => ['Penjualan Besi dan Baja', 'Pendapatan Penjualan Barang', 'Pendapatan Penjualan', 'Penjualan'],
             ],
             [
                 'kunci' => 'AKUN_DISKON_PENJUALAN',
                 'nama' => 'Akun Diskon Penjualan',
                 'ket' => 'Digunakan otomatis saat memberikan potongan harga penjualan.',
-                'search' => ['Diskon Penjualan', 'Potongan Penjualan'],
+                'search' => ['Potongan Penjualan', 'Diskon Penjualan'],
             ],
             [
                 'kunci' => 'AKUN_PERSEDIAAN',
                 'nama' => 'Akun Persediaan Barang Dagang',
                 'ket' => 'Digunakan otomatis saat persediaan barang bertambah atau berkurang.',
-                'search' => ['Persediaan Barang Dagang', 'Persediaan'],
+                'search' => ['Persediaan Besi dan Baja', 'Persediaan Barang Dagang', 'Persediaan'],
             ],
             [
                 'kunci' => 'AKUN_HPP',
                 'nama' => 'Akun Harga Pokok Penjualan (HPP)',
                 'ket' => 'Digunakan otomatis untuk pengakuan Beban HPP saat penjualan.',
-                'search' => ['Harga Pokok Penjualan (HPP)', 'Harga Pokok Penjualan', 'HPP'],
+                'search' => ['Harga Pokok Penjualan Besi dan Baja', 'Harga Pokok Penjualan (HPP)', 'Harga Pokok Penjualan', 'HPP'],
             ],
 
             // PART 2: RETUR PENJUALAN
@@ -48,13 +48,13 @@ class PengaturanAkunSeeder extends Seeder
                 'kunci' => 'AKUN_RETUR_PENJUALAN',
                 'nama' => 'Akun Retur Penjualan',
                 'ket' => 'Digunakan otomatis saat penerbitan Retur Penjualan.',
-                'search' => ['Retur Penjualan', 'Diskon Penjualan', 'Pendapatan Penjualan Barang'],
+                'search' => ['Retur Penjualan', 'Potongan Penjualan', 'Penjualan Besi dan Baja'],
             ],
             [
                 'kunci' => 'AKUN_PPN_PENJUALAN',
                 'nama' => 'Akun PPN Penjualan (Pajak)',
                 'ket' => 'Digunakan otomatis untuk pencatatan Pajak PPN Keluar / Masuk.',
-                'search' => ['Utang Pajak PPN', 'PPN', 'Pajak'],
+                'search' => ['Utang PPN', 'Utang Pajak PPN', 'PPN', 'Pajak'],
             ],
 
             // PART 3: PEMBELIAN & UTANG
@@ -62,19 +62,19 @@ class PengaturanAkunSeeder extends Seeder
                 'kunci' => 'AKUN_UTANG_DAGANG',
                 'nama' => 'Akun Utang Dagang (Supplier)',
                 'ket' => 'Digunakan otomatis saat transaksi Pembelian Kredit dari Supplier.',
-                'search' => ['Utang Dagang (Supplier)', 'Utang Dagang', 'Utang Supplier'],
+                'search' => ['Utang Usaha', 'Utang Dagang (Supplier)', 'Utang Supplier'],
             ],
             [
                 'kunci' => 'AKUN_PEMBELIAN_BARANG',
                 'nama' => 'Akun Pembelian / Transit Persediaan',
                 'ket' => 'Digunakan otomatis saat pencatatan transaksi pembelian barang.',
-                'search' => ['Persediaan Barang Dagang', 'Pembelian Barang', 'Pembelian'],
+                'search' => ['Persediaan Besi dan Baja', 'Persediaan Barang Dagang', 'Pembelian'],
             ],
             [
                 'kunci' => 'AKUN_DISKON_PEMBELIAN',
                 'nama' => 'Akun Diskon Pembelian',
                 'ket' => 'Digunakan otomatis saat menerima potongan harga dari supplier.',
-                'search' => ['Diskon Pembelian', 'Potongan Pembelian', 'Harga Pokok Penjualan (HPP)'],
+                'search' => ['Potongan Pembelian', 'Diskon Pembelian'],
             ],
 
             // PART 4: RETUR PEMBELIAN & KAS/BANK
@@ -82,13 +82,13 @@ class PengaturanAkunSeeder extends Seeder
                 'kunci' => 'AKUN_RETUR_PEMBELIAN',
                 'nama' => 'Akun Retur Pembelian',
                 'ket' => 'Digunakan otomatis saat transaksi Retur Pembelian ke Supplier.',
-                'search' => ['Retur Pembelian', 'Persediaan Barang Dagang'],
+                'search' => ['Retur Pembelian', 'Persediaan Besi dan Baja'],
             ],
             [
                 'kunci' => 'AKUN_KAS_UTAMA',
                 'nama' => 'Akun Kas Utama / Toko',
                 'ket' => 'Digunakan otomatis untuk transaksi Pembayaran & Penerimaan Tunai.',
-                'search' => ['Kas Toko', 'Kas Utama', 'Kas'],
+                'search' => ['Kas Kecil', 'Kas Toko', 'Kas di Bank', 'Kas'],
             ],
         ];
 

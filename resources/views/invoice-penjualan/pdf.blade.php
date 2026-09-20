@@ -27,12 +27,16 @@
 </head>
 <body>
 
+    @php
+        $profil = \App\Models\ProfilPerusahaan::getProfil();
+    @endphp
+
     <div class="header">
         <table width="100%">
             <tr>
                 <td>
-                    <div class="company-name">CV AMBAJA (ANDIKA MUSTIKA)</div>
-                    <div>Sistem Informasi Akuntansi & Distribusi</div>
+                    <div class="company-name">{{ strtoupper($profil->nama_perusahaan) }}</div>
+                    <div style="font-size: 11px; color: #475569;">{{ $profil->alamat }} | Telp: {{ $profil->telepon }}</div>
                 </td>
                 <td class="text-right">
                     <div class="doc-title">FAKTUR PENJUALAN</div>

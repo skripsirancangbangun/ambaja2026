@@ -157,10 +157,13 @@ class ReturPenjualanController extends Controller
                 'subtotal' => $subtotal,
                 'pajak' => $pajakRetur,
                 'total' => $totalRetur,
+                'total_retur' => $totalRetur,
                 'potong_piutang' => $potongPiutang,
                 'pengembalian_kas' => $pengembalianKas,
                 'rekening_kas_bank_id' => ($pengembalianKas > 0) ? $rekeningKasBankId : null,
+                'alasan' => $validated['alasan_retur'],
                 'alasan_retur' => $validated['alasan_retur'],
+                'created_by' => auth()->id(),
                 'created_by_user_id' => auth()->id(),
             ]);
 
@@ -227,5 +230,24 @@ class ReturPenjualanController extends Controller
             DB::rollBack();
             return back()->withInput()->with('error', 'Gagal menyimpan retur penjualan: ' . $e->getMessage());
         }
+    }
+
+    public function show(ReturPenjualan $returPenjualan)
+    {
+        $returPenjualan->load(['invoicePenjualan', 'customer', 'gudang', 'creator', 'rekeningKasBank', 'items.barang.satuan']);
+        return view('retur-penjualan.show', compact('returPenjualan'));
+    }
+
+    public function pdf(ReturPenjualan $returPenjualan)
+    {
+        $returPenjualan->load(['invoicePenjualan', 'customer', 'gudang', 'creator', 'rekeningKasBank', 'items.barang.satuan']);
+        $safeNumber = str_replace(['/', '\\'], '-', $returPenjualan->nomor_retur);
+
+        if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('retur-penjualan.pdf', compact('returPenjualan'))->setPaper('a4');
+            return $pdf->stream('Nota-Retur-' . $safeNumber . '.pdf');
+        }
+
+        return view('retur-penjualan.pdf', compact('returPenjualan'));
     }
 }

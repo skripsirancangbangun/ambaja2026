@@ -34,8 +34,8 @@ class CoaSeeder extends Seeder
             ['kode_akun' => '2201', 'nama_akun' => 'Utang Bank Jangka Panjang', 'kategori_akun' => 'Kewajiban', 'sub_kategori' => 'Kewajiban Jangka Panjang', 'saldo_normal' => 'KREDIT', 'saldo_awal' => 0],
 
             // EKUITAS / MODAL (3-0000s)
-            ['kode_akun' => '3101', 'nama_akun' => 'Modal Owner', 'kategori_akun' => 'Ekuitas', 'sub_kategori' => 'Ekuitas', 'saldo_normal' => 'KREDIT', 'saldo_awal' => 900000000],
-            ['kode_akun' => '3102', 'nama_akun' => 'Laba Ditahan', 'kategori_akun' => 'Ekuitas', 'sub_kategori' => 'Ekuitas', 'saldo_normal' => 'KREDIT', 'saldo_awal' => 31100000],
+            [['kode_akun' => '3101', 'nama_akun' => 'Modal Owner', 'kategori_akun' => 'Ekuitas', 'sub_kategori' => 'Ekuitas', 'saldo_normal' => 'KREDIT', 'saldo_awal' => 956100000],
+            [['kode_akun' => '3102', 'nama_akun' => 'Laba Ditahan', 'kategori_akun' => 'Ekuitas', 'sub_kategori' => 'Ekuitas', 'saldo_normal' => 'KREDIT', 'saldo_awal' => 0],
             ['kode_akun' => '3103', 'nama_akun' => 'Prive Owner', 'kategori_akun' => 'Ekuitas', 'sub_kategori' => 'Ekuitas', 'saldo_normal' => 'DEBIT', 'saldo_awal' => 0],
 
             // PENDAPATAN / PENJUALAN (4-1000s)

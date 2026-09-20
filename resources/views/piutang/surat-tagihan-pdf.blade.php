@@ -18,12 +18,16 @@
 </head>
 <body>
 
+    @php
+        $profil = \App\Models\ProfilPerusahaan::getProfil();
+    @endphp
+
     <div class="header">
         <table width="100%">
             <tr>
                 <td>
-                    <div class="company">CV ANDIKA MUSTIKA (AMBAJA)</div>
-                    <div style="font-size: 10px; color: #64748b;">Jl. Mustika No. 88, Surabaya | Telp: (031) 888-9999</div>
+                    <div class="company">{{ strtoupper($profil->nama_perusahaan) }}</div>
+                    <div style="font-size: 10px; color: #64748b;">{{ $profil->alamat }} | Telp: {{ $profil->telepon }}</div>
                 </td>
                 <td class="right" style="font-size: 10px; color: #64748b;">
                     Tanggal: {{ date('d F Y') }}<br>
@@ -79,9 +83,9 @@
     <p>Mohon agar pembayaran sisa tagihan sebesar <strong style="color: #dc2626;">Rp {{ number_format($invoice->sisa_piutang, 0, ',', '.') }}</strong> dapat segera ditransfer melalui rekening resmi kami:</p>
 
     <div style="background: #f8fafc; padding: 10px; border: 1px solid #cbd5e1; margin: 10px 0;">
-        <strong>Rekening Pembayaran CV Ambaja:</strong><br>
-        Bank BCA: 123-456-7890 a.n CV Andika Mustika<br>
-        Bank Mandiri: 987-654-3210 a.n CV Andika Mustika
+        <strong>Rekening Pembayaran {{ $profil->nama_singkat }}:</strong><br>
+        @if($profil->rekening_bca) Bank BCA: {{ $profil->rekening_bca }}<br> @endif
+        @if($profil->rekening_mandiri) Bank Mandiri: {{ $profil->rekening_mandiri }} @endif
     </div>
 
     <p>Demikian surat penagihan ini kami sampaikan. Atas perhatian dan kerja samanya, kami ucapkan terima kasih.</p>
@@ -91,7 +95,7 @@
             <td width="60%"></td>
             <td width="40%" style="text-align: center;">
                 Hormat kami,<br>
-                <strong>CV ANDIKA MUSTIKA</strong><br><br><br><br>
+                <strong>{{ strtoupper($profil->nama_perusahaan) }}</strong><br><br><br><br>
                 <strong>( Bagian Keuangan / Penagihan )</strong>
             </td>
         </tr>

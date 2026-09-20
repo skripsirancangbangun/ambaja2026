@@ -28,22 +28,10 @@
                         Belum Lunas
                     </span>
                 @endif
-                @if($invoicePenjualan->is_email_sent)
-                    <span class="inline-flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700 border border-teal-200" title="Terkirim ke {{ $invoicePenjualan->email_sent_to }}">
-                        ✓ Email Terkirim ({{ $invoicePenjualan->email_sent_at ? $invoicePenjualan->email_sent_at->format('d/m/Y H:i') : '' }})
-                    </span>
-                @endif
             </div>
         </div>
 
-        <div class="flex items-center gap-2" x-data="{ showEmailModal: false }">
-            <button
-                type="button"
-                @click="showEmailModal = true"
-                class="rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-medium text-teal-800 transition hover:bg-teal-100"
-            >
-                📧 Kirim Email Bukti Invoice
-            </button>
+        <div class="flex items-center gap-2">
             <a
                 href="{{ route('invoice-penjualan.pdf', $invoicePenjualan) }}"
                 target="_blank"
@@ -65,43 +53,6 @@
             >
                 ↩️ Buat Retur
             </a>
-
-            {{-- MODAL KIRIM EMAIL --}}
-            <div x-show="showEmailModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-                <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" @click.away="showEmailModal = false">
-                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                        <h3 class="text-base font-semibold text-slate-800">Kirim Bukti Invoice via Email</h3>
-                        <button type="button" @click="showEmailModal = false" class="text-slate-400 hover:text-slate-600">✕</button>
-                    </div>
-                    <form action="{{ route('invoice-penjualan.kirim-email', $invoicePenjualan) }}" method="POST" class="mt-4 space-y-4">
-                        @csrf
-                        <div>
-                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Email Pengirim (CV Andika)</label>
-                            <input type="email" value="ezicraft88@gmail.com" readonly class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2 text-sm text-slate-600">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Email Pelanggan / Penerima <span class="text-rose-500">*</span></label>
-                            <input
-                                type="email"
-                                name="email_tujuan"
-                                value="{{ old('email_tujuan', $invoicePenjualan->customer->email ?? 'ezicraft88@gmail.com') }}"
-                                required
-                                class="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-800 focus:border-[#32AAA6] focus:outline-none"
-                                placeholder="nama@pelanggan.com"
-                            >
-                            <p class="mt-1 text-[11px] text-slate-400">File bukti PDF Invoice #{{ $invoicePenjualan->nomor_invoice }} akan disertakan secara otomatis.</p>
-                        </div>
-                        <div class="flex justify-end gap-2 pt-2">
-                            <button type="button" @click="showEmailModal = false" class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
-                                Batal
-                            </button>
-                            <button type="submit" class="rounded-xl bg-[#15235F] px-5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#101b4d]">
-                                📤 Kirim Email Sekarang
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -282,6 +233,70 @@
                     @endforeach
                 </tbody>
             </table>
+        </div>
+    @endif
+
+    {{-- HISTORI RETUR PENJUALAN --}}
+    @if($invoicePenjualan->returPenjualans && $invoicePenjualan->returPenjualans->isNotEmpty())
+        <div class="overflow-hidden rounded-2xl border border-rose-200 bg-white shadow-sm">
+            <div class="border-b border-rose-200 bg-rose-50/50 px-6 py-4 flex justify-between items-center">
+                <div>
+                    <h3 class="text-sm font-bold text-rose-800 uppercase tracking-wider">Histori Retur Penjualan</h3>
+                    <p class="text-xs text-rose-600">Daftar pengembalian barang yang memotong piutang / pengembalian kas untuk faktur ini.</p>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-rose-50/30 text-xs uppercase tracking-wider text-rose-700">
+                        <tr>
+                            <th class="px-6 py-3 font-medium">No. Retur</th>
+                            <th class="px-6 py-3 font-medium">Tanggal Retur</th>
+                            <th class="px-6 py-3 text-right font-medium">Total Retur (Rp)</th>
+                            <th class="px-6 py-3 text-right font-medium">Potong Piutang (Rp)</th>
+                            <th class="px-6 py-3 text-right font-medium">Refund Kas (Rp)</th>
+                            <th class="px-6 py-3 font-medium">Alasan</th>
+                            <th class="px-6 py-3 text-right font-medium">Aksi</th>
+                        </tr>
+                    </thead>
+
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach($invoicePenjualan->returPenjualans as $retur)
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-6 py-4 font-mono font-bold text-[#15235F]">
+                                    <a href="{{ route('retur-penjualan.show', $retur) }}" class="hover:underline">
+                                        {{ $retur->nomor_retur }}
+                                    </a>
+                                </td>
+                                <td class="px-6 py-4 text-slate-600">
+                                    {{ $retur->tanggal_retur ? $retur->tanggal_retur->format('d/m/Y') : '-' }}
+                                </td>
+                                <td class="px-6 py-4 text-right font-bold text-rose-600 font-mono text-xs">
+                                    Rp {{ number_format($retur->total, 0, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 text-right font-bold text-slate-700 font-mono text-xs">
+                                    Rp {{ number_format($retur->potong_piutang, 0, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 text-right font-bold text-emerald-600 font-mono text-xs">
+                                    Rp {{ number_format($retur->pengembalian_kas, 0, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 text-xs text-slate-600 max-w-xs">
+                                    {{ $retur->alasan ?? $retur->alasan_retur ?? '-' }}
+                                </td>
+                                <td class="px-6 py-4 text-right whitespace-nowrap">
+                                    <a
+                                        href="{{ route('retur-penjualan.pdf', $retur) }}"
+                                        target="_blank"
+                                        class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                                    >
+                                        🖨️ Nota Retur PDF
+                                    </a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
     @endif
 

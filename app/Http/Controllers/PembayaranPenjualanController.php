@@ -18,6 +18,32 @@ class PembayaranPenjualanController extends Controller
 {
     public function index(Request $request)
     {
+        // Auto-sync unsynced PenerimaanPiutang
+        $unsynced = PenerimaanPiutang::with('details')->get();
+        foreach ($unsynced as $p) {
+            $pb = PembayaranPenjualan::firstOrCreate(
+                ['nomor_pembayaran' => $p->nomor_penerimaan],
+                [
+                    'customer_id' => $p->customer_id,
+                    'rekening_kas_bank_id' => $p->rekening_kas_bank_id,
+                    'tanggal_pembayaran' => $p->tanggal,
+                    'metode_pembayaran' => 'Transfer',
+                    'total_bayar' => $p->total_dibayar,
+                    'catatan' => $p->catatan,
+                    'created_by' => $p->created_by_user_id,
+                ]
+            );
+
+            foreach ($p->details as $dt) {
+                PembayaranPenjualanDetail::firstOrCreate([
+                    'pembayaran_penjualan_id' => $pb->id,
+                    'invoice_penjualan_id' => $dt->invoice_penjualan_id,
+                ], [
+                    'jumlah_dibayar' => $dt->nominal_dibayar,
+                ]);
+            }
+        }
+
         $query = PembayaranPenjualan::with(['customer', 'rekeningKasBank', 'creator', 'details.invoicePenjualan']);
 
         if ($request->filled('search')) {

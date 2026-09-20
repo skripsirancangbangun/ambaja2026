@@ -38,11 +38,7 @@ class JurnalUmumController extends Controller
     public function create()
     {
         $akuns = Akun::where('is_active', true)->orderBy('kode_akun')->get();
-
-        $year = date('Y');
-        $lastJurnal = Jurnal::whereYear('tanggal', $year)->latest('id')->first();
-        $nextNum = $lastJurnal ? ($lastJurnal->id + 1) : 1;
-        $nomorJurnal = 'JU-' . $year . '-' . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
+        $nomorJurnal = app(\App\Services\SystemAccountingService::class)->generateDocumentNumber('JURNAL_UMUM');
 
         return view('jurnal-umum.create', compact('akuns', 'nomorJurnal'));
     }

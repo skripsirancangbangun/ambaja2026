@@ -81,53 +81,84 @@ class SystemAccountingService
         $key = strtoupper(trim($jenisDokumen));
 
         $prefixMap = [
-            'SO' => ['prefix' => 'SO', 'model' => \App\Models\Penjualan::class, 'date_col' => 'tanggal_penjualan'],
-            'SALES_ORDER' => ['prefix' => 'SO', 'model' => \App\Models\Penjualan::class, 'date_col' => 'tanggal_penjualan'],
-            'PESANAN_PENJUALAN' => ['prefix' => 'SO', 'model' => \App\Models\Penjualan::class, 'date_col' => 'tanggal_penjualan'],
+            'SO' => ['prefix' => 'SO', 'model' => \App\Models\Penjualan::class, 'date_col' => 'tanggal_penjualan', 'num_col' => 'nomor_penjualan'],
+            'SALES_ORDER' => ['prefix' => 'SO', 'model' => \App\Models\Penjualan::class, 'date_col' => 'tanggal_penjualan', 'num_col' => 'nomor_penjualan'],
+            'PESANAN_PENJUALAN' => ['prefix' => 'SO', 'model' => \App\Models\Penjualan::class, 'date_col' => 'tanggal_penjualan', 'num_col' => 'nomor_penjualan'],
 
-            'INV' => ['prefix' => 'INV', 'model' => \App\Models\InvoicePenjualan::class, 'date_col' => 'tanggal_invoice'],
-            'INVOICE_PENJUALAN' => ['prefix' => 'INV', 'model' => \App\Models\InvoicePenjualan::class, 'date_col' => 'tanggal_invoice'],
+            'INV' => ['prefix' => 'INV', 'model' => \App\Models\InvoicePenjualan::class, 'date_col' => 'tanggal_invoice', 'num_col' => 'nomor_invoice'],
+            'INVOICE_PENJUALAN' => ['prefix' => 'INV', 'model' => \App\Models\InvoicePenjualan::class, 'date_col' => 'tanggal_invoice', 'num_col' => 'nomor_invoice'],
 
-            'PAY' => ['prefix' => 'PAY', 'model' => \App\Models\PenerimaanPiutang::class, 'date_col' => 'tanggal'],
-            'PENERIMAAN_PIUTANG' => ['prefix' => 'PAY', 'model' => \App\Models\PenerimaanPiutang::class, 'date_col' => 'tanggal'],
-            'PEMBAYARAN_PENJUALAN' => ['prefix' => 'PAY', 'model' => \App\Models\PenerimaanPiutang::class, 'date_col' => 'tanggal'],
-            'KWITANSI' => ['prefix' => 'PAY', 'model' => \App\Models\PenerimaanPiutang::class, 'date_col' => 'tanggal'],
+            'PAY' => ['prefix' => 'PAY', 'model' => \App\Models\PenerimaanPiutang::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_penerimaan'],
+            'PENERIMAAN_PIUTANG' => ['prefix' => 'PAY', 'model' => \App\Models\PenerimaanPiutang::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_penerimaan'],
+            'PEMBAYARAN_PENJUALAN' => ['prefix' => 'PAY', 'model' => \App\Models\PenerimaanPiutang::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_penerimaan'],
+            'KWITANSI' => ['prefix' => 'PAY', 'model' => \App\Models\PenerimaanPiutang::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_penerimaan'],
 
-            'RTJ' => ['prefix' => 'RTJ', 'model' => \App\Models\ReturPenjualan::class, 'date_col' => 'tanggal_retur'],
-            'RETUR_PENJUALAN' => ['prefix' => 'RTJ', 'model' => \App\Models\ReturPenjualan::class, 'date_col' => 'tanggal_retur'],
+            'RTJ' => ['prefix' => 'RTJ', 'model' => \App\Models\ReturPenjualan::class, 'date_col' => 'tanggal_retur', 'num_col' => 'nomor_retur'],
+            'RETUR_PENJUALAN' => ['prefix' => 'RTJ', 'model' => \App\Models\ReturPenjualan::class, 'date_col' => 'tanggal_retur', 'num_col' => 'nomor_retur'],
 
-            'PO' => ['prefix' => 'PO', 'model' => \App\Models\PurchaseOrder::class, 'date_col' => 'tanggal_po'],
-            'PURCHASE_ORDER' => ['prefix' => 'PO', 'model' => \App\Models\PurchaseOrder::class, 'date_col' => 'tanggal_po'],
-            'PESANAN_PEMBELIAN' => ['prefix' => 'PO', 'model' => \App\Models\PurchaseOrder::class, 'date_col' => 'tanggal_po'],
+            'PO' => ['prefix' => 'PO', 'model' => \App\Models\PurchaseOrder::class, 'date_col' => 'tanggal_po', 'num_col' => 'nomor_po'],
+            'PURCHASE_ORDER' => ['prefix' => 'PO', 'model' => \App\Models\PurchaseOrder::class, 'date_col' => 'tanggal_po', 'num_col' => 'nomor_po'],
+            'PESANAN_PEMBELIAN' => ['prefix' => 'PO', 'model' => \App\Models\PurchaseOrder::class, 'date_col' => 'tanggal_po', 'num_col' => 'nomor_po'],
 
-            'GRN' => ['prefix' => 'GRN', 'model' => \App\Models\PenerimaanBarang::class, 'date_col' => 'tanggal_penerimaan'],
-            'PENERIMAAN_BARANG' => ['prefix' => 'GRN', 'model' => \App\Models\PenerimaanBarang::class, 'date_col' => 'tanggal_penerimaan'],
+            'GRN' => ['prefix' => 'GRN', 'model' => \App\Models\PenerimaanBarang::class, 'date_col' => 'tanggal_penerimaan', 'num_col' => 'nomor_penerimaan'],
+            'PENERIMAAN_BARANG' => ['prefix' => 'GRN', 'model' => \App\Models\PenerimaanBarang::class, 'date_col' => 'tanggal_penerimaan', 'num_col' => 'nomor_penerimaan'],
 
-            'INV-SUP' => ['prefix' => 'INV-SUP', 'model' => \App\Models\InvoiceSupplier::class, 'date_col' => 'tanggal_invoice'],
-            'INVOICE_SUPPLIER' => ['prefix' => 'INV-SUP', 'model' => \App\Models\InvoiceSupplier::class, 'date_col' => 'tanggal_invoice'],
-            'INVOICE_PEMBELIAN' => ['prefix' => 'INV-SUP', 'model' => \App\Models\InvoiceSupplier::class, 'date_col' => 'tanggal_invoice'],
+            'INV-SUP' => ['prefix' => 'INV-SUP', 'model' => \App\Models\InvoiceSupplier::class, 'date_col' => 'tanggal_invoice', 'num_col' => 'nomor_invoice'],
+            'INVOICE_SUPPLIER' => ['prefix' => 'INV-SUP', 'model' => \App\Models\InvoiceSupplier::class, 'date_col' => 'tanggal_invoice', 'num_col' => 'nomor_invoice'],
+            'INVOICE_PEMBELIAN' => ['prefix' => 'INV-SUP', 'model' => \App\Models\InvoiceSupplier::class, 'date_col' => 'tanggal_invoice', 'num_col' => 'nomor_invoice'],
 
-            'PAY-SUP' => ['prefix' => 'PAY-SUP', 'model' => \App\Models\PembayaranSupplier::class, 'date_col' => 'tanggal'],
-            'PEMBAYARAN_SUPPLIER' => ['prefix' => 'PAY-SUP', 'model' => \App\Models\PembayaranSupplier::class, 'date_col' => 'tanggal'],
-            'PEMBAYARAN_UTANG' => ['prefix' => 'PAY-SUP', 'model' => \App\Models\PembayaranSupplier::class, 'date_col' => 'tanggal'],
+            'PAY-SUP' => ['prefix' => 'PAY-SUP', 'model' => \App\Models\PembayaranSupplier::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_pembayaran'],
+            'PEMBAYARAN_SUPPLIER' => ['prefix' => 'PAY-SUP', 'model' => \App\Models\PembayaranSupplier::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_pembayaran'],
+            'PEMBAYARAN_UTANG' => ['prefix' => 'PAY-SUP', 'model' => \App\Models\PembayaranSupplier::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_pembayaran'],
 
-            'KM' => ['prefix' => 'KM', 'model' => \App\Models\MutasiKasBank::class, 'date_col' => 'tanggal', 'where' => ['tipe_mutasi' => 'MASUK']],
-            'UANG_MASUK' => ['prefix' => 'KM', 'model' => \App\Models\MutasiKasBank::class, 'date_col' => 'tanggal', 'where' => ['tipe_mutasi' => 'MASUK']],
-            'KAS_MASUK' => ['prefix' => 'KM', 'model' => \App\Models\MutasiKasBank::class, 'date_col' => 'tanggal', 'where' => ['tipe_mutasi' => 'MASUK']],
+            'KM' => ['prefix' => 'KM', 'model' => \App\Models\MutasiKasBank::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_mutasi', 'where' => ['tipe_mutasi' => 'MASUK']],
+            'UANG_MASUK' => ['prefix' => 'KM', 'model' => \App\Models\MutasiKasBank::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_mutasi', 'where' => ['tipe_mutasi' => 'MASUK']],
+            'KAS_MASUK' => ['prefix' => 'KM', 'model' => \App\Models\MutasiKasBank::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_mutasi', 'where' => ['tipe_mutasi' => 'MASUK']],
 
-            'KK' => ['prefix' => 'KK', 'model' => \App\Models\UangKeluar::class, 'date_col' => 'tanggal'],
-            'UANG_KELUAR' => ['prefix' => 'KK', 'model' => \App\Models\UangKeluar::class, 'date_col' => 'tanggal'],
-            'KAS_KELUAR' => ['prefix' => 'KK', 'model' => \App\Models\UangKeluar::class, 'date_col' => 'tanggal'],
+            'KK' => ['prefix' => 'KK', 'model' => \App\Models\UangKeluar::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_uang_keluar'],
+            'UANG_KELUAR' => ['prefix' => 'KK', 'model' => \App\Models\UangKeluar::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_uang_keluar'],
+            'KAS_KELUAR' => ['prefix' => 'KK', 'model' => \App\Models\UangKeluar::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_uang_keluar'],
 
-            'JU' => ['prefix' => 'JU', 'model' => \App\Models\Jurnal::class, 'date_col' => 'tanggal'],
-            'JURNAL_UMUM' => ['prefix' => 'JU', 'model' => \App\Models\Jurnal::class, 'date_col' => 'tanggal'],
+            // JOURNALS DEDICATED PREFIXES BY TRANSACTION TYPE
+            'JU' => ['prefix' => 'JU', 'model' => \App\Models\Jurnal::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_jurnal'],
+            'JURNAL_UMUM' => ['prefix' => 'JU', 'model' => \App\Models\Jurnal::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_jurnal'],
+
+            'JPJ' => ['prefix' => 'JPJ', 'model' => \App\Models\Jurnal::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_jurnal'],
+            'JURNAL_PENJUALAN' => ['prefix' => 'JPJ', 'model' => \App\Models\Jurnal::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_jurnal'],
+
+            'RJL' => ['prefix' => 'RJL', 'model' => \App\Models\Jurnal::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_jurnal'],
+            'JURNAL_RETUR_PENJUALAN' => ['prefix' => 'RJL', 'model' => \App\Models\Jurnal::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_jurnal'],
+
+            'JPI' => ['prefix' => 'JPI', 'model' => \App\Models\Jurnal::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_jurnal'],
+            'JURNAL_PENERIMAAN_PIUTANG' => ['prefix' => 'JPI', 'model' => \App\Models\Jurnal::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_jurnal'],
+
+            'JPB' => ['prefix' => 'JPB', 'model' => \App\Models\Jurnal::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_jurnal'],
+            'JURNAL_PEMBELIAN' => ['prefix' => 'JPB', 'model' => \App\Models\Jurnal::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_jurnal'],
+
+            'RPB' => ['prefix' => 'RPB', 'model' => \App\Models\Jurnal::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_jurnal'],
+            'JURNAL_RETUR_PEMBELIAN' => ['prefix' => 'RPB', 'model' => \App\Models\Jurnal::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_jurnal'],
+
+            'JPU' => ['prefix' => 'JPU', 'model' => \App\Models\Jurnal::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_jurnal'],
+            'JURNAL_PEMBAYARAN_UTANG' => ['prefix' => 'JPU', 'model' => \App\Models\Jurnal::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_jurnal'],
+
+            'JBT' => ['prefix' => 'JBT', 'model' => \App\Models\Jurnal::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_jurnal'],
+            'JURNAL_PEMBATALAN' => ['prefix' => 'JBT', 'model' => \App\Models\Jurnal::class, 'date_col' => 'tanggal', 'num_col' => 'nomor_jurnal'],
         ];
 
         if (isset($prefixMap[$key])) {
             $config = $prefixMap[$key];
             $prefix = $config['prefix'];
+
+            $dbSetting = PengaturanPenomoran::where('jenis_dokumen', $key)->first();
+            if ($dbSetting && !empty($dbSetting->prefix)) {
+                $prefix = rtrim($dbSetting->prefix, '-/');
+            }
+
             $model = $config['model'];
             $dateCol = $config['date_col'];
+            $numCol = $config['num_col'] ?? 'nomor_jurnal';
+
+            $prefixPattern = sprintf('%s/%s/%s/%%', $prefix, $year, $month);
 
             $query = $model::query()
                 ->whereYear($dateCol, $year)
@@ -139,8 +170,15 @@ class SystemAccountingService
                 }
             }
 
-            $count = $query->count();
-            $nextSeq = $count + 1;
+            $lastItem = $query->where($numCol, 'like', $prefixPattern)->orderByDesc($numCol)->first();
+
+            if ($lastItem) {
+                $lastNumStr = substr($lastItem->$numCol, -4);
+                $nextSeq = ((int) $lastNumStr) + 1;
+            } else {
+                $nextSeq = 1;
+            }
+
             return sprintf('%s/%s/%s/%04d', $prefix, $year, $month, $nextSeq);
         }
 
@@ -177,6 +215,8 @@ class SystemAccountingService
 
         $akunPendapatanId = $this->getSystemAccountId('AKUN_PENDAPATAN_PENJUALAN');
         $akunDiskonId = $this->getSystemAccountId('AKUN_DISKON_PENJUALAN');
+        $akunPpnId = $this->getSystemAccountId('AKUN_PPN_PENJUALAN')
+            ?? Akun::where('nama_akun', 'like', '%PPN%')->first()?->id;
         $akunHppId = $this->getSystemAccountId('AKUN_HPP');
         $akunPersediaanId = $this->getSystemAccountId('AKUN_PERSEDIAAN');
 
@@ -196,15 +236,19 @@ class SystemAccountingService
             $totalHpp += (float) ($item->total_hpp > 0 ? $item->total_hpp : ($item->qty * $item->hpp_satuan));
         }
 
+        $diskon = (float) $invoice->diskon;
+        $pajak = (float) $invoice->pajak;
+
         $totalDebit = (float) $invoice->total
-            + ((float) $invoice->diskon > 0 && $akunDiskonId ? (float) $invoice->diskon : 0)
+            + ($diskon > 0 && $akunDiskonId ? $diskon : 0)
             + ($totalHpp > 0 && $akunHppId && $akunPersediaanId ? $totalHpp : 0);
 
         $totalKredit = (float) $invoice->subtotal
+            + ($pajak > 0 && $akunPpnId ? $pajak : 0)
             + ($totalHpp > 0 && $akunHppId && $akunPersediaanId ? $totalHpp : 0);
 
         $jurnal = Jurnal::create([
-            'nomor_jurnal' => $this->generateDocumentNumber('JURNAL_UMUM'),
+            'nomor_jurnal' => $this->generateDocumentNumber('JURNAL_PENJUALAN', $invoice->tanggal_invoice),
             'tanggal' => $invoice->tanggal_invoice,
             'keterangan' => 'Jurnal Penjualan ' . $invoice->nomor_invoice . ' - ' . ($invoice->customer?->nama_customer ?? 'Customer'),
             'is_system_generated' => true,
@@ -228,11 +272,11 @@ class SystemAccountingService
         ]);
 
         // Debit diskon jika ada
-        if ((float) $invoice->diskon > 0 && $akunDiskonId) {
+        if ($diskon > 0 && $akunDiskonId) {
             JurnalDetail::create([
                 'jurnal_id' => $jurnal->id,
                 'akun_id' => $akunDiskonId,
-                'debit' => $invoice->diskon,
+                'debit' => $diskon,
                 'kredit' => 0,
                 'keterangan' => 'Diskon penjualan ' . $invoice->nomor_invoice,
             ]);
@@ -246,6 +290,17 @@ class SystemAccountingService
             'kredit' => $invoice->subtotal,
             'keterangan' => 'Pendapatan penjualan ' . $invoice->nomor_invoice,
         ]);
+
+        // Kredit PPN Keluaran jika ada pajak
+        if ($pajak > 0 && $akunPpnId) {
+            JurnalDetail::create([
+                'jurnal_id' => $jurnal->id,
+                'akun_id' => $akunPpnId,
+                'debit' => 0,
+                'kredit' => $pajak,
+                'keterangan' => 'PPN Keluaran ' . $invoice->nomor_invoice,
+            ]);
+        }
 
         // HPP - Persediaan
         if ($totalHpp > 0 && $akunHppId && $akunPersediaanId) {
@@ -311,7 +366,7 @@ class SystemAccountingService
         $total = (float) $penerimaan->total_dibayar;
 
         $jurnal = Jurnal::create([
-            'nomor_jurnal' => $this->generateDocumentNumber('JURNAL_UMUM'),
+            'nomor_jurnal' => $this->generateDocumentNumber('JURNAL_PENERIMAAN_PIUTANG', $penerimaan->tanggal),
             'tanggal' => $penerimaan->tanggal,
             'keterangan' => 'Penerimaan Piutang ' . $penerimaan->nomor_penerimaan . ' - ' . ($penerimaan->customer?->nama_customer ?? 'Customer'),
             'is_system_generated' => true,
@@ -368,7 +423,11 @@ class SystemAccountingService
 
         $akunPiutangId = $this->getSystemAccountId('AKUN_PIUTANG_DAGANG');
         $akunPendapatanId = $this->getSystemAccountId('AKUN_PENDAPATAN_PENJUALAN');
-        $akunPajakPpnId = Akun::query()->where('nama_akun', 'like', '%PPN%')->first()?->id;
+        $akunReturId = $this->getSystemAccountId('AKUN_RETUR_PENJUALAN')
+            ?? Akun::where('kode_akun', '4.1.02')->first()?->id
+            ?? $akunPendapatanId;
+        $akunPajakPpnId = $this->getSystemAccountId('AKUN_PPN_PENJUALAN')
+            ?? Akun::query()->where('nama_akun', 'like', '%PPN%')->first()?->id;
         $akunHppId = $this->getSystemAccountId('AKUN_HPP');
         $akunPersediaanId = $this->getSystemAccountId('AKUN_PERSEDIAAN');
 
@@ -396,7 +455,7 @@ class SystemAccountingService
         $totalKredit = (float) $retur->total + ($totalHppRetur > 0 ? $totalHppRetur : 0);
 
         $jurnal = Jurnal::create([
-            'nomor_jurnal' => $this->generateDocumentNumber('JURNAL_UMUM'),
+            'nomor_jurnal' => $this->generateDocumentNumber('JURNAL_RETUR_PENJUALAN', $retur->tanggal_retur),
             'tanggal' => $retur->tanggal_retur,
             'keterangan' => 'Retur Penjualan ' . $retur->nomor_retur . ' - ' . ($retur->customer?->nama_customer ?? 'Customer'),
             'is_system_generated' => true,
@@ -408,10 +467,10 @@ class SystemAccountingService
             'created_by' => auth()->id(),
         ]);
 
-        // Debit Retur/Pendapatan
+        // Debit Retur Penjualan
         JurnalDetail::create([
             'jurnal_id' => $jurnal->id,
-            'akun_id' => $akunPendapatanId,
+            'akun_id' => $akunReturId,
             'debit' => $retur->subtotal,
             'kredit' => 0,
             'keterangan' => 'Retur penjualan ' . $retur->nomor_retur,
@@ -523,7 +582,7 @@ class SystemAccountingService
         $total = (float) $invoice->total;
 
         $jurnal = Jurnal::create([
-            'nomor_jurnal' => $this->generateDocumentNumber('JURNAL_UMUM'),
+            'nomor_jurnal' => $this->generateDocumentNumber('JURNAL_PEMBATALAN', now()),
             'tanggal' => now(),
             'keterangan' => 'Pembatalan Invoice ' . $invoice->nomor_invoice . ' - ' . $alasan,
             'is_system_generated' => true,

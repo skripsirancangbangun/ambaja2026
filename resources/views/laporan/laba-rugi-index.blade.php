@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Laporan Laba Rugi')
+@section('title', 'Laporan Laba Rugi (PSAK)')
 
 @section('content')
 
@@ -9,10 +9,10 @@
     {{-- HEADER --}}
     <div>
         <h2 class="text-xl font-semibold text-slate-800">
-            Laporan Laba Rugi (Profit & Loss)
+            Laporan Laba Rugi (Profit & Loss Statement)
         </h2>
         <p class="mt-1 text-sm text-slate-500">
-            Perhitungan Pendapatan dikurangi Beban operasional pada periode terpilih.
+            Format Laporan Keuangan Multi-Step Sesuai Standar Akuntansi Keuangan (PSAK).
         </p>
     </div>
 
@@ -70,7 +70,7 @@
         <div class="flex flex-col gap-4 border-b border-slate-200 pb-4 md:flex-row md:items-center md:justify-between">
             <div>
                 <h3 class="text-lg font-bold text-[#15235F]">CV AMBAJA (ANDIKA MUSTIKA)</h3>
-                <p class="text-sm font-semibold text-slate-700">LAPORAN LABA RUGI</p>
+                <p class="text-sm font-semibold text-slate-700">LAPORAN LABA RUGI (PSAK)</p>
                 <p class="text-xs text-slate-500">Periode {{ date('d/m/Y', strtotime($tanggalMulai)) }} s/d {{ date('d/m/Y', strtotime($tanggalSelesai)) }}</p>
             </div>
 
@@ -99,58 +99,174 @@
             </div>
         </div>
 
-        {{-- PENDAPATAN --}}
+        {{-- 1. PENJUALAN --}}
         <div>
-            <h4 class="text-sm font-bold uppercase tracking-wider text-[#15235F] border-b border-slate-100 pb-2">
-                PENDAPATAN (REVENUE)
+            <h4 class="text-xs font-bold uppercase tracking-wider text-[#15235F] border-b border-slate-200 pb-2">
+                1. PENJUALAN (REVENUE)
             </h4>
-            <div class="divide-y divide-slate-100 mt-2">
-                @foreach($pendapatanData as $row)
-                    <div class="flex justify-between py-2 text-sm">
-                        <span class="text-slate-700 font-medium">{{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</span>
-                        <span class="font-semibold text-slate-800">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</span>
+            <div class="divide-y divide-slate-100 mt-2 text-sm">
+                @foreach($penjualanKotorData as $row)
+                    <div class="flex justify-between py-1.5">
+                        <span class="text-slate-700 font-medium pl-2">{{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</span>
+                        <span class="font-medium text-slate-800">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</span>
+                    </div>
+                @endforeach
+                @foreach($diskonPenjualanData as $row)
+                    <div class="flex justify-between py-1.5 text-rose-600">
+                        <span class="pl-2">(-) {{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</span>
+                        <span class="font-medium">(Rp {{ number_format($row['nominal'], 0, ',', '.') }})</span>
+                    </div>
+                @endforeach
+                @foreach($returPenjualanData as $row)
+                    <div class="flex justify-between py-1.5 text-rose-600">
+                        <span class="pl-2">(-) {{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</span>
+                        <span class="font-medium">(Rp {{ number_format($row['nominal'], 0, ',', '.') }})</span>
                     </div>
                 @endforeach
             </div>
-            <div class="flex justify-between border-t border-slate-200 pt-2 font-bold text-sm text-emerald-700">
-                <span>TOTAL PENDAPATAN</span>
-                <span>Rp {{ number_format($totalPendapatan, 0, ',', '.') }}</span>
+            <div class="flex justify-between border-t border-slate-300 mt-1 pt-2 font-bold text-sm text-slate-900 bg-slate-50 p-2 rounded-lg">
+                <span>PENJUALAN BERSIH (NET SALES)</span>
+                <span class="text-emerald-700">Rp {{ number_format($penjualanBersih, 0, ',', '.') }}</span>
             </div>
         </div>
 
-        {{-- BEBAN --}}
+        {{-- 2. HARGA POKOK PENJUALAN --}}
         <div>
-            <h4 class="text-sm font-bold uppercase tracking-wider text-[#15235F] border-b border-slate-100 pb-2">
-                BEBAN (EXPENSES)
+            <h4 class="text-xs font-bold uppercase tracking-wider text-[#15235F] border-b border-slate-200 pb-2">
+                2. HARGA POKOK PENJUALAN (HPP / COGS)
             </h4>
-            <div class="divide-y divide-slate-100 mt-2">
-                @foreach($bebanData as $row)
-                    <div class="flex justify-between py-2 text-sm">
-                        <span class="text-slate-700 font-medium">{{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</span>
-                        <span class="font-semibold text-slate-800">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</span>
+            <div class="divide-y divide-slate-100 mt-2 text-sm">
+                @foreach($hppUtamaData as $row)
+                    <div class="flex justify-between py-1.5">
+                        <span class="text-slate-700 font-medium pl-2">{{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</span>
+                        <span class="font-medium text-slate-800">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</span>
+                    </div>
+                @endforeach
+                @foreach($biayaAngkutData as $row)
+                    <div class="flex justify-between py-1.5">
+                        <span class="text-slate-700 pl-2">(+) {{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</span>
+                        <span class="font-medium text-slate-800">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</span>
+                    </div>
+                @endforeach
+                @foreach($biayaBongkarData as $row)
+                    <div class="flex justify-between py-1.5">
+                        <span class="text-slate-700 pl-2">(+) {{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</span>
+                        <span class="font-medium text-slate-800">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</span>
+                    </div>
+                @endforeach
+                @foreach($potonganPembelianData as $row)
+                    <div class="flex justify-between py-1.5 text-emerald-600">
+                        <span class="pl-2">(-) {{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</span>
+                        <span class="font-medium">(Rp {{ number_format($row['nominal'], 0, ',', '.') }})</span>
+                    </div>
+                @endforeach
+                @foreach($returPembelianData as $row)
+                    <div class="flex justify-between py-1.5 text-emerald-600">
+                        <span class="pl-2">(-) {{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</span>
+                        <span class="font-medium">(Rp {{ number_format($row['nominal'], 0, ',', '.') }})</span>
                     </div>
                 @endforeach
             </div>
-            <div class="flex justify-between border-t border-slate-200 pt-2 font-bold text-sm text-rose-700">
-                <span>TOTAL BEBAN</span>
-                <span>Rp {{ number_format($totalBeban, 0, ',', '.') }}</span>
+            <div class="flex justify-between border-t border-slate-300 mt-1 pt-2 font-bold text-sm text-slate-900 bg-slate-50 p-2 rounded-lg">
+                <span>TOTAL HARGA POKOK PENJUALAN</span>
+                <span class="text-rose-700">Rp {{ number_format($totalHpp, 0, ',', '.') }}</span>
             </div>
         </div>
 
-        {{-- LABA/RUGI BERSIH RESULT BOX --}}
-        <div class="rounded-2xl border p-5 {{ $labaRugiBersih >= 0 ? 'border-emerald-200 bg-emerald-50/50' : 'border-rose-200 bg-rose-50/50' }}">
+        {{-- 3. LABA KOTOR --}}
+        <div class="rounded-xl border border-blue-200 bg-blue-50/60 p-3.5 flex justify-between items-center font-bold text-sm">
+            <span class="text-[#15235F] uppercase">{{ $labaKotor >= 0 ? '3. LABA KOTOR (GROSS PROFIT)' : '3. RUGI KOTOR (GROSS LOSS)' }}</span>
+            <span class="{{ $labaKotor >= 0 ? 'text-emerald-700' : 'text-rose-700' }} text-base">
+                Rp {{ number_format($labaKotor, 0, ',', '.') }}
+            </span>
+        </div>
+
+        {{-- 4. BEBAN OPERASIONAL --}}
+        <div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-[#15235F] border-b border-slate-200 pb-2">
+                4. BEBAN OPERASIONAL (OPERATING EXPENSES)
+            </h4>
+            <div class="divide-y divide-slate-100 mt-2 text-sm">
+                @foreach($bebanOpsData as $row)
+                    <div class="flex justify-between py-1.5">
+                        <span class="text-slate-700 font-medium pl-2">{{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</span>
+                        <span class="font-medium text-slate-800">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</span>
+                    </div>
+                @endforeach
+            </div>
+            <div class="flex justify-between border-t border-slate-300 mt-1 pt-2 font-bold text-sm text-slate-900 bg-slate-50 p-2 rounded-lg">
+                <span>TOTAL BEBAN OPERASIONAL</span>
+                <span class="text-rose-700">Rp {{ number_format($totalBebanOps, 0, ',', '.') }}</span>
+            </div>
+        </div>
+
+        {{-- 5. LABA OPERASIONAL --}}
+        <div class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5 flex justify-between items-center font-bold text-sm">
+            <span class="text-[#15235F] uppercase">{{ $labaOperasional >= 0 ? '5. LABA OPERASIONAL / LABA USAHA' : '5. RUGI OPERASIONAL' }}</span>
+            <span class="{{ $labaOperasional >= 0 ? 'text-emerald-700' : 'text-rose-700' }} text-base">
+                Rp {{ number_format($labaOperasional, 0, ',', '.') }}
+            </span>
+        </div>
+
+        {{-- 6. PENDAPATAN & BEBAN LAIN-LAIN --}}
+        <div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-[#15235F] border-b border-slate-200 pb-2">
+                6. PENDAPATAN & BEBAN LAIN-LAIN
+            </h4>
+            <div class="divide-y divide-slate-100 mt-2 text-sm">
+                @foreach($pendLainData as $row)
+                    <div class="flex justify-between py-1.5 text-emerald-700">
+                        <span class="pl-2">(+) {{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</span>
+                        <span class="font-medium">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</span>
+                    </div>
+                @endforeach
+                @foreach($bebanLainData as $row)
+                    <div class="flex justify-between py-1.5 text-rose-600">
+                        <span class="pl-2">(-) {{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</span>
+                        <span class="font-medium">(Rp {{ number_format($row['nominal'], 0, ',', '.') }})</span>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+
+        {{-- 7. LABA SEBELUM PAJAK --}}
+        <div class="rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 flex justify-between items-center font-bold text-sm">
+            <span class="text-amber-900 uppercase">{{ $labaSebelumPajak >= 0 ? '7. LABA BERSIH SEBELUM PAJAK (EBT)' : '7. RUGI SEBELUM PAJAK' }}</span>
+            <span class="{{ $labaSebelumPajak >= 0 ? 'text-emerald-700' : 'text-rose-700' }} text-base">
+                Rp {{ number_format($labaSebelumPajak, 0, ',', '.') }}
+            </span>
+        </div>
+
+        {{-- 8. BEBAN PAJAK PENGHASILAN --}}
+        <div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-[#15235F] border-b border-slate-200 pb-2">
+                8. BEBAN PAJAK PENGHASILAN (PPh)
+            </h4>
+            <div class="divide-y divide-slate-100 mt-2 text-sm">
+                @foreach($bebanPajakData as $row)
+                    <div class="flex justify-between py-1.5 text-rose-600">
+                        <span class="pl-2">(-) {{ $row['akun']->kode_akun }} - {{ $row['akun']->nama_akun }}</span>
+                        <span class="font-medium">(Rp {{ number_format($row['nominal'], 0, ',', '.') }})</span>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+
+        {{-- 9. LABA BERSIH SETELAH PAJAK RESULT BOX --}}
+        <div class="rounded-2xl border p-5 shadow-sm {{ $labaSetelahPajak >= 0 ? 'border-emerald-300 bg-emerald-50' : 'border-rose-300 bg-rose-50' }}">
             <div class="flex justify-between items-center">
                 <div>
-                    <h3 class="text-base font-bold uppercase {{ $labaRugiBersih >= 0 ? 'text-emerald-800' : 'text-rose-800' }}">
-                        {{ $labaRugiBersih >= 0 ? 'LABA BERSIH (NET PROFIT)' : 'RUGI BERSIH (NET LOSS)' }}
+                    <h3 class="text-base font-bold uppercase tracking-wide {{ $labaSetelahPajak >= 0 ? 'text-emerald-900' : 'text-rose-900' }}">
+                        {{ $labaSetelahPajak >= 0 ? '9. LABA BERSIH SETELAH PAJAK (NET PROFIT AFTER TAX)' : '9. RUGI BERSIH SETELAH PAJAK (NET LOSS AFTER TAX)' }}
                     </h3>
-                    <p class="text-xs text-slate-500">Total Pendapatan Mutasi - Total Beban Mutasi</p>
+                    <p class="text-xs text-slate-500">Hasil Akhir Sesuai Perhitungan Standar PSAK Akuntansi</p>
                 </div>
-                <div class="text-2xl font-bold {{ $labaRugiBersih >= 0 ? 'text-emerald-600' : 'text-rose-600' }}">
-                    Rp {{ number_format($labaRugiBersih, 0, ',', '.') }}
+                <div class="text-2xl font-black {{ $labaSetelahPajak >= 0 ? 'text-emerald-600' : 'text-rose-600' }}">
+                    Rp {{ number_format($labaSetelahPajak, 0, ',', '.') }}
                 </div>
             </div>
         </div>
+
     </div>
 
 </div>

@@ -120,10 +120,14 @@
 
                     <tr>
                         <td class="px-6 py-4 text-slate-700 font-medium pl-8">
-                            (+) Laba / (Rugi) Bersih Periode Berjalan
+                            @if($labaBersihPeriode >= 0)
+                                (+) Laba Bersih Periode Berjalan
+                            @else
+                                (-) Rugi Bersih Periode Berjalan
+                            @endif
                         </td>
                         <td class="px-6 py-4 text-right font-semibold {{ $labaBersihPeriode >= 0 ? 'text-emerald-600' : 'text-rose-600' }}">
-                            {{ $labaBersihPeriode >= 0 ? '+' : '' }} Rp {{ number_format($labaBersihPeriode, 0, ',', '.') }}
+                            {{ $labaBersihPeriode >= 0 ? '+' : '-' }} Rp {{ number_format(abs($labaBersihPeriode), 0, ',', '.') }}
                         </td>
                     </tr>
 
@@ -138,10 +142,14 @@
 
                     <tr class="bg-slate-50 font-bold">
                         <td class="px-6 py-4 text-slate-700">
-                            Kenaikan / (Penurunan) Bersih Ekuitas Periode Ini
+                            @if($perubahanNet >= 0)
+                                Kenaikan Bersih Ekuitas Periode Ini
+                            @else
+                                Penurunan Bersih Ekuitas Periode Ini
+                            @endif
                         </td>
                         <td class="px-6 py-4 text-right {{ $perubahanNet >= 0 ? 'text-emerald-600' : 'text-rose-600' }}">
-                            {{ $perubahanNet >= 0 ? '+' : '' }} Rp {{ number_format($perubahanNet, 0, ',', '.') }}
+                            {{ $perubahanNet >= 0 ? '+' : '-' }} Rp {{ number_format(abs($perubahanNet), 0, ',', '.') }}
                         </td>
                     </tr>
                 </tbody>

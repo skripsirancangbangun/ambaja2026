@@ -43,6 +43,7 @@ class DatabaseSeeder extends Seeder
             CustomerSeeder::class,
             MasterBarangSeeder::class,
             HargaBarangSeeder::class,
+            RekeningKasBankSeeder::class,
       ]);
     }
 }
