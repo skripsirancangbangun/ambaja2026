@@ -10,6 +10,7 @@ use App\Models\InvoicePenjualanItem;
 use App\Models\Penjualan;
 use App\Models\PenjualanItem;
 use App\Models\RekeningKasBank;
+use App\Models\StokGudang;
 use App\Services\InventoryService;
 use App\Services\KasBankService;
 use App\Services\SystemAccountingService;
@@ -17,111 +18,246 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class InvoicePenjualanController extends Controller
 {
+    /*
+    |--------------------------------------------------------------------------
+    | INDEX
+    |--------------------------------------------------------------------------
+    */
+
     public function index(Request $request)
     {
-        $query = InvoicePenjualan::with(['customer', 'gudang', 'creator', 'items.barang']);
+        $query = InvoicePenjualan::with([
+            'customer',
+            'gudang',
+            'creator',
+            'items.barang',
+        ]);
 
         if ($request->filled('search')) {
-            $search = $request->search;
+            $search = trim($request->search);
+
             $query->where(function ($q) use ($search) {
-                $q->where('nomor_invoice', 'like', "%{$search}%")
-                  ->orWhereHas('customer', function ($cq) use ($search) {
-                      $cq->where('nama_customer', 'like', "%{$search}%");
-                  });
+                $q->where(
+                    'nomor_invoice',
+                    'like',
+                    "%{$search}%"
+                )
+                    ->orWhereHas(
+                        'customer',
+                        function ($cq) use ($search) {
+                            $cq->where(
+                                'nama_customer',
+                                'like',
+                                "%{$search}%"
+                            );
+                        }
+                    );
             });
         }
 
         if ($request->filled('status_pembayaran')) {
-            $query->where('status_pembayaran', $request->status_pembayaran);
+            $query->where(
+                'status_pembayaran',
+                $request->status_pembayaran
+            );
+        }
+
+        if ($request->filled('status_invoice')) {
+            $query->where(
+                'status_invoice',
+                $request->status_invoice
+            );
         }
 
         if ($request->filled('tipe_pembayaran')) {
-            $query->where('tipe_pembayaran', $request->tipe_pembayaran);
+            $query->where(
+                'tipe_pembayaran',
+                $request->tipe_pembayaran
+            );
         }
 
         if ($request->filled('tanggal_mulai')) {
-            $query->whereDate('tanggal_invoice', '>=', $request->tanggal_mulai);
+            $query->whereDate(
+                'tanggal_invoice',
+                '>=',
+                $request->tanggal_mulai
+            );
         }
 
         if ($request->filled('tanggal_selesai')) {
-            $query->whereDate('tanggal_invoice', '<=', $request->tanggal_selesai);
+            $query->whereDate(
+                'tanggal_invoice',
+                '<=',
+                $request->tanggal_selesai
+            );
         }
 
-        $invoices = $query->latest('tanggal_invoice')->latest('id')->paginate(15)->withQueryString();
+        $invoices = $query
+            ->latest('tanggal_invoice')
+            ->latest('id')
+            ->paginate(15)
+            ->withQueryString();
 
-        return view('invoice-penjualan.index', compact('invoices'));
+        return view(
+            'invoice-penjualan.index',
+            compact('invoices')
+        );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | CREATE
+    |--------------------------------------------------------------------------
+    */
 
     public function create(Request $request)
     {
-        $customers = Customer::where('is_active', true)->orderBy('nama_customer')->get();
-        $gudangs = Gudang::where('is_active', true)->orderBy('nama_gudang')->get();
-        $rekeningKasBanks = RekeningKasBank::where('is_active', true)->orderBy('nama_rekening')->get();
-        $barangs = Barang::with(['stokGudangs'])->where('is_active', true)->orderBy('nama_barang')->get();
-        $nomorInvoice = app(SystemAccountingService::class)->generateDocumentNumber('INV');
+        $customers = Customer::where(
+            'is_active',
+            true
+        )
+            ->orderBy('nama_customer')
+            ->get();
 
-        // Hanya Sales Order yang berstatus Dikonfirmasi / Diproses dan masih memiliki sisa Qty yang belum di-invoice
-        $penjualans = Penjualan::with(['customer', 'items.barang'])
-            ->whereIn('status', ['Dikonfirmasi', 'Diproses'])
-            ->whereHas('items', function ($q) {
-                $q->whereRaw('qty > qty_terinvoice');
-            })
+        $gudangs = Gudang::where(
+            'is_active',
+            true
+        )
+            ->orderBy('nama_gudang')
+            ->get();
+
+        $rekeningKasBanks = RekeningKasBank::where(
+            'is_active',
+            true
+        )
+            ->orderBy('nama_rekening')
+            ->get();
+
+        $barangs = Barang::with([
+            'stokGudangs',
+        ])
+            ->where(
+                'is_active',
+                true
+            )
+            ->orderBy('nama_barang')
+            ->get();
+
+        $nomorInvoice = app(
+            SystemAccountingService::class
+        )->generateDocumentNumber('INV');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Sales Order Yang Belum Selesai Di-Invoice
+        |--------------------------------------------------------------------------
+        */
+
+        $penjualans = Penjualan::with([
+            'customer',
+            'items.barang',
+        ])
+            ->whereIn(
+                'status',
+                [
+                    'Dikonfirmasi',
+                    'Diproses',
+                ]
+            )
+            ->whereHas(
+                'items',
+                function ($q) {
+                    $q->whereRaw(
+                        'qty > COALESCE(qty_terinvoice, 0)'
+                    );
+                }
+            )
             ->latest('tanggal_penjualan')
             ->get();
 
         $selectedPenjualan = null;
+
         if ($request->filled('penjualan_id')) {
-            $selectedPenjualan = Penjualan::with(['customer', 'items.barang'])->find($request->penjualan_id);
+            $selectedPenjualan = Penjualan::with([
+                'customer',
+                'items.barang',
+            ])->find(
+                $request->penjualan_id
+            );
         }
 
         $initialItems = [
-            ['barang_id' => '', 'qty' => 1, 'harga_satuan' => 0, 'diskon' => 0]
+            [
+                'barang_id' => '',
+                'qty' => 1,
+                'harga_satuan' => 0,
+                'diskon' => 0,
+                'catatan' => '',
+            ],
         ];
 
-        if ($selectedPenjualan && $selectedPenjualan->items->isNotEmpty()) {
-            $initialItems = $selectedPenjualan->items
-                ->filter(fn($i) => ($i->qty - $i->qty_terinvoice) > 0)
-                ->map(function ($i) {
-                    $sisa = (float) ($i->qty - $i->qty_terinvoice);
+        if (
+            $selectedPenjualan
+            && $selectedPenjualan->items->isNotEmpty()
+        ) {
+            $initialItems = $selectedPenjualan
+                ->items
+                ->filter(function ($item) {
+                    return (
+                        (float) $item->qty
+                        - (float) ($item->qty_terinvoice ?? 0)
+                    ) > 0;
+                })
+                ->map(function ($item) {
+                    $sisa =
+                        (float) $item->qty
+                        - (float) ($item->qty_terinvoice ?? 0);
+
                     return [
-                        'barang_id' => $i->barang_id,
-                        'qty' => $sisa,
-                        'harga_satuan' => (float) $i->harga_satuan,
-                        'diskon' => (float) $i->diskon,
+                        'barang_id' =>
+                            $item->barang_id,
+
+                        'qty' =>
+                            $sisa,
+
+                        'harga_satuan' =>
+                            (float) $item->harga_satuan,
+
+                        'diskon' =>
+                            (float) ($item->diskon ?? 0),
+
+                        'catatan' =>
+                            $item->catatan ?? '',
                     ];
-                })->values()->toArray();
+                })
+                ->values()
+                ->toArray();
         }
 
-        return view('invoice-penjualan.create', compact(
-            'customers',
-            'gudangs',
-            'rekeningKasBanks',
-            'barangs',
-            'penjualans',
-            'selectedPenjualan',
-            'nomorInvoice',
-            'initialItems'
-        ));
+        return view(
+            'invoice-penjualan.create',
+            compact(
+                'customers',
+                'gudangs',
+                'rekeningKasBanks',
+                'barangs',
+                'penjualans',
+                'selectedPenjualan',
+                'nomorInvoice',
+                'initialItems'
+            )
+        );
     }
 
-    private function generateNomorInvoice(): string
-    {
-        $prefix = 'INV-' . now()->format('Ym') . '-';
-
-        $lastInvoice = InvoicePenjualan::where('nomor_invoice', 'like', $prefix . '%')
-            ->orderByDesc('nomor_invoice')
-            ->first();
-
-        if (!$lastInvoice) {
-            return $prefix . '0001';
-        }
-
-        $lastNumber = (int) substr($lastInvoice->nomor_invoice, -4);
-        return $prefix . str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
-    }
+    /*
+    |--------------------------------------------------------------------------
+    | STORE
+    |--------------------------------------------------------------------------
+    */
 
     public function store(
         Request $request,
@@ -130,261 +266,992 @@ class InvoicePenjualanController extends Controller
         SystemAccountingService $systemAccountingService
     ) {
         $validated = $request->validate([
-            'nomor_invoice' => 'required|string|unique:invoice_penjualans,nomor_invoice',
-            'penjualan_id' => 'nullable|exists:penjualans,id',
-            'customer_id' => 'required|exists:customers,id',
-            'gudang_id' => 'required|exists:gudangs,id',
-            'tanggal_invoice' => 'required|date',
-            'tanggal_jatuh_tempo' => 'nullable|date',
-            'tipe_pembayaran' => 'required|in:Tunai,Kredit',
-            'rekening_kas_bank_id' => 'nullable|required_if:tipe_pembayaran,Tunai|exists:rekening_kas_banks,id',
-            'catatan' => 'nullable|string',
-            'pajak_persen' => 'nullable|numeric|min:0|max:100',
-            'items' => 'required|array|min:1',
-            'items.*.barang_id' => 'required|exists:barangs,id',
-            'items.*.qty' => 'required|numeric|min:0.01',
-            'items.*.harga_satuan' => 'required|numeric|min:0',
-            'items.*.diskon' => 'nullable|numeric|min:0',
+            'nomor_invoice' =>
+                'required|string|unique:invoice_penjualans,nomor_invoice',
+
+            'penjualan_id' =>
+                'nullable|exists:penjualans,id',
+
+            'customer_id' =>
+                'required|exists:customers,id',
+
+            'gudang_id' =>
+                'required|exists:gudangs,id',
+
+            'tanggal_invoice' =>
+                'required|date',
+
+            'tanggal_jatuh_tempo' =>
+                'nullable|date',
+
+            'tipe_pembayaran' =>
+                'required|in:Tunai,Kredit',
+
+            'rekening_kas_bank_id' =>
+                'nullable|required_if:tipe_pembayaran,Tunai|exists:rekening_kas_banks,id',
+
+            'catatan' =>
+                'nullable|string',
+
+            'pajak_persen' =>
+                'nullable|numeric|min:0|max:100',
+
+            'items' =>
+                'required|array|min:1',
+
+            'items.*.barang_id' =>
+                'required|distinct|exists:barangs,id',
+
+            'items.*.qty' =>
+                'required|numeric|min:0.01',
+
+            'items.*.harga_satuan' =>
+                'required|numeric|min:0',
+
+            'items.*.diskon' =>
+                'nullable|numeric|min:0',
+
+            'items.*.catatan' =>
+                'nullable|string',
         ]);
 
-        if ($systemAccountingService->isPeriodLocked($validated['tanggal_invoice'])) {
-            return back()->withInput()->with('error', 'Transaksi pada tanggal ini tidak dapat dibuat karena periode bulanan sudah DITUTUP (Cut-Off).');
+        /*
+        |--------------------------------------------------------------------------
+        | Cut-Off
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $systemAccountingService
+                ->isPeriodLocked(
+                    $validated['tanggal_invoice']
+                )
+        ) {
+            return back()
+                ->withInput()
+                ->with(
+                    'error',
+                    'Transaksi pada tanggal ini tidak dapat dibuat karena periode bulanan sudah DITUTUP (Cut-Off).'
+                );
         }
 
-        $isTunai = $validated['tipe_pembayaran'] === 'Tunai';
+        $isTunai =
+            $validated['tipe_pembayaran']
+            === 'Tunai';
 
-        // Validasi Tanggal Jatuh Tempo untuk Kredit
+        /*
+        |--------------------------------------------------------------------------
+        | Validasi Rekening Tunai
+        |--------------------------------------------------------------------------
+        */
+
+        if ($isTunai) {
+            $rekening = RekeningKasBank::query()
+                ->where(
+                    'id',
+                    $validated['rekening_kas_bank_id']
+                )
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->first();
+
+            if (!$rekening) {
+                return back()
+                    ->withInput()
+                    ->with(
+                        'error',
+                        'Kas/Rekening Bank yang dipilih tidak aktif atau tidak ditemukan.'
+                    );
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Jatuh Tempo
+        |--------------------------------------------------------------------------
+        */
+
         if (!$isTunai) {
-            if (empty($validated['tanggal_jatuh_tempo'])) {
-                $validated['tanggal_jatuh_tempo'] = Carbon::parse($validated['tanggal_invoice'])->addDays(30)->format('Y-m-d');
-            } elseif ($validated['tanggal_jatuh_tempo'] < $validated['tanggal_invoice']) {
-                return back()->withInput()->with('error', 'Tanggal jatuh tempo tidak boleh sebelum tanggal invoice.');
+            if (
+                empty(
+                    $validated['tanggal_jatuh_tempo']
+                )
+            ) {
+                $validated['tanggal_jatuh_tempo'] =
+                    Carbon::parse(
+                        $validated['tanggal_invoice']
+                    )
+                        ->addDays(30)
+                        ->format('Y-m-d');
+            } elseif (
+                Carbon::parse(
+                    $validated['tanggal_jatuh_tempo']
+                )->lt(
+                    Carbon::parse(
+                        $validated['tanggal_invoice']
+                    )
+                )
+            ) {
+                return back()
+                    ->withInput()
+                    ->with(
+                        'error',
+                        'Tanggal jatuh tempo tidak boleh sebelum tanggal invoice.'
+                    );
             }
+        } else {
+            $validated['tanggal_jatuh_tempo'] =
+                null;
         }
 
-        // Strict SO Validation if sales order is provided
+        /*
+        |--------------------------------------------------------------------------
+        | Validasi Sales Order
+        |--------------------------------------------------------------------------
+        */
+
         $so = null;
-        if (!empty($validated['penjualan_id'])) {
-            $so = Penjualan::with('items')->find($validated['penjualan_id']);
-            if (!$so || in_array($so->status, ['Selesai', 'Dibatalkan'])) {
-                return back()->withInput()->with('error', 'Sales Order yang dipilih sudah Selesai atau Dibatalkan.');
+
+        if (
+            !empty(
+                $validated['penjualan_id']
+            )
+        ) {
+            $so = Penjualan::with(
+                'items'
+            )->find(
+                $validated['penjualan_id']
+            );
+
+            if (
+                !$so
+                || in_array(
+                    $so->status,
+                    [
+                        'Selesai',
+                        'Dibatalkan',
+                    ],
+                    true
+                )
+            ) {
+                return back()
+                    ->withInput()
+                    ->with(
+                        'error',
+                        'Sales Order yang dipilih sudah Selesai atau Dibatalkan.'
+                    );
             }
 
-            if ($so->customer_id != $validated['customer_id']) {
-                return back()->withInput()->with('error', 'Customer yang dipilih tidak sesuai dengan Sales Order.');
+            if (
+                (int) $so->customer_id
+                !== (int) $validated['customer_id']
+            ) {
+                return back()
+                    ->withInput()
+                    ->with(
+                        'error',
+                        'Customer yang dipilih tidak sesuai dengan Sales Order.'
+                    );
             }
 
-            if ($so->gudang_id && $so->gudang_id != $validated['gudang_id']) {
-                return back()->withInput()->with('error', 'Gudang yang dipilih tidak sesuai dengan Sales Order.');
+            if (
+                $so->gudang_id
+                && (int) $so->gudang_id
+                !== (int) $validated['gudang_id']
+            ) {
+                return back()
+                    ->withInput()
+                    ->with(
+                        'error',
+                        'Gudang yang dipilih tidak sesuai dengan Sales Order.'
+                    );
             }
         }
 
         DB::beginTransaction();
+
         try {
+            /*
+            |--------------------------------------------------------------------------
+            | Lock Sales Order
+            |--------------------------------------------------------------------------
+            */
+
+            if ($so) {
+                $so = Penjualan::with('items')
+                    ->lockForUpdate()
+                    ->findOrFail(
+                        $validated['penjualan_id']
+                    );
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Hitung Invoice
+            |--------------------------------------------------------------------------
+            */
+
             $subtotal = 0;
             $totalDiskonItem = 0;
 
-            foreach ($validated['items'] as $item) {
-                // Check stock availability in chosen warehouse
-                $stokGudangObj = \App\Models\StokGudang::where('barang_id', $item['barang_id'])
-                    ->where('gudang_id', $validated['gudang_id'])
-                    ->first();
-                $stokTersedia = $stokGudangObj ? (float) $stokGudangObj->qty : 0;
+            foreach (
+                $validated['items']
+                as $item
+            ) {
+                $qty =
+                    (float) $item['qty'];
 
-                if ($stokTersedia <= 0 || $stokTersedia < $item['qty']) {
-                    $b = \App\Models\Barang::find($item['barang_id']);
-                    $namaB = $b ? "{$b->kode_barang} - {$b->nama_barang}" : "ID {$item['barang_id']}";
-                    
+                $hargaSatuan =
+                    (float) $item['harga_satuan'];
+
+                $diskonItem =
+                    (float) ($item['diskon'] ?? 0);
+
+                $grossItem =
+                    $qty * $hargaSatuan;
+
+                if (
+                    $diskonItem
+                    > $grossItem
+                ) {
+                    throw new \RuntimeException(
+                        'Diskon item tidak boleh lebih besar dari nilai barang.'
+                    );
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Validasi Ketersediaan Stok
+                |--------------------------------------------------------------------------
+                */
+
+                $stokGudangObj = StokGudang::query()
+                    ->where(
+                        'barang_id',
+                        $item['barang_id']
+                    )
+                    ->where(
+                        'gudang_id',
+                        $validated['gudang_id']
+                    )
+                    ->first();
+
+                $stokTersedia =
+                    $stokGudangObj
+                        ? (float) $stokGudangObj->qty
+                        : 0;
+
+                if (
+                    $stokTersedia <= 0
+                    || $stokTersedia < $qty
+                ) {
+                    $barang = Barang::find(
+                        $item['barang_id']
+                    );
+
+                    $namaBarang = $barang
+                        ? $barang->kode_barang
+                            . ' - '
+                            . $barang->nama_barang
+                        : 'ID ' . $item['barang_id'];
+
                     if ($so) {
                         throw new \RuntimeException(
-                            "Gagal menerbitkan invoice dari Sales Order #{$so->nomor_penjualan}: Stok barang '{$namaB}' masih 0 / tidak mencukupi di gudang yang dipilih. (Stok tersedia: " . number_format($stokTersedia, 0, ',', '.') . ", Dibutuhkan: " . number_format($item['qty'], 0, ',', '.') . "). Silakan isi stok persediaan terlebih dahulu melalui Pembelian / Penerimaan Barang."
-                        );
-                    } else {
-                        throw new \RuntimeException(
-                            "Gagal menerbitkan invoice: Barang '{$namaB}' stoknya 0 / tidak mencukupi di gudang yang dipilih. (Stok tersedia: " . number_format($stokTersedia, 0, ',', '.') . ", Diminta: " . number_format($item['qty'], 0, ',', '.') . "). Silakan isi stok persediaan terlebih dahulu melalui Pembelian / Penerimaan Barang."
+                            "Gagal menerbitkan invoice dari Sales Order #{$so->nomor_penjualan}: Stok barang '{$namaBarang}' masih 0 / tidak mencukupi di gudang yang dipilih. "
+                            . '(Stok tersedia: '
+                            . number_format(
+                                $stokTersedia,
+                                2,
+                                ',',
+                                '.'
+                            )
+                            . ', Dibutuhkan: '
+                            . number_format(
+                                $qty,
+                                2,
+                                ',',
+                                '.'
+                            )
+                            . '). Silakan isi stok persediaan terlebih dahulu melalui Pembelian / Penerimaan Barang.'
                         );
                     }
+
+                    throw new \RuntimeException(
+                        "Gagal menerbitkan invoice: Barang '{$namaBarang}' stoknya 0 / tidak mencukupi di gudang yang dipilih. "
+                        . '(Stok tersedia: '
+                        . number_format(
+                            $stokTersedia,
+                            2,
+                            ',',
+                            '.'
+                        )
+                        . ', Diminta: '
+                        . number_format(
+                            $qty,
+                            2,
+                            ',',
+                            '.'
+                        )
+                        . '). Silakan isi stok persediaan terlebih dahulu melalui Pembelian / Penerimaan Barang.'
+                    );
                 }
 
-                // If SO present, validate items and remaining qty
                 if ($so) {
-                    $soItem = $so->items->where('barang_id', $item['barang_id'])->first();
+                    $soItem = $so
+                        ->items
+                        ->where(
+                            'barang_id',
+                            $item['barang_id']
+                        )
+                        ->first();
+
                     if (!$soItem) {
-                        throw new \RuntimeException('Barang pada invoice tidak ditemukan dalam Sales Order #' . $so->nomor_penjualan);
+                        throw new \RuntimeException(
+                            'Barang pada invoice tidak ditemukan dalam Sales Order #'
+                            . $so->nomor_penjualan
+                        );
                     }
 
-                    $sisaQtySO = (float) ($soItem->qty - $soItem->qty_terinvoice);
-                    if ($item['qty'] > $sisaQtySO) {
-                        throw new \RuntimeException("Jumlah barang pada invoice ({$item['qty']}) melebihi sisa yang belum ter-invoice pada Sales Order ({$sisaQtySO}).");
+                    $sisaQtySO =
+                        (float) $soItem->qty
+                        - (float) ($soItem->qty_terinvoice ?? 0);
+
+                    if (
+                        $qty
+                        > $sisaQtySO
+                    ) {
+                        throw new \RuntimeException(
+                            "Jumlah barang pada invoice ({$qty}) melebihi sisa yang belum ter-invoice pada Sales Order ({$sisaQtySO})."
+                        );
                     }
                 }
 
-                $subtotal += ($item['qty'] * $item['harga_satuan']);
-                $totalDiskonItem += ($item['diskon'] ?? 0);
+                $subtotal +=
+                    $grossItem;
+
+                $totalDiskonItem +=
+                    $diskonItem;
             }
 
-            $pajakPersen = $validated['pajak_persen'] ?? 0;
-            $dpp = $subtotal - $totalDiskonItem;
-            $pajak = ($dpp * $pajakPersen) / 100;
-            $total = $dpp + $pajak;
+            /*
+            |--------------------------------------------------------------------------
+            | DPP
+            |--------------------------------------------------------------------------
+            */
 
-            // Integrasi Limit Piutang Customer jika Kredit
+            $dpp =
+                $subtotal
+                - $totalDiskonItem;
+
+            if ($dpp < 0) {
+                throw new \RuntimeException(
+                    'Nilai DPP invoice tidak boleh negatif.'
+                );
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Pajak
+            |--------------------------------------------------------------------------
+            */
+
+            $pajakPersen =
+                (float) (
+                    $validated['pajak_persen']
+                    ?? 0
+                );
+
+            $pajak =
+                ($dpp * $pajakPersen)
+                / 100;
+
+            /*
+            |--------------------------------------------------------------------------
+            | Total
+            |--------------------------------------------------------------------------
+            */
+
+            $total =
+                $dpp
+                + $pajak;
+
+            if ($total < 0) {
+                throw new \RuntimeException(
+                    'Total invoice tidak valid.'
+                );
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Limit Piutang
+            |--------------------------------------------------------------------------
+            */
+
             if (!$isTunai) {
-                $customer = Customer::findOrFail($validated['customer_id']);
-                if ($customer->limit_piutang > 0) {
-                    $currentPiutang = InvoicePenjualan::where('customer_id', $customer->id)
-                        ->where('status_pembayaran', '!=', 'DIBATALKAN')
-                        ->sum('sisa_piutang');
+                $customer = Customer::query()
+                    ->lockForUpdate()
+                    ->findOrFail(
+                        $validated['customer_id']
+                    );
 
-                    if (($currentPiutang + $total) > $customer->limit_piutang) {
+                if (
+                    (float) $customer->limit_piutang
+                    > 0
+                ) {
+                    $currentPiutang =
+                        (float) InvoicePenjualan::query()
+                            ->where(
+                                'customer_id',
+                                $customer->id
+                            )
+                            ->where(
+                                'status_invoice',
+                                '!=',
+                                'DIBATALKAN'
+                            )
+                            ->sum(
+                                'sisa_piutang'
+                            );
+
+                    if (
+                        (
+                            $currentPiutang
+                            + $total
+                        )
+                        > (float) $customer->limit_piutang
+                    ) {
                         throw new \RuntimeException(
-                            "Limit piutang customer '{$customer->nama_customer}' melampaui batas! " .
-                            "Limit: Rp " . number_format($customer->limit_piutang, 0, ',', '.') .
-                            ", Piutang Berjalan: Rp " . number_format($currentPiutang, 0, ',', '.') .
-                            ", Tagihan Baru: Rp " . number_format($total, 0, ',', '.')
+                            "Limit piutang customer '{$customer->nama_customer}' melampaui batas! "
+                            . "Limit: Rp "
+                            . number_format(
+                                $customer->limit_piutang,
+                                0,
+                                ',',
+                                '.'
+                            )
+                            . ", Piutang Berjalan: Rp "
+                            . number_format(
+                                $currentPiutang,
+                                0,
+                                ',',
+                                '.'
+                            )
+                            . ", Tagihan Baru: Rp "
+                            . number_format(
+                                $total,
+                                0,
+                                ',',
+                                '.'
+                            )
                         );
                     }
                 }
             }
 
-            $sudahDibayar = $isTunai ? $total : 0;
-            $sisaPiutang = $isTunai ? 0 : $total;
-            $statusPembayaran = $isTunai ? 'Lunas' : 'Belum Lunas';
+            /*
+            |--------------------------------------------------------------------------
+            | Status Pembayaran
+            |--------------------------------------------------------------------------
+            */
 
-            $nomorInvoice = $validated['nomor_invoice'];
-            if (InvoicePenjualan::where('nomor_invoice', $nomorInvoice)->exists()) {
-                $nomorInvoice = $systemAccountingService->generateDocumentNumber('INV', $validated['tanggal_invoice']);
+            $sudahDibayar =
+                $isTunai
+                    ? $total
+                    : 0;
+
+            $sisaPiutang =
+                $isTunai
+                    ? 0
+                    : $total;
+
+            $statusPembayaran =
+                $isTunai
+                    ? 'Lunas'
+                    : 'Belum Lunas';
+
+            /*
+            |--------------------------------------------------------------------------
+            | Nomor Invoice
+            |--------------------------------------------------------------------------
+            */
+
+            $nomorInvoice =
+                $validated['nomor_invoice'];
+
+            if (
+                InvoicePenjualan::where(
+                    'nomor_invoice',
+                    $nomorInvoice
+                )->exists()
+            ) {
+                $nomorInvoice =
+                    $systemAccountingService
+                        ->generateDocumentNumber(
+                            'INV',
+                            $validated['tanggal_invoice']
+                        );
             }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Buat Invoice
+            |--------------------------------------------------------------------------
+            */
 
             $invoice = InvoicePenjualan::create([
-                'nomor_invoice' => $nomorInvoice,
-                'penjualan_id' => $validated['penjualan_id'] ?? null,
-                'customer_id' => $validated['customer_id'],
-                'gudang_id' => $validated['gudang_id'],
-                'tanggal_invoice' => $validated['tanggal_invoice'],
-                'tanggal_jatuh_tempo' => $isTunai ? null : $validated['tanggal_jatuh_tempo'],
-                'tipe_pembayaran' => $validated['tipe_pembayaran'],
-                'rekening_kas_bank_id' => $isTunai ? $validated['rekening_kas_bank_id'] : null,
-                'subtotal' => $subtotal,
-                'diskon' => $totalDiskonItem,
-                'pajak_persen' => $pajakPersen,
-                'pajak' => $pajak,
-                'total' => $total,
-                'sudah_dibayar' => $sudahDibayar,
-                'sisa_piutang' => $sisaPiutang,
-                'status_pembayaran' => $statusPembayaran,
-                'catatan' => $validated['catatan'] ?? null,
-                'created_by' => auth()->id(),
+                'nomor_invoice' =>
+                    $nomorInvoice,
+
+                'penjualan_id' =>
+                    $validated['penjualan_id']
+                    ?? null,
+
+                'customer_id' =>
+                    $validated['customer_id'],
+
+                'gudang_id' =>
+                    $validated['gudang_id'],
+
+                'tanggal_invoice' =>
+                    $validated['tanggal_invoice'],
+
+                'tanggal_jatuh_tempo' =>
+                    $isTunai
+                        ? null
+                        : $validated['tanggal_jatuh_tempo'],
+
+                'tipe_pembayaran' =>
+                    $validated['tipe_pembayaran'],
+
+                'rekening_kas_bank_id' =>
+                    $isTunai
+                        ? $validated['rekening_kas_bank_id']
+                        : null,
+
+                'subtotal' =>
+                    $subtotal,
+
+                'diskon' =>
+                    $totalDiskonItem,
+
+                'pajak_persen' =>
+                    $pajakPersen,
+
+                'pajak' =>
+                    $pajak,
+
+                'total' =>
+                    $total,
+
+                'sudah_dibayar' =>
+                    $sudahDibayar,
+
+                'sisa_piutang' =>
+                    $sisaPiutang,
+
+                'status_pembayaran' =>
+                    $statusPembayaran,
+
+                'status_invoice' =>
+                    'AKTIF',
+
+                'catatan' =>
+                    $validated['catatan']
+                    ?? null,
+
+                'created_by' =>
+                    auth()->id(),
             ]);
 
-            foreach ($validated['items'] as $item) {
-                $itemSubtotal = ($item['qty'] * $item['harga_satuan']) - ($item['diskon'] ?? 0);
+            /*
+            |--------------------------------------------------------------------------
+            | Item Invoice + Stok + HPP
+            |--------------------------------------------------------------------------
+            */
 
-                // Potong stok persediaan dan dapatkan HPP Aktual (moving average)
-                $stokGudang = $inventoryService->stokKeluar(
-                    $item['barang_id'],
-                    $validated['gudang_id'],
-                    $item['qty'],
+            foreach (
+                $validated['items']
+                as $item
+            ) {
+                $barangId =
+                    (int) $item['barang_id'];
+
+                $qty =
+                    (float) $item['qty'];
+
+                $hargaJual =
+                    (float) $item['harga_satuan'];
+
+                $diskonItem =
+                    (float) ($item['diskon'] ?? 0);
+
+                $itemSubtotal =
+                    ($qty * $hargaJual)
+                    - $diskonItem;
+
+                /*
+                |--------------------------------------------------------------------------
+                | Snapshot Stok Sebelum Barang Keluar
+                |--------------------------------------------------------------------------
+                */
+
+                $stokSebelum = StokGudang::query()
+                    ->where(
+                        'barang_id',
+                        $barangId
+                    )
+                    ->where(
+                        'gudang_id',
+                        $validated['gudang_id']
+                    )
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$stokSebelum) {
+                    $barang = Barang::find(
+                        $barangId
+                    );
+
+                    throw new \RuntimeException(
+                        'Stok barang '
+                        . ($barang->nama_barang ?? $barangId)
+                        . ' tidak ditemukan pada gudang yang dipilih.'
+                    );
+                }
+
+                if (
+                    $qty
+                    > (float) $stokSebelum->qty
+                ) {
+                    $barang = Barang::find(
+                        $barangId
+                    );
+
+                    throw new \RuntimeException(
+                        'Stok '
+                        . ($barang->nama_barang ?? $barangId)
+                        . ' tidak mencukupi. '
+                        . 'Stok tersedia: '
+                        . number_format(
+                            (float) $stokSebelum->qty,
+                            2,
+                            ',',
+                            '.'
+                        )
+                        . ', jumlah keluar: '
+                        . number_format(
+                            $qty,
+                            2,
+                            ',',
+                            '.'
+                        )
+                    );
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Snapshot HPP
+                |--------------------------------------------------------------------------
+                */
+
+                $hppSatuan =
+                    (float) (
+                        $stokSebelum
+                            ->harga_rata_rata
+                        ?? 0
+                    );
+
+                if ($hppSatuan < 0) {
+                    throw new \RuntimeException(
+                        'Harga rata-rata persediaan tidak valid.'
+                    );
+                }
+
+                $totalHpp =
+                    $qty
+                    * $hppSatuan;
+
+                /*
+                |--------------------------------------------------------------------------
+                | Stok Keluar
+                |--------------------------------------------------------------------------
+                */
+
+                $inventoryService->stokKeluar(
+                    $barangId,
+                    (int) $validated['gudang_id'],
+                    $qty,
                     'INVOICE_PENJUALAN',
-                    $invoice->id,
-                    'Penjualan Invoice ' . $invoice->nomor_invoice,
+                    (int) $invoice->id,
+                    'Penjualan Invoice '
+                        . $invoice->nomor_invoice,
                     'KELUAR',
                     $validated['tanggal_invoice']
                 );
 
-                $hppSatuan = (float) ($stokGudang->harga_rata_rata ?? 0);
-                $totalHpp = $item['qty'] * $hppSatuan;
+                /*
+                |--------------------------------------------------------------------------
+                | Simpan Item
+                |--------------------------------------------------------------------------
+                */
 
-                // Simpan snapshot HPP ke invoice_penjualan_items
                 InvoicePenjualanItem::create([
-                    'invoice_penjualan_id' => $invoice->id,
-                    'barang_id' => $item['barang_id'],
-                    'qty' => $item['qty'],
-                    'harga_satuan' => $item['harga_satuan'],
-                    'hpp_satuan' => $hppSatuan,
-                    'total_hpp' => $totalHpp,
-                    'diskon' => $item['diskon'] ?? 0,
-                    'subtotal' => $itemSubtotal,
-                    'catatan' => $item['catatan'] ?? null,
+                    'invoice_penjualan_id' =>
+                        $invoice->id,
+
+                    'barang_id' =>
+                        $barangId,
+
+                    'qty' =>
+                        $qty,
+
+                    'harga_satuan' =>
+                        $hargaJual,
+
+                    'hpp_satuan' =>
+                        $hppSatuan,
+
+                    'total_hpp' =>
+                        $totalHpp,
+
+                    'diskon' =>
+                        $diskonItem,
+
+                    'subtotal' =>
+                        $itemSubtotal,
+
+                    'catatan' =>
+                        $item['catatan']
+                        ?? null,
                 ]);
 
-                // Update qty_terinvoice pada SO jika dari SO
+                /*
+                |--------------------------------------------------------------------------
+                | Update Qty Terinvoice Sales Order
+                |--------------------------------------------------------------------------
+                */
+
                 if ($so) {
-                    $soItem = $so->items->where('barang_id', $item['barang_id'])->first();
-                    if ($soItem) {
-                        $soItem->increment('qty_terinvoice', $item['qty']);
+                    $soItem = $so
+                        ->items
+                        ->where(
+                            'barang_id',
+                            $barangId
+                        )
+                        ->first();
+
+                    if (!$soItem) {
+                        throw new \RuntimeException(
+                            'Item Sales Order tidak ditemukan ketika memperbarui qty terinvoice.'
+                        );
                     }
+
+                    $soItem->increment(
+                        'qty_terinvoice',
+                        $qty
+                    );
                 }
             }
 
-            // Update status SO jika berasal dari SO
+            /*
+            |--------------------------------------------------------------------------
+            | Update Status Sales Order
+            |--------------------------------------------------------------------------
+            */
+
             if ($so) {
                 $so->load('items');
-                $fullyInvoiced = $so->items->every(fn($i) => $i->qty_terinvoice >= $i->qty);
+
+                $fullyInvoiced =
+                    $so->items->every(
+                        function ($item) {
+                            return (
+                                (float) ($item->qty_terinvoice ?? 0)
+                                >= (float) $item->qty
+                            );
+                        }
+                    );
+
                 $so->update([
-                    'status' => $fullyInvoiced ? 'Selesai' : 'Diproses',
+                    'status' =>
+                        $fullyInvoiced
+                            ? 'Selesai'
+                            : 'Diproses',
                 ]);
             }
 
-            // Jika penjualan tunai, catat langsung mutasi Kas/Bank Masuk
-            if ($isTunai && $total > 0) {
-                $customer = Customer::find($validated['customer_id']);
+            /*
+            |--------------------------------------------------------------------------
+            | Penjualan Tunai → Kas / Bank Masuk
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                $isTunai
+                && $total > 0
+            ) {
+                $customer = Customer::find(
+                    $validated['customer_id']
+                );
+
                 $kasBankService->uangMasuk(
-                    $validated['rekening_kas_bank_id'],
+                    $validated[
+                        'rekening_kas_bank_id'
+                    ],
+
                     $total,
+
                     'INVOICE_PENJUALAN',
+
                     $invoice->id,
+
                     $invoice->nomor_invoice,
-                    'Penjualan Tunai ' . $invoice->nomor_invoice . ' - ' . ($customer->nama_customer ?? ''),
-                    $validated['tanggal_invoice']
+
+                    'Penjualan Tunai '
+                        . $invoice->nomor_invoice
+                        . ' - '
+                        . (
+                            $customer->nama_customer
+                            ?? ''
+                        ),
+
+                    $validated[
+                        'tanggal_invoice'
+                    ]
                 );
             }
 
-            // Auto-Journaling Akuntansi Otomatis
-            $systemAccountingService->autoJournalInvoicePenjualan($invoice);
+            /*
+            |--------------------------------------------------------------------------
+            | Auto Journal
+            |--------------------------------------------------------------------------
+            */
+
+            $systemAccountingService
+                ->autoJournalInvoicePenjualan(
+                    $invoice
+                );
 
             DB::commit();
 
             return redirect()
-                ->route('invoice-penjualan.show', $invoice)
-                ->with('success', 'Invoice Penjualan berhasil diterbitkan dan stok telah diperbarui.');
-        } catch (\Exception $e) {
+                ->route(
+                    'invoice-penjualan.show',
+                    $invoice
+                )
+                ->with(
+                    'success',
+                    'Invoice Penjualan berhasil diterbitkan, stok diperbarui, dan jurnal otomatis telah dibuat.'
+                );
+
+        } catch (\Throwable $e) {
             DB::rollBack();
-            return back()->withInput()->with('error', 'Gagal menerbitkan invoice penjualan: ' . $e->getMessage());
+
+            report($e);
+
+            return back()
+                ->withInput()
+                ->with(
+                    'error',
+                    'Gagal menerbitkan invoice penjualan: '
+                    . $e->getMessage()
+                );
         }
     }
 
-    public function show(InvoicePenjualan $invoicePenjualan)
-    {
+    /*
+    |--------------------------------------------------------------------------
+    | SHOW
+    |--------------------------------------------------------------------------
+    */
+
+    public function show(
+        InvoicePenjualan $invoicePenjualan
+    ) {
         $invoicePenjualan->load([
             'customer',
             'gudang',
             'rekeningKasBank',
             'creator',
+            'penjualan',
             'items.barang.satuan',
+
+            /*
+            | Untuk pembayaran dari modul Penerimaan Piutang.
+            */
+
             'penerimaanDetails.penerimaanPiutang.rekeningKasBank',
-            'returPenjualans'
+
+            /*
+            | Untuk pembayaran dari modul Pembayaran Penjualan.
+            */
+
+            'pembayaranDetails.pembayaranPenjualan.rekeningKasBank',
+
+            'returPenjualans',
         ]);
 
-        return view('invoice-penjualan.show', compact('invoicePenjualan'));
+        return view(
+            'invoice-penjualan.show',
+            compact('invoicePenjualan')
+        );
     }
 
-    public function destroy(InvoicePenjualan $invoicePenjualan)
-    {
-        if ($invoicePenjualan->penerimaanDetails()->exists()) {
-            return back()->with('error', 'Invoice tidak dapat dihapus karena sudah memiliki riwayat pembayaran.');
+    /*
+    |--------------------------------------------------------------------------
+    | DESTROY
+    |--------------------------------------------------------------------------
+    */
+
+    public function destroy(
+        InvoicePenjualan $invoicePenjualan
+    ) {
+        if (
+            $invoicePenjualan->status_invoice
+            === 'DIBATALKAN'
+        ) {
+            return back()->with(
+                'error',
+                'Invoice ini sudah dibatalkan.'
+            );
         }
 
-        if ($invoicePenjualan->returPenjualans()->exists()) {
-            return back()->with('error', 'Invoice tidak dapat dihapus karena sudah memiliki retur.');
+        if (
+            $invoicePenjualan
+                ->penerimaanDetails()
+                ->exists()
+        ) {
+            return back()->with(
+                'error',
+                'Invoice tidak dapat dihapus karena sudah memiliki riwayat pembayaran.'
+            );
         }
 
-        return back()->with('error', 'Invoice penjualan yang telah memotong stok dan mutasi tidak disarankan untuk dihapus langsung demi konsistensi akuntansi. Silakan gunakan fitur Retur Penjualan atau Pembatalan Resmi.');
+        if (
+            $invoicePenjualan
+                ->returPenjualans()
+                ->exists()
+        ) {
+            return back()->with(
+                'error',
+                'Invoice tidak dapat dihapus karena sudah memiliki retur.'
+            );
+        }
+
+        return back()->with(
+            'error',
+            'Invoice penjualan tidak boleh dihapus langsung karena sudah memengaruhi stok, Kas/Bank, dan jurnal. Gunakan fitur Pembatalan Resmi.'
+        );
     }
 
-    /**
-     * Pembatalan Resmi Invoice Penjualan (Hanya untuk Kepala Toko / Admin)
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | PEMBATALAN RESMI
+    |--------------------------------------------------------------------------
+    */
+
     public function batal(
         Request $request,
         InvoicePenjualan $invoice,
@@ -392,103 +1259,575 @@ class InvoicePenjualanController extends Controller
         InventoryService $inventoryService,
         KasBankService $kasBankService
     ) {
+        /*
+        |--------------------------------------------------------------------------
+        | Validation
+        |--------------------------------------------------------------------------
+        */
+
         $request->validate([
-            'alasan_pembatalan' => 'required|string|min:5',
+            'alasan_pembatalan' =>
+                'required|string|min:5|max:1000',
         ]);
 
-        if ($systemAccountingService->isPeriodLocked($invoice->tanggal_invoice)) {
-            return back()->with('error', 'Invoice tidak dapat dibatalkan karena periode bulanan sudah DITUTUP (Cut-off).');
+        /*
+        |--------------------------------------------------------------------------
+        | Refresh
+        |--------------------------------------------------------------------------
+        */
+
+        $invoice->refresh();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Sudah Dibatalkan
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $invoice->status_invoice
+            === 'DIBATALKAN'
+        ) {
+            return back()->with(
+                'error',
+                'Invoice ini sudah dibatalkan sebelumnya.'
+            );
         }
 
-        if ($invoice->status_pembayaran === 'DIBATALKAN') {
-            return back()->with('error', 'Invoice ini sudah dibatalkan sebelumnya.');
+        /*
+        |--------------------------------------------------------------------------
+        | Cut-Off
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $systemAccountingService
+                ->isPeriodLocked(
+                    $invoice->tanggal_invoice
+                )
+        ) {
+            return back()->with(
+                'error',
+                'Invoice tidak dapat dibatalkan karena periode bulanan invoice sudah DITUTUP (Cut-Off).'
+            );
         }
 
-        // Tolak pembatalan jika sudah ada pembayaran atau retur
-        if ($invoice->sudah_dibayar > 0 && $invoice->tipe_pembayaran === 'Kredit') {
-            return back()->with('error', 'Invoice tidak dapat dibatalkan langsung karena sudah memiliki riwayat pembayaran piutang.');
+        /*
+        |--------------------------------------------------------------------------
+        | Invoice Kredit Sudah Dibayar
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $invoice->tipe_pembayaran
+            === 'Kredit'
+            && (float) $invoice->sudah_dibayar > 0
+        ) {
+            return back()->with(
+                'error',
+                'Invoice tidak dapat dibatalkan langsung karena sudah memiliki pembayaran piutang. Batalkan/koreksi pembayaran terlebih dahulu.'
+            );
         }
 
-        if ($invoice->returPenjualans()->where('total', '>', 0)->exists()) {
-            return back()->with('error', 'Invoice tidak dapat dibatalkan karena sudah memiliki transaksi retur penjualan.');
+        /*
+        |--------------------------------------------------------------------------
+        | Double Safety Riwayat Penerimaan
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $invoice
+                ->penerimaanDetails()
+                ->exists()
+        ) {
+            return back()->with(
+                'error',
+                'Invoice tidak dapat dibatalkan karena sudah memiliki transaksi penerimaan pembayaran.'
+            );
         }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Tidak Boleh Ada Retur
+        |--------------------------------------------------------------------------
+        |
+        | PENTING:
+        |
+        | Tidak memakai:
+        |
+        | ->where('total', '>', 0)
+        |
+        | karena tabel retur_penjualans tidak memiliki kolom total.
+        |
+        */
+
+        if (
+            $invoice
+                ->returPenjualans()
+                ->exists()
+        ) {
+            return back()->with(
+                'error',
+                'Invoice tidak dapat dibatalkan karena sudah memiliki transaksi retur penjualan.'
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Transaction
+        |--------------------------------------------------------------------------
+        */
 
         DB::beginTransaction();
+
         try {
-            // 1. Restock Barang ke Persediaan menggunakan HPP snapshot
-            foreach ($invoice->items as $item) {
-                $inventoryService->masuk(
-                    $invoice->gudang_id,
-                    $item->barang_id,
-                    $item->qty,
-                    $item->hpp_satuan > 0 ? $item->hpp_satuan : $item->harga_satuan,
+            /*
+            |--------------------------------------------------------------------------
+            | Lock Invoice
+            |--------------------------------------------------------------------------
+            */
+
+            $invoice = InvoicePenjualan::query()
+                ->whereKey($invoice->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (
+                $invoice->status_invoice
+                === 'DIBATALKAN'
+            ) {
+                throw new \RuntimeException(
+                    'Invoice sudah dibatalkan oleh proses lain.'
+                );
+            }
+
+            $invoice->loadMissing([
+                'items',
+                'customer',
+                'rekeningKasBank',
+            ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | 1. Kembalikan Barang Ke Stok
+            |--------------------------------------------------------------------------
+            */
+
+            foreach (
+                $invoice->items
+                as $item
+            ) {
+                /*
+                |--------------------------------------------------------------------------
+                | HPP Snapshot
+                |--------------------------------------------------------------------------
+                */
+
+                $hargaHpp =
+                    (float) $item->hpp_satuan;
+
+                if ($hargaHpp < 0) {
+                    throw new \RuntimeException(
+                        'HPP item invoice tidak valid.'
+                    );
+                }
+
+                if (
+                    $hargaHpp == 0
+                    && (float) $item->qty > 0
+                ) {
+                    throw new \RuntimeException(
+                        'HPP pada salah satu item invoice bernilai 0. '
+                        . 'Pembatalan dihentikan agar nilai persediaan tidak salah. '
+                        . 'Periksa HPP invoice terlebih dahulu.'
+                    );
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Stok Masuk
+                |--------------------------------------------------------------------------
+                */
+
+                $inventoryService->stokMasuk(
+                    (int) $item->barang_id,
+                    (int) $invoice->gudang_id,
+                    (float) $item->qty,
+                    $hargaHpp,
                     'PEMBATALAN_INVOICE',
-                    $invoice->id,
-                    $invoice->nomor_invoice,
-                    'Restock HPP dari Pembatalan Invoice #' . $invoice->nomor_invoice,
+                    (int) $invoice->id,
+                    'Restock Pembatalan Invoice '
+                        . $invoice->nomor_invoice,
+                    'MASUK',
                     now()
                 );
 
-                // Kembalikan qty_terinvoice pada Sales Order jika ada
-                if ($invoice->penjualan_id) {
-                    $soItem = PenjualanItem::where('penjualan_id', $invoice->penjualan_id)
-                        ->where('barang_id', $item->barang_id)
+                /*
+                |--------------------------------------------------------------------------
+                | Kembalikan Qty Terinvoice Sales Order
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    $invoice->penjualan_id
+                ) {
+                    $soItem = PenjualanItem::query()
+                        ->where(
+                            'penjualan_id',
+                            $invoice->penjualan_id
+                        )
+                        ->where(
+                            'barang_id',
+                            $item->barang_id
+                        )
+                        ->lockForUpdate()
                         ->first();
+
                     if ($soItem) {
-                        $soItem->decrement('qty_terinvoice', min($soItem->qty_terinvoice, $item->qty));
+                        $qtyTerinvoice =
+                            (float) (
+                                $soItem->qty_terinvoice
+                                ?? 0
+                            );
+
+                        $jumlahKembali =
+                            min(
+                                $qtyTerinvoice,
+                                (float) $item->qty
+                            );
+
+                        if (
+                            $jumlahKembali
+                            > 0
+                        ) {
+                            $soItem->decrement(
+                                'qty_terinvoice',
+                                $jumlahKembali
+                            );
+                        }
                     }
                 }
             }
 
-            // Kembalikan status SO ke Dikonfirmasi / Diproses jika dari SO
-            if ($invoice->penjualan_id) {
-                $so = Penjualan::find($invoice->penjualan_id);
+            /*
+            |--------------------------------------------------------------------------
+            | 2. Kembalikan Status Sales Order
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                $invoice->penjualan_id
+            ) {
+                $so = Penjualan::query()
+                    ->whereKey(
+                        $invoice->penjualan_id
+                    )
+                    ->lockForUpdate()
+                    ->first();
+
                 if ($so) {
                     $so->load('items');
-                    $anyInvoiced = $so->items->sum('qty_terinvoice') > 0;
+
+                    $totalQtyTerinvoice =
+                        (float) $so
+                            ->items
+                            ->sum(
+                                'qty_terinvoice'
+                            );
+
                     $so->update([
-                        'status' => $anyInvoiced ? 'Diproses' : 'Dikonfirmasi',
+                        'status' =>
+                            $totalQtyTerinvoice > 0
+                                ? 'Diproses'
+                                : 'Dikonfirmasi',
                     ]);
                 }
             }
 
-            // 2. Jika Tunai, balikkan Mutasi Kas/Bank (Uang Keluar Pengembalian)
-            if ($invoice->tipe_pembayaran === 'Tunai' && $invoice->total > 0 && $invoice->rekening_kas_bank_id) {
-                $customer = Customer::find($invoice->customer_id);
+            /*
+            |--------------------------------------------------------------------------
+            | 3. Invoice Tunai → Refund Kas/Bank
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                $invoice->tipe_pembayaran
+                === 'Tunai'
+                && (float) $invoice->total > 0
+            ) {
+                if (
+                    !$invoice->rekening_kas_bank_id
+                ) {
+                    throw new \RuntimeException(
+                        'Rekening Kas/Bank invoice tunai tidak ditemukan.'
+                    );
+                }
+
+                $customer = Customer::find(
+                    $invoice->customer_id
+                );
+
                 $kasBankService->uangKeluar(
                     $invoice->rekening_kas_bank_id,
-                    $invoice->total,
+
+                    (float) $invoice->total,
+
                     'PEMBATALAN_INVOICE',
+
                     $invoice->id,
+
                     $invoice->nomor_invoice,
-                    'Pengembalian Tunai Pembatalan Invoice ' . $invoice->nomor_invoice . ' - ' . ($customer->nama_customer ?? ''),
+
+                    'Pengembalian Tunai Pembatalan Invoice '
+                        . $invoice->nomor_invoice
+                        . ' - '
+                        . (
+                            $customer->nama_customer
+                            ?? ''
+                        ),
+
                     now()
                 );
             }
 
-            // 3. Terbitkan Jurnal Pembalik & Update status invoice
-            $systemAccountingService->cancelInvoicePenjualan($invoice, $request->alasan_pembatalan);
+            /*
+            |--------------------------------------------------------------------------
+            | 4. Jurnal Reversal + Status
+            |--------------------------------------------------------------------------
+            */
+
+            $systemAccountingService
+                ->cancelInvoicePenjualan(
+                    $invoice,
+                    $request->alasan_pembatalan
+                );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Commit
+            |--------------------------------------------------------------------------
+            */
 
             DB::commit();
 
-            return redirect()->route('invoice-penjualan.show', $invoice)
-                ->with('success', 'Invoice #' . $invoice->nomor_invoice . ' berhasil DIBATALKAN secara resmi. Stok & Kas/Bank telah disesuaikan.');
-        } catch (\Exception $e) {
+            return redirect()
+                ->route(
+                    'invoice-penjualan.show',
+                    $invoice
+                )
+                ->with(
+                    'success',
+                    'Invoice #'
+                    . $invoice->nomor_invoice
+                    . ' berhasil DIBATALKAN secara resmi. Stok, Sales Order, Kas/Bank, Piutang, dan jurnal telah disesuaikan.'
+                );
+
+        } catch (\Throwable $e) {
             DB::rollBack();
-            return back()->with('error', 'Gagal membatalkan invoice: ' . $e->getMessage());
+
+            report($e);
+
+            return back()->with(
+                'error',
+                'Gagal membatalkan invoice: '
+                    . $e->getMessage()
+            );
         }
     }
 
-    public function pdf(InvoicePenjualan $invoicePenjualan)
-    {
-        $invoicePenjualan->load(['customer', 'gudang', 'creator', 'items.barang.satuan', 'rekeningKasBank']);
+    /*
+    |--------------------------------------------------------------------------
+    | PDF
+    |--------------------------------------------------------------------------
+    */
 
-        if (class_exists(Pdf::class)) {
-            $safeNumber = str_replace(['/', '\\'], '-', $invoicePenjualan->nomor_invoice);
-            $pdf = Pdf::loadView('invoice-penjualan.pdf', compact('invoicePenjualan'));
-            return $pdf->stream('Invoice-' . $safeNumber . '.pdf');
+    public function pdf(
+        InvoicePenjualan $invoicePenjualan
+    ) {
+        $invoicePenjualan->load([
+            'customer',
+            'gudang',
+            'creator',
+            'items.barang.satuan',
+            'rekeningKasBank',
+        ]);
+
+        if (
+            class_exists(Pdf::class)
+        ) {
+            $safeNumber =
+                str_replace(
+                    [
+                        '/',
+                        '\\',
+                    ],
+                    '-',
+                    $invoicePenjualan
+                        ->nomor_invoice
+                );
+
+            $pdf = Pdf::loadView(
+                'invoice-penjualan.pdf',
+                compact(
+                    'invoicePenjualan'
+                )
+            );
+
+            return $pdf->stream(
+                'Invoice-'
+                    . $safeNumber
+                    . '.pdf'
+            );
         }
 
-        return view('invoice-penjualan.pdf', compact('invoicePenjualan'));
+        return view(
+            'invoice-penjualan.pdf',
+            compact(
+                'invoicePenjualan'
+            )
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | EMAIL
+    |--------------------------------------------------------------------------
+    */
+
+    public function kirimEmail(
+        Request $request,
+        InvoicePenjualan $invoicePenjualan
+    ) {
+        $request->validate([
+            'email_tujuan' =>
+                'required|email',
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Tidak Bisa Kirim Invoice Batal
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $invoicePenjualan->status_invoice
+            === 'DIBATALKAN'
+        ) {
+            return back()->with(
+                'error',
+                'Invoice yang sudah dibatalkan tidak dapat dikirim sebagai invoice aktif.'
+            );
+        }
+
+        $emailTujuan =
+            trim(
+                $request->email_tujuan
+            );
+
+        try {
+            /*
+            |--------------------------------------------------------------------------
+            | SMTP Check
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                config('mail.default')
+                === 'smtp'
+                && empty(
+                    config(
+                        'mail.mailers.smtp.password'
+                    )
+                )
+            ) {
+                return back()->with(
+                    'error',
+                    'Gagal mengirim email asli: Sandi Aplikasi Google (App Password) belum dimasukkan pada file .env (MAIL_PASSWORD).'
+                );
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Load
+            |--------------------------------------------------------------------------
+            */
+
+            $invoicePenjualan->load([
+                'customer',
+                'gudang',
+                'creator',
+                'items.barang.satuan',
+                'rekeningKasBank',
+            ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Kirim
+            |--------------------------------------------------------------------------
+            */
+
+            Mail::to(
+                $emailTujuan
+            )->send(
+                new \App\Mail\InvoicePenjualanMail(
+                    $invoicePenjualan
+                )
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Update Log
+            |--------------------------------------------------------------------------
+            */
+
+            $invoicePenjualan->update([
+                'is_email_sent' =>
+                    true,
+
+                'email_sent_at' =>
+                    now(),
+
+                'email_sent_to' =>
+                    $emailTujuan,
+            ]);
+
+            return back()->with(
+                'success',
+                'Bukti Invoice Penjualan #'
+                    . $invoicePenjualan->nomor_invoice
+                    . ' berhasil dikirimkan via email ke: '
+                    . $emailTujuan
+            );
+
+        } catch (\Throwable $e) {
+            report($e);
+
+            $msg =
+                $e->getMessage();
+
+            if (
+                str_contains(
+                    $msg,
+                    'Authentic'
+                )
+                || str_contains(
+                    $msg,
+                    'Password'
+                )
+                || str_contains(
+                    $msg,
+                    'Username'
+                )
+            ) {
+                $msg =
+                    'Gagal Autentikasi SMTP Gmail. Pastikan Sandi Aplikasi 16-digit Google (App Password) sudah diisi di .env pada MAIL_PASSWORD.';
+            }
+
+            return back()->with(
+                'error',
+                'Gagal mengirimkan email invoice: '
+                    . $msg
+            );
+        }
     }
 }

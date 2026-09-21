@@ -349,7 +349,7 @@
                         value="{{ $invoice->sisa_piutang }}"
                         max="{{ $invoice->sisa_piutang }}"
                         min="1"
-                        step="100"
+                        step="1"
                         required
                         class="mt-1 w-full rounded-xl border border-slate-300 p-2.5 text-sm font-bold text-emerald-700"
                     >

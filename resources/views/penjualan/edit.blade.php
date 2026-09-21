@@ -190,7 +190,7 @@
                                         :name="`items[${index}][harga_satuan]`"
                                         x-model.number="item.harga_satuan"
                                         min="0"
-                                        step="100"
+                                        step="1"
                                         required
                                         class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 focus:border-[#32AAA6] focus:bg-white focus:outline-none"
                                     >
@@ -201,7 +201,7 @@
                                         :name="`items[${index}][diskon]`"
                                         x-model.number="item.diskon"
                                         min="0"
-                                        step="100"
+                                        step="1"
                                         class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 focus:border-[#32AAA6] focus:bg-white focus:outline-none"
                                     >
                                 </td>

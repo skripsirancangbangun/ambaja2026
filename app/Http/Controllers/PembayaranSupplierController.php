@@ -8,6 +8,7 @@ use App\Models\RekeningKasBank;
 use App\Models\RekonsiliasiBank;
 use App\Models\TransaksiBelumTeridentifikasi;
 use App\Services\KasBankService;
+use App\Services\SystemAccountingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -17,40 +18,38 @@ class PembayaranSupplierController extends Controller
 {
     /*
     |--------------------------------------------------------------------------
-    | DAFTAR PEMBAYARAN SUPPLIER
+    | INDEX
     |--------------------------------------------------------------------------
     */
 
     public function index(Request $request)
     {
-        $query = PembayaranSupplier::with([
-            'invoiceSupplier',
-            'supplier',
-            'rekeningKasBank',
-            'creator',
-        ]);
-
+        $query =
+            PembayaranSupplier::with([
+                'invoiceSupplier',
+                'supplier',
+                'rekeningKasBank',
+                'creator',
+            ]);
 
         /*
         |--------------------------------------------------------------------------
-        | SEARCH
+        | Search
         |--------------------------------------------------------------------------
         */
 
         if ($request->filled('search')) {
-
             $search =
-                $request->search;
-
+                trim($request->search);
 
             $query->where(
                 function ($q) use ($search) {
-
-                    $q->where(
-                        'nomor_pembayaran',
-                        'like',
-                        "%{$search}%"
-                    )
+                    $q
+                        ->where(
+                            'nomor_pembayaran',
+                            'like',
+                            "%{$search}%"
+                        )
                         ->orWhere(
                             'referensi',
                             'like',
@@ -59,7 +58,6 @@ class PembayaranSupplierController extends Controller
                         ->orWhereHas(
                             'invoiceSupplier',
                             function ($invoiceQuery) use ($search) {
-
                                 $invoiceQuery
                                     ->where(
                                         'nomor_invoice_internal',
@@ -76,19 +74,16 @@ class PembayaranSupplierController extends Controller
                         ->orWhereHas(
                             'supplier',
                             function ($supplierQuery) use ($search) {
-
-                                $supplierQuery
-                                    ->where(
-                                        'nama_supplier',
-                                        'like',
-                                        "%{$search}%"
-                                    );
+                                $supplierQuery->where(
+                                    'nama_supplier',
+                                    'like',
+                                    "%{$search}%"
+                                );
                             }
                         )
                         ->orWhereHas(
                             'rekeningKasBank',
                             function ($rekeningQuery) use ($search) {
-
                                 $rekeningQuery
                                     ->where(
                                         'nama_rekening',
@@ -106,10 +101,9 @@ class PembayaranSupplierController extends Controller
             );
         }
 
-
         /*
         |--------------------------------------------------------------------------
-        | FILTER METODE PEMBAYARAN
+        | Filter Metode
         |--------------------------------------------------------------------------
         */
 
@@ -118,17 +112,15 @@ class PembayaranSupplierController extends Controller
                 'metode_pembayaran'
             )
         ) {
-
             $query->where(
                 'metode_pembayaran',
                 $request->metode_pembayaran
             );
         }
 
-
         /*
         |--------------------------------------------------------------------------
-        | FILTER TANGGAL MULAI
+        | Filter Tanggal
         |--------------------------------------------------------------------------
         */
 
@@ -137,7 +129,6 @@ class PembayaranSupplierController extends Controller
                 'tanggal_mulai'
             )
         ) {
-
             $query->whereDate(
                 'tanggal_pembayaran',
                 '>=',
@@ -145,19 +136,11 @@ class PembayaranSupplierController extends Controller
             );
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | FILTER TANGGAL SELESAI
-        |--------------------------------------------------------------------------
-        */
-
         if (
             $request->filled(
                 'tanggal_selesai'
             )
         ) {
-
             $query->whereDate(
                 'tanggal_pembayaran',
                 '<=',
@@ -165,10 +148,9 @@ class PembayaranSupplierController extends Controller
             );
         }
 
-
         /*
         |--------------------------------------------------------------------------
-        | DATA
+        | Pagination
         |--------------------------------------------------------------------------
         */
 
@@ -181,29 +163,25 @@ class PembayaranSupplierController extends Controller
                 ->paginate(15)
                 ->withQueryString();
 
-
         return view(
             'pembayaran-supplier.index',
-            compact(
-                'pembayarans'
-            )
+            compact('pembayarans')
         );
     }
 
-
     /*
     |--------------------------------------------------------------------------
-    | FORM PEMBAYARAN
+    | CREATE
     |--------------------------------------------------------------------------
     */
 
     public function create(
-        Request $request
+        Request $request,
+        SystemAccountingService $accountingService
     ) {
-
         /*
         |--------------------------------------------------------------------------
-        | INVOICE YANG MASIH PUNYA UTANG
+        | Invoice Yang Masih Memiliki Utang
         |--------------------------------------------------------------------------
         */
 
@@ -227,25 +205,23 @@ class PembayaranSupplierController extends Controller
                 ->orderBy(
                     'tanggal_jatuh_tempo'
                 )
+                ->orderBy('id')
                 ->get();
-
 
         /*
         |--------------------------------------------------------------------------
-        | INVOICE TERPILIH
+        | Selected Invoice
         |--------------------------------------------------------------------------
         */
 
         $selectedInvoice =
             null;
 
-
         if (
             $request->filled(
                 'invoice_supplier_id'
             )
         ) {
-
             $selectedInvoice =
                 InvoiceSupplier::with([
                     'supplier',
@@ -270,10 +246,9 @@ class PembayaranSupplierController extends Controller
                     );
         }
 
-
         /*
         |--------------------------------------------------------------------------
-        | REKENING KAS / BANK AKTIF
+        | Rekening Aktif
         |--------------------------------------------------------------------------
         */
 
@@ -283,25 +258,23 @@ class PembayaranSupplierController extends Controller
                     'is_active',
                     true
                 )
-                ->orderBy(
-                    'jenis'
-                )
+                ->orderBy('jenis')
                 ->orderBy(
                     'nama_rekening'
                 )
                 ->get();
 
-
         /*
         |--------------------------------------------------------------------------
-        | PREVIEW NOMOR PEMBAYARAN
+        | Preview Nomor
         |--------------------------------------------------------------------------
         */
 
         $previewNomorPembayaran =
-            $this
-                ->generateNomorPembayaran();
-
+            $accountingService
+                ->generateDocumentNumber(
+                    'PEMBAYARAN_SUPPLIER'
+                );
 
         return view(
             'pembayaran-supplier.create',
@@ -314,27 +287,25 @@ class PembayaranSupplierController extends Controller
         );
     }
 
-
     /*
     |--------------------------------------------------------------------------
-    | SIMPAN + POSTING PEMBAYARAN
+    | STORE
     |--------------------------------------------------------------------------
     */
 
     public function store(
         Request $request,
-        KasBankService $kasBankService
+        KasBankService $kasBankService,
+        SystemAccountingService $accountingService
     ) {
-
         /*
         |--------------------------------------------------------------------------
-        | VALIDASI
+        | Validation
         |--------------------------------------------------------------------------
         */
 
         $validated =
             $request->validate([
-
                 'invoice_supplier_id' => [
                     'required',
                     'exists:invoice_suppliers,id',
@@ -370,397 +341,473 @@ class PembayaranSupplierController extends Controller
                 'catatan' => [
                     'nullable',
                     'string',
+                    'max:2000',
                 ],
             ]);
 
-
-        try {
-
-            DB::transaction(
-                function () use (
-                    $validated,
-                    $kasBankService
-                ) {
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | LOCK INVOICE
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $invoice =
-                        InvoiceSupplier::query()
-                            ->where(
-                                'id',
-                                $validated[
-                                    'invoice_supplier_id'
-                                ]
-                            )
-                            ->lockForUpdate()
-                            ->firstOrFail();
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | VALIDASI INVOICE
-                    |--------------------------------------------------------------------------
-                    */
-
-                    if (
-                        (float)
-                        $invoice->sisa_utang
-                        <= 0
-                    ) {
-
-                        throw ValidationException::withMessages([
-                            'invoice_supplier_id' =>
-                                'Invoice ini sudah lunas.',
-                        ]);
-                    }
-
-
-                    if (
-                        !in_array(
-                            $invoice->status,
-                            [
-                                'BELUM_LUNAS',
-                                'SEBAGIAN',
-                            ],
-                            true
-                        )
-                    ) {
-
-                        throw ValidationException::withMessages([
-                            'invoice_supplier_id' =>
-                                'Invoice ini tidak dapat menerima pembayaran.',
-                        ]);
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | LOCK REKENING
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $rekening =
-                        RekeningKasBank::query()
-                            ->where(
-                                'id',
-                                $validated[
-                                    'rekening_kas_bank_id'
-                                ]
-                            )
-                            ->lockForUpdate()
-                            ->firstOrFail();
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | VALIDASI REKENING
-                    |--------------------------------------------------------------------------
-                    */
-
-                    if (
-                        !$rekening->is_active
-                    ) {
-
-                        throw ValidationException::withMessages([
-                            'rekening_kas_bank_id' =>
-                                'Kas/Rekening Bank yang dipilih sudah tidak aktif.',
-                        ]);
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | JUMLAH BAYAR
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $jumlahBayar =
-                        round(
-                            (float)
-                            $validated[
-                                'jumlah_bayar'
-                            ],
-                            2
-                        );
-
-
-                    $sisaUtangSebelum =
-                        round(
-                            (float)
-                            $invoice->sisa_utang,
-                            2
-                        );
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | CEGAH OVERPAYMENT
-                    |--------------------------------------------------------------------------
-                    */
-
-                    if (
-                        $jumlahBayar
-                        >
-                        $sisaUtangSebelum
-                    ) {
-
-                        throw ValidationException::withMessages([
-                            'jumlah_bayar' =>
-                                'Jumlah pembayaran tidak boleh melebihi sisa utang sebesar Rp '
-                                . number_format(
-                                    $sisaUtangSebelum,
-                                    0,
-                                    ',',
-                                    '.'
-                                )
-                                . '.',
-                        ]);
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | BUAT PEMBAYARAN SUPPLIER
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $pembayaran =
-                        PembayaranSupplier::create([
-
-                            'nomor_pembayaran' =>
-                                $this
-                                    ->generateNomorPembayaran(),
-
-                            'invoice_supplier_id' =>
-                                $invoice->id,
-
-                            'supplier_id' =>
-                                $invoice->supplier_id,
-
-                            'tanggal_pembayaran' =>
-                                $validated[
-                                    'tanggal_pembayaran'
-                                ],
-
-                            'jumlah_bayar' =>
-                                $jumlahBayar,
-
-                            'metode_pembayaran' =>
-                                $validated[
-                                    'metode_pembayaran'
-                                ],
-
-                            'rekening_kas_bank_id' =>
-                                $rekening->id,
-
-                            'referensi' =>
-                                $validated[
-                                    'referensi'
-                                ]
-                                ?? null,
-
-                            'catatan' =>
-                                $validated[
-                                    'catatan'
-                                ]
-                                ?? null,
-
-                            'created_by' =>
-                                auth()->id(),
-                        ]);
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | POSTING KE MUTASI KAS / BANK
-                    |--------------------------------------------------------------------------
-                    |
-                    | Pembayaran supplier merupakan uang keluar.
-                    |
-                    | KasBankService:
-                    |
-                    | - Validasi saldo.
-                    | - Mengurangi saldo rekening.
-                    | - Membuat MutasiKasBank.
-                    | - Menyimpan reference pembayaran.
-                    |
-                    */
-
-                    $kasBankService
-                        ->uangKeluar(
-
-                            rekeningKasBankId:
-                                (int)
-                                $rekening->id,
-
-                            jumlah:
-                                $jumlahBayar,
-
-                            referenceType:
-                                'PEMBAYARAN_SUPPLIER',
-
-                            referenceId:
-                                (int)
-                                $pembayaran->id,
-
-                            nomorReferensi:
-                                $pembayaran
-                                    ->nomor_pembayaran,
-
-                            keterangan:
-                                $this
-                                    ->buildKeteranganMutasi(
-                                        $pembayaran,
-                                        $invoice
-                                    ),
-
-                            tanggalTransaksi:
-                                $validated[
-                                    'tanggal_pembayaran'
-                                ],
-
-                            tipe:
-                                'PEMBAYARAN_SUPPLIER'
-                        );
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | UPDATE TOTAL DIBAYAR
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $totalDibayar =
-                        round(
-                            (float)
-                            $invoice->total_dibayar
-                            +
-                            $jumlahBayar,
-                            2
-                        );
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | HITUNG SISA UTANG
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $sisaUtang =
-                        round(
-                            (float)
-                            $invoice->total
-                            -
-                            $totalDibayar,
-                            2
-                        );
-
-
-                    if (
-                        $sisaUtang <= 0
-                    ) {
-
-                        $sisaUtang = 0;
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | STATUS INVOICE
-                    |--------------------------------------------------------------------------
-                    */
-
-                    if (
-                        $sisaUtang == 0
-                    ) {
-
-                        $status =
-                            'LUNAS';
-
-                    } elseif (
-                        $totalDibayar > 0
-                    ) {
-
-                        $status =
-                            'SEBAGIAN';
-
-                    } else {
-
-                        $status =
-                            'BELUM_LUNAS';
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | UPDATE INVOICE
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $invoice->update([
-
-                        'total_dibayar' =>
-                            $totalDibayar,
-
-                        'sisa_utang' =>
-                            $sisaUtang,
-
-                        'status' =>
-                            $status,
-                    ]);
-                }
-            );
-
-        } catch (
-            RuntimeException $e
-        ) {
-
-            return back()
-                ->withInput()
-                ->withErrors([
-                    'jumlah_bayar' =>
-                        $e->getMessage(),
-                ]);
-        }
-
-
         /*
         |--------------------------------------------------------------------------
-        | SELESAI
+        | Cut-Off
         |--------------------------------------------------------------------------
         */
 
+        if (
+            $accountingService
+                ->isPeriodLocked(
+                    $validated[
+                        'tanggal_pembayaran'
+                    ]
+                )
+        ) {
+            return back()
+                ->withInput()
+                ->with(
+                    'error',
+                    'Pembayaran supplier tidak dapat diproses karena periode accounting pada tanggal tersebut sudah DITUTUP.'
+                );
+        }
+
+        try {
+            $pembayaran =
+                DB::transaction(
+                    function () use (
+                        $validated,
+                        $kasBankService,
+                        $accountingService
+                    ) {
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Lock Invoice
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $invoice =
+                            InvoiceSupplier::query()
+                                ->with('supplier')
+                                ->where(
+                                    'id',
+                                    $validated[
+                                        'invoice_supplier_id'
+                                    ]
+                                )
+                                ->lockForUpdate()
+                                ->firstOrFail();
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Validasi Invoice
+                        |--------------------------------------------------------------------------
+                        */
+
+                        if (
+                            (float) $invoice
+                                ->sisa_utang
+                            <= 0
+                        ) {
+                            throw ValidationException::withMessages([
+                                'invoice_supplier_id' =>
+                                    'Invoice Supplier ini sudah lunas.',
+                            ]);
+                        }
+
+                        if (
+                            !in_array(
+                                $invoice->status,
+                                [
+                                    'BELUM_LUNAS',
+                                    'SEBAGIAN',
+                                ],
+                                true
+                            )
+                        ) {
+                            throw ValidationException::withMessages([
+                                'invoice_supplier_id' =>
+                                    'Invoice Supplier ini tidak dapat menerima pembayaran.',
+                            ]);
+                        }
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Tanggal Pembayaran Tidak Boleh Sebelum Invoice
+                        |--------------------------------------------------------------------------
+                        */
+
+                        if (
+                            \Carbon\Carbon::parse(
+                                $validated[
+                                    'tanggal_pembayaran'
+                                ]
+                            )->lt(
+                                \Carbon\Carbon::parse(
+                                    $invoice
+                                        ->tanggal_invoice
+                                )
+                            )
+                        ) {
+                            throw ValidationException::withMessages([
+                                'tanggal_pembayaran' =>
+                                    'Tanggal pembayaran tidak boleh sebelum tanggal Invoice Supplier.',
+                            ]);
+                        }
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Lock Rekening
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $rekening =
+                            RekeningKasBank::query()
+                                ->where(
+                                    'id',
+                                    $validated[
+                                        'rekening_kas_bank_id'
+                                    ]
+                                )
+                                ->lockForUpdate()
+                                ->firstOrFail();
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Validasi Rekening
+                        |--------------------------------------------------------------------------
+                        */
+
+                        if (
+                            !$rekening->is_active
+                        ) {
+                            throw ValidationException::withMessages([
+                                'rekening_kas_bank_id' =>
+                                    'Kas/Rekening Bank yang dipilih sudah tidak aktif.',
+                            ]);
+                        }
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Rekening Harus Terhubung Ke COA
+                        |--------------------------------------------------------------------------
+                        |
+                        | Jangan fallback ke Kas Utama karena apabila user memilih
+                        | BCA, jurnal harus benar-benar masuk ke akun Bank BCA.
+                        |
+                        */
+
+                        if (
+                            !$rekening->akun_id
+                        ) {
+                            throw ValidationException::withMessages([
+                                'rekening_kas_bank_id' =>
+                                    'Kas/Rekening Bank yang dipilih belum terhubung dengan akun COA. Atur akun Kas/Bank terlebih dahulu.',
+                            ]);
+                        }
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Jumlah Bayar
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $jumlahBayar =
+                            round(
+                                (float) $validated[
+                                    'jumlah_bayar'
+                                ],
+                                2
+                            );
+
+                        $sisaUtangSebelum =
+                            round(
+                                (float) $invoice
+                                    ->sisa_utang,
+                                2
+                            );
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Overpayment
+                        |--------------------------------------------------------------------------
+                        */
+
+                        if (
+                            $jumlahBayar
+                            > $sisaUtangSebelum
+                        ) {
+                            throw ValidationException::withMessages([
+                                'jumlah_bayar' =>
+                                    'Jumlah pembayaran tidak boleh melebihi sisa utang sebesar Rp '
+                                    . number_format(
+                                        $sisaUtangSebelum,
+                                        0,
+                                        ',',
+                                        '.'
+                                    )
+                                    . '.',
+                            ]);
+                        }
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Nomor Pembayaran
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $nomorPembayaran =
+                            $accountingService
+                                ->generateDocumentNumber(
+                                    'PEMBAYARAN_SUPPLIER',
+                                    $validated[
+                                        'tanggal_pembayaran'
+                                    ]
+                                );
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Safety Duplikat Nomor
+                        |--------------------------------------------------------------------------
+                        */
+
+                        if (
+                            PembayaranSupplier::query()
+                                ->where(
+                                    'nomor_pembayaran',
+                                    $nomorPembayaran
+                                )
+                                ->exists()
+                        ) {
+                            throw new RuntimeException(
+                                'Nomor pembayaran supplier sudah digunakan. Silakan simpan kembali.'
+                            );
+                        }
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Buat Pembayaran
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $pembayaran =
+                            PembayaranSupplier::create([
+                                'nomor_pembayaran' =>
+                                    $nomorPembayaran,
+
+                                'invoice_supplier_id' =>
+                                    $invoice->id,
+
+                                'supplier_id' =>
+                                    $invoice->supplier_id,
+
+                                'tanggal_pembayaran' =>
+                                    $validated[
+                                        'tanggal_pembayaran'
+                                    ],
+
+                                'jumlah_bayar' =>
+                                    $jumlahBayar,
+
+                                'metode_pembayaran' =>
+                                    $validated[
+                                        'metode_pembayaran'
+                                    ],
+
+                                'rekening_kas_bank_id' =>
+                                    $rekening->id,
+
+                                'referensi' =>
+                                    $validated[
+                                        'referensi'
+                                    ]
+                                    ?? null,
+
+                                'catatan' =>
+                                    $validated[
+                                        'catatan'
+                                    ]
+                                    ?? null,
+
+                                'created_by' =>
+                                    auth()->id(),
+                            ]);
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Kas / Bank Keluar
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $kasBankService
+                            ->uangKeluar(
+                                rekeningKasBankId:
+                                    (int) $rekening->id,
+
+                                jumlah:
+                                    $jumlahBayar,
+
+                                referenceType:
+                                    'PEMBAYARAN_SUPPLIER',
+
+                                referenceId:
+                                    (int) $pembayaran->id,
+
+                                nomorReferensi:
+                                    $pembayaran
+                                        ->nomor_pembayaran,
+
+                                keterangan:
+                                    $this
+                                        ->buildKeteranganMutasi(
+                                            $pembayaran,
+                                            $invoice
+                                        ),
+
+                                tanggalTransaksi:
+                                    $validated[
+                                        'tanggal_pembayaran'
+                                    ],
+
+                                tipe:
+                                    'PEMBAYARAN_SUPPLIER'
+                            );
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Update Invoice Supplier
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $totalDibayar =
+                            round(
+                                (float) $invoice
+                                    ->total_dibayar
+                                + $jumlahBayar,
+                                2
+                            );
+
+                        /*
+                        | Safety:
+                        | total dibayar tidak boleh melebihi total.
+                        */
+
+                        if (
+                            $totalDibayar
+                            > (float) $invoice->total
+                            + 0.01
+                        ) {
+                            throw new RuntimeException(
+                                'Total pembayaran melebihi total Invoice Supplier.'
+                            );
+                        }
+
+                        $sisaUtang =
+                            round(
+                                (float) $invoice->total
+                                - $totalDibayar,
+                                2
+                            );
+
+                        if (
+                            abs($sisaUtang)
+                            < 0.01
+                        ) {
+                            $sisaUtang =
+                                0;
+                        }
+
+                        if ($sisaUtang < 0) {
+                            throw new RuntimeException(
+                                'Sisa utang menjadi negatif. Transaksi dihentikan.'
+                            );
+                        }
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Status
+                        |--------------------------------------------------------------------------
+                        */
+
+                        if (
+                            $sisaUtang <= 0
+                        ) {
+                            $status =
+                                'LUNAS';
+
+                        } elseif (
+                            $totalDibayar > 0
+                        ) {
+                            $status =
+                                'SEBAGIAN';
+
+                        } else {
+                            $status =
+                                'BELUM_LUNAS';
+                        }
+
+                        $invoice->update([
+                            'total_dibayar' =>
+                                $totalDibayar,
+
+                            'sisa_utang' =>
+                                $sisaUtang,
+
+                            'status' =>
+                                $status,
+                        ]);
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Journal
+                        |--------------------------------------------------------------------------
+                        |
+                        | Dr Utang Dagang
+                        |     Cr Kas / Bank
+                        |
+                        */
+
+                        $accountingService
+                            ->autoJournalPembayaranSupplier(
+                                $pembayaran
+                            );
+
+                        return $pembayaran;
+                    }
+                );
+
+        } catch (
+            ValidationException $e
+        ) {
+            throw $e;
+
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()
+                ->withInput()
+                ->with(
+                    'error',
+                    'Gagal mencatat pembayaran supplier: '
+                    . $e->getMessage()
+                );
+        }
+
         return redirect()
             ->route(
-                'pembayaran-supplier.index'
+                'pembayaran-supplier.show',
+                $pembayaran
             )
             ->with(
                 'success',
-                'Pembayaran supplier berhasil dicatat dan saldo Kas/Bank berhasil diperbarui.'
+                'Pembayaran supplier berhasil dicatat. Utang, saldo Kas/Bank, dan jurnal accounting telah diperbarui.'
             );
     }
 
-
     /*
     |--------------------------------------------------------------------------
-    | DETAIL PEMBAYARAN
+    | SHOW
     |--------------------------------------------------------------------------
     */
 
     public function show(
         PembayaranSupplier $pembayaranSupplier
     ) {
-
-        /*
-        |--------------------------------------------------------------------------
-        | LOAD DATA UTAMA
-        |--------------------------------------------------------------------------
-        */
-
         $pembayaranSupplier->load([
             'invoiceSupplier.purchaseOrder',
             'supplier',
@@ -769,55 +816,29 @@ class PembayaranSupplierController extends Controller
             'creator',
         ]);
 
-
         /*
         |--------------------------------------------------------------------------
-        | MUTASI KAS / BANK
+        | Mutasi Kas/Bank
         |--------------------------------------------------------------------------
-        |
-        | Akan null jika pembayaran lama belum pernah diposting ke Kas/Bank.
-        |
         */
 
         $mutasiKasBank =
             $pembayaranSupplier
                 ->mutasiKasBank;
 
-
         /*
         |--------------------------------------------------------------------------
-        | REKONSILIASI BANK
+        | Rekonsiliasi
         |--------------------------------------------------------------------------
         */
 
         $rekonsiliasi =
             null;
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | TRANSAKSI REKENING KORAN
-        |--------------------------------------------------------------------------
-        */
-
         $transaksiBank =
             null;
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | JIKA MUTASI KAS/BANK ADA
-        |--------------------------------------------------------------------------
-        */
-
         if ($mutasiKasBank) {
-
-            /*
-            |--------------------------------------------------------------------------
-            | CARI REKONSILIASI
-            |--------------------------------------------------------------------------
-            */
-
             $rekonsiliasi =
                 RekonsiliasiBank::with([
                     'creator',
@@ -828,15 +849,7 @@ class PembayaranSupplierController extends Controller
                     )
                     ->first();
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | CARI TRANSAKSI REKENING KORAN
-            |--------------------------------------------------------------------------
-            */
-
             if ($rekonsiliasi) {
-
                 $transaksiBank =
                     TransaksiBelumTeridentifikasi::with([
                         'rekeningKasBank',
@@ -849,34 +862,11 @@ class PembayaranSupplierController extends Controller
             }
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | STATUS POSTING KAS / BANK
-        |--------------------------------------------------------------------------
-        */
-
         $sudahPostingKasBank =
-            $mutasiKasBank
-            !== null;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | STATUS REKONSILIASI
-        |--------------------------------------------------------------------------
-        */
+            $mutasiKasBank !== null;
 
         $sudahDirekonsiliasi =
-            $rekonsiliasi
-            !== null;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | RETURN VIEW
-        |--------------------------------------------------------------------------
-        */
+            $rekonsiliasi !== null;
 
         return view(
             'pembayaran-supplier.show',
@@ -891,7 +881,6 @@ class PembayaranSupplierController extends Controller
         );
     }
 
-
     /*
     |--------------------------------------------------------------------------
     | EDIT
@@ -901,7 +890,6 @@ class PembayaranSupplierController extends Controller
     public function edit(
         PembayaranSupplier $pembayaranSupplier
     ) {
-
         return redirect()
             ->route(
                 'pembayaran-supplier.show',
@@ -912,7 +900,6 @@ class PembayaranSupplierController extends Controller
                 'Pembayaran yang sudah diproses tidak dapat diedit langsung.'
             );
     }
-
 
     /*
     |--------------------------------------------------------------------------
@@ -924,7 +911,6 @@ class PembayaranSupplierController extends Controller
         Request $request,
         PembayaranSupplier $pembayaranSupplier
     ) {
-
         return redirect()
             ->route(
                 'pembayaran-supplier.show',
@@ -936,17 +922,15 @@ class PembayaranSupplierController extends Controller
             );
     }
 
-
     /*
     |--------------------------------------------------------------------------
-    | DELETE
+    | DESTROY
     |--------------------------------------------------------------------------
     */
 
     public function destroy(
         PembayaranSupplier $pembayaranSupplier
     ) {
-
         return redirect()
             ->route(
                 'pembayaran-supplier.show',
@@ -954,14 +938,13 @@ class PembayaranSupplierController extends Controller
             )
             ->with(
                 'error',
-                'Pembayaran tidak dapat dihapus langsung. Gunakan mekanisme pembatalan/reversal.'
+                'Pembayaran Supplier tidak dapat dihapus langsung karena sudah memengaruhi Utang, Kas/Bank, dan jurnal. Gunakan mekanisme reversal.'
             );
     }
 
-
     /*
     |--------------------------------------------------------------------------
-    | KETERANGAN MUTASI KAS / BANK
+    | BUILD KETERANGAN MUTASI
     |--------------------------------------------------------------------------
     */
 
@@ -969,171 +952,55 @@ class PembayaranSupplierController extends Controller
         PembayaranSupplier $pembayaran,
         InvoiceSupplier $invoice
     ): string {
-
         $parts = [];
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | NOMOR PEMBAYARAN
-        |--------------------------------------------------------------------------
-        */
 
         $parts[] =
             'Pembayaran Supplier '
             . $pembayaran
                 ->nomor_pembayaran;
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | NOMOR INVOICE
-        |--------------------------------------------------------------------------
-        */
-
         if (
             $invoice
                 ->nomor_invoice_internal
         ) {
-
             $parts[] =
                 'Invoice '
                 . $invoice
                     ->nomor_invoice_internal;
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | REFERENSI
-        |--------------------------------------------------------------------------
-        */
-
         if (
             $pembayaran
-                ->referensi
+                ->supplier
+                ?->nama_supplier
         ) {
+            $parts[] =
+                'Supplier '
+                . $pembayaran
+                    ->supplier
+                    ->nama_supplier;
+        }
 
+        if (
+            $pembayaran->referensi
+        ) {
             $parts[] =
                 'Referensi '
                 . $pembayaran
                     ->referensi;
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | CATATAN
-        |--------------------------------------------------------------------------
-        */
-
         if (
-            $pembayaran
-                ->catatan
+            $pembayaran->catatan
         ) {
-
             $parts[] =
                 $pembayaran
                     ->catatan;
         }
 
-
         return implode(
             ' | ',
             $parts
         );
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | GENERATE NOMOR PEMBAYARAN
-    |--------------------------------------------------------------------------
-    |
-    | Contoh:
-    |
-    | PAY-SUP/2026/08/0001
-    |
-    */
-
-    private function generateNomorPembayaran(): string
-    {
-        $year =
-            now()->format(
-                'Y'
-            );
-
-
-        $month =
-            now()->format(
-                'm'
-            );
-
-
-        $prefix =
-            "PAY-SUP/{$year}/{$month}/";
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | NOMOR TERAKHIR
-        |--------------------------------------------------------------------------
-        */
-
-        $last =
-            PembayaranSupplier::query()
-                ->where(
-                    'nomor_pembayaran',
-                    'like',
-                    $prefix . '%'
-                )
-                ->orderByDesc(
-                    'id'
-                )
-                ->first();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | NOMOR BERIKUTNYA
-        |--------------------------------------------------------------------------
-        */
-
-        if ($last) {
-
-            $lastNumber =
-                (int)
-                substr(
-                    $last
-                        ->nomor_pembayaran,
-                    -4
-                );
-
-
-            $nextNumber =
-                $lastNumber + 1;
-
-        } else {
-
-            $nextNumber =
-                1;
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | HASIL
-        |--------------------------------------------------------------------------
-        */
-
-        return
-            $prefix
-            .
-            str_pad(
-                $nextNumber,
-                4,
-                '0',
-                STR_PAD_LEFT
-            );
     }
 }

@@ -13,13 +13,18 @@ class InvoiceSupplier extends Model
         'purchase_order_id',
         'tanggal_invoice',
         'tanggal_jatuh_tempo',
+
         'subtotal',
         'diskon',
         'pajak',
         'pajak_persen',
         'total',
+
         'total_dibayar',
+        'total_retur',
         'sisa_utang',
+        'kredit_supplier',
+
         'status',
         'catatan',
         'created_by',
@@ -33,18 +38,13 @@ class InvoiceSupplier extends Model
         'diskon' => 'decimal:2',
         'pajak' => 'decimal:2',
         'pajak_persen' => 'decimal:2',
-
         'total' => 'decimal:2',
+
         'total_dibayar' => 'decimal:2',
+        'total_retur' => 'decimal:2',
         'sisa_utang' => 'decimal:2',
+        'kredit_supplier' => 'decimal:2',
     ];
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | SUPPLIER
-    |--------------------------------------------------------------------------
-    */
 
     public function supplier()
     {
@@ -54,13 +54,6 @@ class InvoiceSupplier extends Model
         );
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | PURCHASE ORDER
-    |--------------------------------------------------------------------------
-    */
-
     public function purchaseOrder()
     {
         return $this->belongsTo(
@@ -68,13 +61,6 @@ class InvoiceSupplier extends Model
             'purchase_order_id'
         );
     }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | DETAIL ITEM INVOICE
-    |--------------------------------------------------------------------------
-    */
 
     public function items()
     {
@@ -84,42 +70,19 @@ class InvoiceSupplier extends Model
         );
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | PEMBAYARAN SUPPLIER
-    |--------------------------------------------------------------------------
-    |
-    | Satu invoice supplier dapat memiliki beberapa pembayaran.
-    |
-    | Contoh:
-    | Invoice Rp 10.000.000
-    | - Bayar pertama Rp 4.000.000
-    | - Bayar kedua   Rp 3.000.000
-    | - Bayar ketiga  Rp 3.000.000
-    |
-    */
-
-    public function pembayaranSuppliers()
-    {
-        return $this->hasMany(
-            PembayaranSupplier::class,
-            'invoice_supplier_id'
-        );
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | USER PEMBUAT
-    |--------------------------------------------------------------------------
-    */
-
     public function creator()
     {
         return $this->belongsTo(
             User::class,
             'created_by'
+        );
+    }
+
+    public function returAllocations()
+    {
+        return $this->hasMany(
+            ReturPembelianAllocation::class,
+            'invoice_supplier_id'
         );
     }
 }

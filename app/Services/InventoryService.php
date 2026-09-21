@@ -56,7 +56,9 @@ class InventoryService
             );
         }
 
-        $tanggalMutasi = $this->resolveTanggalTransaksi($tanggalTransaksi);
+        $tanggalMutasi = $this->resolveTanggalTransaksi(
+            $tanggalTransaksi
+        );
 
         return DB::transaction(
             function () use (
@@ -70,10 +72,28 @@ class InventoryService
                 $tipeMutasi,
                 $tanggalMutasi
             ) {
-                $stok = StokGudang::where('barang_id', $barangId)
-                    ->where('gudang_id', $gudangId)
+                /*
+                |--------------------------------------------------------------------------
+                | Ambil stok dan lock row
+                |--------------------------------------------------------------------------
+                */
+
+                $stok = StokGudang::where(
+                    'barang_id',
+                    $barangId
+                )
+                    ->where(
+                        'gudang_id',
+                        $gudangId
+                    )
                     ->lockForUpdate()
                     ->first();
+
+                /*
+                |--------------------------------------------------------------------------
+                | Validasi tanggal mutasi
+                |--------------------------------------------------------------------------
+                */
 
                 $this->validateUrutanTanggal(
                     $barangId,
@@ -81,7 +101,14 @@ class InventoryService
                     $tanggalMutasi
                 );
 
+                /*
+                |--------------------------------------------------------------------------
+                | Buat record stok jika belum ada
+                |--------------------------------------------------------------------------
+                */
+
                 if (!$stok) {
+
                     StokGudang::create([
                         'barang_id' => $barangId,
                         'gudang_id' => $gudangId,
@@ -90,26 +117,56 @@ class InventoryService
                         'nilai_persediaan' => 0,
                     ]);
 
-                    $stok = StokGudang::where('barang_id', $barangId)
-                        ->where('gudang_id', $gudangId)
+                    $stok = StokGudang::where(
+                        'barang_id',
+                        $barangId
+                    )
+                        ->where(
+                            'gudang_id',
+                            $gudangId
+                        )
                         ->lockForUpdate()
                         ->firstOrFail();
                 }
 
+                /*
+                |--------------------------------------------------------------------------
+                | Hitung moving average
+                |--------------------------------------------------------------------------
+                */
+
                 $qtyLama = (float) $stok->qty;
+
                 $nilaiLama = (float) $stok->nilai_persediaan;
+
                 $nilaiMasuk = $qty * $hargaSatuan;
 
                 $qtyBaru = $qtyLama + $qty;
+
                 $nilaiBaru = $nilaiLama + $nilaiMasuk;
 
-                $hargaRataRataBaru = $qtyBaru > 0 ? $nilaiBaru / $qtyBaru : 0;
+                $hargaRataRataBaru =
+                    $qtyBaru > 0
+                        ? $nilaiBaru / $qtyBaru
+                        : 0;
+
+                /*
+                |--------------------------------------------------------------------------
+                | Update stok
+                |--------------------------------------------------------------------------
+                */
 
                 $stok->update([
                     'qty' => $qtyBaru,
                     'harga_rata_rata' => $hargaRataRataBaru,
                     'nilai_persediaan' => $nilaiBaru,
                 ]);
+
+                /*
+                |--------------------------------------------------------------------------
+                | Catat kartu/mutasi stok
+                |--------------------------------------------------------------------------
+                */
 
                 MutasiStok::create([
                     'tanggal' => $tanggalMutasi,
@@ -171,7 +228,9 @@ class InventoryService
             );
         }
 
-        $tanggalMutasi = $this->resolveTanggalTransaksi($tanggalTransaksi);
+        $tanggalMutasi = $this->resolveTanggalTransaksi(
+            $tanggalTransaksi
+        );
 
         return DB::transaction(
             function () use (
@@ -184,12 +243,31 @@ class InventoryService
                 $tipeMutasi,
                 $tanggalMutasi
             ) {
-                $stok = StokGudang::where('barang_id', $barangId)
-                    ->where('gudang_id', $gudangId)
+                /*
+                |--------------------------------------------------------------------------
+                | Ambil stok dan lock row
+                |--------------------------------------------------------------------------
+                */
+
+                $stok = StokGudang::where(
+                    'barang_id',
+                    $barangId
+                )
+                    ->where(
+                        'gudang_id',
+                        $gudangId
+                    )
                     ->lockForUpdate()
                     ->first();
 
+                /*
+                |--------------------------------------------------------------------------
+                | Buat record jika belum ada
+                |--------------------------------------------------------------------------
+                */
+
                 if (!$stok) {
+
                     StokGudang::create([
                         'barang_id' => $barangId,
                         'gudang_id' => $gudangId,
@@ -198,11 +276,23 @@ class InventoryService
                         'nilai_persediaan' => 0,
                     ]);
 
-                    $stok = StokGudang::where('barang_id', $barangId)
-                        ->where('gudang_id', $gudangId)
+                    $stok = StokGudang::where(
+                        'barang_id',
+                        $barangId
+                    )
+                        ->where(
+                            'gudang_id',
+                            $gudangId
+                        )
                         ->lockForUpdate()
                         ->firstOrFail();
                 }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Validasi tanggal mutasi
+                |--------------------------------------------------------------------------
+                */
 
                 $this->validateUrutanTanggal(
                     $barangId,
@@ -210,24 +300,84 @@ class InventoryService
                     $tanggalMutasi
                 );
 
+                /*
+                |--------------------------------------------------------------------------
+                | Validasi ketersediaan stok
+                |--------------------------------------------------------------------------
+                */
+
                 $qtyLama = (float) $stok->qty;
 
                 if ($qty > $qtyLama) {
-                    $barang = \App\Models\Barang::find($barangId);
-                    $namaBarang = $barang ? "{$barang->kode_barang} - {$barang->nama_barang}" : "ID {$barangId}";
+
+                    $barang = \App\Models\Barang::find(
+                        $barangId
+                    );
+
+                    $namaBarang = $barang
+                        ? "{$barang->kode_barang} - {$barang->nama_barang}"
+                        : "ID {$barangId}";
+
                     throw new RuntimeException(
-                        "Stok barang '{$namaBarang}' di gudang yang dipilih tidak mencukupi. (Stok tersedia: " . number_format($qtyLama, 0, ',', '.') . ", Dibutuhkan: " . number_format($qty, 0, ',', '.') . ")"
+                        "Stok barang '{$namaBarang}' di gudang yang dipilih tidak mencukupi. "
+                        . "(Stok tersedia: "
+                        . number_format(
+                            $qtyLama,
+                            0,
+                            ',',
+                            '.'
+                        )
+                        . ", Dibutuhkan: "
+                        . number_format(
+                            $qty,
+                            0,
+                            ',',
+                            '.'
+                        )
+                        . ")"
                     );
                 }
 
-                $hargaRataRata = (float) $stok->harga_rata_rata;
-                $nilaiKeluar = $qty * $hargaRataRata;
+                /*
+                |--------------------------------------------------------------------------
+                | Ambil moving average SEBELUM stok keluar
+                |--------------------------------------------------------------------------
+                |
+                | Harga ini digunakan sebagai HPP transaksi keluar.
+                |
+                */
 
-                $qtyBaru = $qtyLama - $qty;
-                $nilaiLama = (float) $stok->nilai_persediaan;
-                $nilaiBaru = $nilaiLama - $nilaiKeluar;
+                $hargaRataRata =
+                    (float) $stok->harga_rata_rata;
 
-                if ($nilaiBaru < 0 && abs($nilaiBaru) < 0.01) {
+                $nilaiKeluar =
+                    $qty * $hargaRataRata;
+
+                /*
+                |--------------------------------------------------------------------------
+                | Hitung saldo baru
+                |--------------------------------------------------------------------------
+                */
+
+                $qtyBaru =
+                    $qtyLama - $qty;
+
+                $nilaiLama =
+                    (float) $stok->nilai_persediaan;
+
+                $nilaiBaru =
+                    $nilaiLama - $nilaiKeluar;
+
+                /*
+                |--------------------------------------------------------------------------
+                | Hindari selisih floating point
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    $nilaiBaru < 0
+                    && abs($nilaiBaru) < 0.01
+                ) {
                     $nilaiBaru = 0;
                 }
 
@@ -240,11 +390,43 @@ class InventoryService
                     $nilaiBaru = 0;
                 }
 
+                /*
+                |--------------------------------------------------------------------------
+                | Update stok
+                |--------------------------------------------------------------------------
+                |
+                | PENTING:
+                |
+                | Harga rata-rata terakhir TETAP disimpan walaupun qty = 0.
+                |
+                | Contoh:
+                |
+                | 10 pcs @ Rp100.000
+                | Dijual seluruhnya
+                |
+                | qty               = 0
+                | harga_rata_rata   = 100.000
+                | nilai_persediaan  = 0
+                |
+                | Dengan begitu HPP transaksi terakhir tidak hilang menjadi 0.
+                |
+                */
+
                 $stok->update([
                     'qty' => $qtyBaru,
-                    'harga_rata_rata' => $qtyBaru > 0 ? $hargaRataRata : 0,
+                    'harga_rata_rata' => $hargaRataRata,
                     'nilai_persediaan' => $nilaiBaru,
                 ]);
+
+                /*
+                |--------------------------------------------------------------------------
+                | Catat mutasi stok
+                |--------------------------------------------------------------------------
+                |
+                | harga_satuan = moving average pada saat barang keluar
+                | nilai        = HPP transaksi keluar
+                |
+                */
 
                 MutasiStok::create([
                     'tanggal' => $tanggalMutasi,
@@ -268,7 +450,10 @@ class InventoryService
     }
 
     /**
-     * Alias method untuk stok masuk dengan urutan (gudangId, barangId, ...)
+     * Alias method stok masuk.
+     *
+     * Urutan parameter:
+     * gudangId, barangId, qty, hargaSatuan, ...
      */
     public function masuk(
         int $gudangId,
@@ -281,6 +466,7 @@ class InventoryService
         ?string $keterangan = null,
         $tanggalTransaksi = null
     ): StokGudang {
+
         return $this->stokMasuk(
             $barangId,
             $gudangId,
@@ -295,7 +481,10 @@ class InventoryService
     }
 
     /**
-     * Alias method untuk stok keluar dengan urutan (gudangId, barangId, ...)
+     * Alias method stok keluar.
+     *
+     * Urutan parameter:
+     * gudangId, barangId, qty, ...
      */
     public function keluar(
         int $gudangId,
@@ -307,6 +496,7 @@ class InventoryService
         ?string $keterangan = null,
         $tanggalTransaksi = null
     ): StokGudang {
+
         return $this->stokKeluar(
             $barangId,
             $gudangId,
@@ -319,13 +509,24 @@ class InventoryService
         );
     }
 
+    /**
+     * Pastikan transaksi stok tidak dimasukkan
+     * sebelum tanggal mutasi stok terakhir.
+     */
     private function validateUrutanTanggal(
         int $barangId,
         int $gudangId,
         Carbon $tanggalMutasi
     ): void {
-        $mutasiTerakhir = MutasiStok::where('barang_id', $barangId)
-            ->where('gudang_id', $gudangId)
+
+        $mutasiTerakhir = MutasiStok::where(
+            'barang_id',
+            $barangId
+        )
+            ->where(
+                'gudang_id',
+                $gudangId
+            )
             ->orderByDesc('tanggal')
             ->orderByDesc('id')
             ->lockForUpdate()
@@ -335,9 +536,21 @@ class InventoryService
             return;
         }
 
-        $tanggalTerakhir = Carbon::parse($mutasiTerakhir->tanggal);
+        $tanggalTerakhir = Carbon::parse(
+            $mutasiTerakhir->tanggal
+        );
 
-        if ($tanggalMutasi->copy()->startOfDay()->lt($tanggalTerakhir->copy()->startOfDay())) {
+        if (
+            $tanggalMutasi
+                ->copy()
+                ->startOfDay()
+                ->lt(
+                    $tanggalTerakhir
+                        ->copy()
+                        ->startOfDay()
+                )
+        ) {
+
             throw new RuntimeException(
                 'Tanggal transaksi stok tidak boleh sebelum tanggal mutasi stok terakhir untuk barang dan gudang ini. '
                 . 'Tanggal mutasi terakhir: '
@@ -347,23 +560,57 @@ class InventoryService
         }
     }
 
-    private function resolveTanggalTransaksi($tanggalTransaksi = null): Carbon
-    {
+    /**
+     * Normalisasi tanggal transaksi stok.
+     */
+    private function resolveTanggalTransaksi(
+        $tanggalTransaksi = null
+    ): Carbon {
+
         if (empty($tanggalTransaksi)) {
             return now();
         }
 
         try {
-            $tanggal = Carbon::parse($tanggalTransaksi);
 
-            if (is_string($tanggalTransaksi) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalTransaksi)) {
+            $tanggal = Carbon::parse(
+                $tanggalTransaksi
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Jika input hanya YYYY-MM-DD
+            |--------------------------------------------------------------------------
+            |
+            | Gunakan jam saat ini supaya urutan mutasi pada tanggal yang sama
+            | tetap konsisten.
+            |
+            */
+
+            if (
+                is_string($tanggalTransaksi)
+                && preg_match(
+                    '/^\d{4}-\d{2}-\d{2}$/',
+                    $tanggalTransaksi
+                )
+            ) {
+
                 $sekarang = now();
-                $tanggal->setTime($sekarang->hour, $sekarang->minute, $sekarang->second);
+
+                $tanggal->setTime(
+                    $sekarang->hour,
+                    $sekarang->minute,
+                    $sekarang->second
+                );
             }
 
             return $tanggal;
+
         } catch (\Throwable $e) {
-            throw new RuntimeException('Tanggal transaksi stok tidak valid.');
+
+            throw new RuntimeException(
+                'Tanggal transaksi stok tidak valid.'
+            );
         }
     }
 }

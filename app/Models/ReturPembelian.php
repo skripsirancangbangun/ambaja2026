@@ -32,7 +32,9 @@ class ReturPembelian extends Model
     public function penerimaanBarang()
     {
         return $this->belongsTo(
-            PenerimaanBarang::class
+            PenerimaanBarang::class,
+            'penerimaan_barang_id',
+            'id'
         );
     }
 
@@ -45,7 +47,9 @@ class ReturPembelian extends Model
     public function purchaseOrder()
     {
         return $this->belongsTo(
-            PurchaseOrder::class
+            PurchaseOrder::class,
+            'purchase_order_id',
+            'id'
         );
     }
 
@@ -58,7 +62,9 @@ class ReturPembelian extends Model
     public function supplier()
     {
         return $this->belongsTo(
-            Supplier::class
+            Supplier::class,
+            'supplier_id',
+            'id'
         );
     }
 
@@ -71,7 +77,9 @@ class ReturPembelian extends Model
     public function gudang()
     {
         return $this->belongsTo(
-            Gudang::class
+            Gudang::class,
+            'gudang_id',
+            'id'
         );
     }
 
@@ -84,7 +92,43 @@ class ReturPembelian extends Model
     public function details()
     {
         return $this->hasMany(
-            ReturPembelianDetail::class
+            ReturPembelianDetail::class,
+            'retur_pembelian_id',
+            'id'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | RELASI ALOKASI RETUR KE INVOICE SUPPLIER
+    |--------------------------------------------------------------------------
+    */
+
+    public function allocations()
+    {
+        return $this->hasMany(
+            ReturPembelianAllocation::class,
+            'retur_pembelian_id',
+            'id'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | RELASI JURNAL RETUR PEMBELIAN
+    |--------------------------------------------------------------------------
+    */
+
+    public function jurnal()
+    {
+        return $this->hasOne(
+            Jurnal::class,
+            'referensi_id',
+            'id'
+        )
+        ->where(
+            'referensi_type',
+            'RETUR_PEMBELIAN'
         );
     }
 
@@ -98,7 +142,8 @@ class ReturPembelian extends Model
     {
         return $this->belongsTo(
             User::class,
-            'created_by'
+            'created_by',
+            'id'
         );
     }
 }

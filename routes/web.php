@@ -50,6 +50,7 @@ use App\Http\Controllers\KartuPiutangController;
 use App\Http\Controllers\PengaturanPenomoranController;
 use App\Http\Controllers\ProfilPerusahaanController;
 
+
 /*
 |--------------------------------------------------------------------------
 | PUBLIC
@@ -70,7 +71,10 @@ Route::get('/', function () {
 Route::get('/dashboard', function () {
     return view('dashboard');
 })
-    ->middleware(['auth', 'verified'])
+    ->middleware([
+        'auth',
+        'verified',
+    ])
     ->name('dashboard');
 
 
@@ -90,17 +94,26 @@ Route::middleware('auth')->group(function () {
 
     Route::get(
         '/profile',
-        [ProfileController::class, 'edit']
+        [
+            ProfileController::class,
+            'edit',
+        ]
     )->name('profile.edit');
 
     Route::patch(
         '/profile',
-        [ProfileController::class, 'update']
+        [
+            ProfileController::class,
+            'update',
+        ]
     )->name('profile.update');
 
     Route::delete(
         '/profile',
-        [ProfileController::class, 'destroy']
+        [
+            ProfileController::class,
+            'destroy',
+        ]
     )->name('profile.destroy');
 
 
@@ -110,33 +123,52 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
 
-    Route::get('profil-perusahaan', [ProfilPerusahaanController::class, 'index'])->name('profil-perusahaan.index');
-    Route::put('profil-perusahaan', [ProfilPerusahaanController::class, 'update'])->name('profil-perusahaan.update');
+    Route::get(
+        'profil-perusahaan',
+        [
+            ProfilPerusahaanController::class,
+            'index',
+        ]
+    )->name('profil-perusahaan.index');
+
+    Route::put(
+        'profil-perusahaan',
+        [
+            ProfilPerusahaanController::class,
+            'update',
+        ]
+    )->name('profil-perusahaan.update');
+
 
     Route::resource(
         'kategori-barang',
         KategoriBarangController::class
     )->except('show');
 
+
     Route::resource(
         'satuan',
         SatuanController::class
     )->except('show');
+
 
     Route::resource(
         'gudang',
         GudangController::class
     )->except('show');
 
+
     Route::resource(
         'barang',
         BarangController::class
     )->except('show');
 
+
     Route::resource(
         'customer',
         CustomerController::class
     )->except('show');
+
 
     Route::resource(
         'supplier',
@@ -150,49 +182,126 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | SALES ORDER / PENJUALAN
+    |--------------------------------------------------------------------------
+    */
+
     Route::get(
         'penjualan/{penjualan}/pdf',
-        [PenjualanController::class, 'pdf']
+        [
+            PenjualanController::class,
+            'pdf',
+        ]
     )->name('penjualan.pdf');
+
 
     Route::post(
         'penjualan/{penjualan}/konfirmasi',
-        [PenjualanController::class, 'konfirmasi']
+        [
+            PenjualanController::class,
+            'konfirmasi',
+        ]
     )->name('penjualan.konfirmasi');
+
 
     Route::post(
         'penjualan/{penjualan}/batalkan',
-        [PenjualanController::class, 'batalkan']
+        [
+            PenjualanController::class,
+            'batalkan',
+        ]
     )->name('penjualan.batalkan');
+
 
     Route::resource(
         'penjualan',
         PenjualanController::class
     );
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | INVOICE PENJUALAN
+    |--------------------------------------------------------------------------
+    */
+
     Route::get(
         'invoice-penjualan/{invoicePenjualan}/pdf',
-        [InvoicePenjualanController::class, 'pdf']
+        [
+            InvoicePenjualanController::class,
+            'pdf',
+        ]
     )->name('invoice-penjualan.pdf');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | KIRIM EMAIL INVOICE
+    |--------------------------------------------------------------------------
+    */
+
+    Route::post(
+        'invoice-penjualan/{invoicePenjualan}/kirim-email',
+        [
+            InvoicePenjualanController::class,
+            'kirimEmail',
+        ]
+    )->name('invoice-penjualan.kirim-email');
+
 
     Route::resource(
         'invoice-penjualan',
         InvoicePenjualanController::class
     );
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | PEMBAYARAN PENJUALAN
+    |--------------------------------------------------------------------------
+    */
+
     Route::resource(
         'pembayaran-penjualan',
         PembayaranPenjualanController::class
-    )->except(['edit', 'update', 'destroy']);
+    )->except([
+        'edit',
+        'update',
+        'destroy',
+    ]);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | RETUR PENJUALAN
+    |--------------------------------------------------------------------------
+    */
 
     Route::resource(
         'retur-penjualan',
         ReturPenjualanController::class
-    )->except(['edit', 'update', 'destroy']);
+    )->except([
+        'edit',
+        'update',
+        'destroy',
+    ]);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PIUTANG
+    |--------------------------------------------------------------------------
+    */
 
     Route::get(
         'piutang',
-        [PiutangController::class, 'index']
+        [
+            PiutangController::class,
+            'index',
+        ]
     )->name('piutang.index');
 
 
@@ -223,13 +332,21 @@ Route::middleware('auth')->group(function () {
 
     Route::get(
         'purchase-order/{purchaseOrder}/pdf',
-        [PurchaseOrderController::class, 'pdf']
+        [
+            PurchaseOrderController::class,
+            'pdf',
+        ]
     )->name('purchase-order.pdf');
+
 
     Route::patch(
         'purchase-order/{purchaseOrder}/kirim',
-        [PurchaseOrderController::class, 'kirim']
+        [
+            PurchaseOrderController::class,
+            'kirim',
+        ]
     )->name('purchase-order.kirim');
+
 
     Route::resource(
         'purchase-order',
@@ -245,7 +362,10 @@ Route::middleware('auth')->group(function () {
 
     Route::patch(
         'purchase-order-item/{purchaseOrderItem}/batalkan-sisa',
-        [PenerimaanBarangController::class, 'batalkanSisa']
+        [
+            PenerimaanBarangController::class,
+            'batalkanSisa',
+        ]
     )->name('purchase-order-item.batalkan-sisa');
 
 
@@ -293,8 +413,12 @@ Route::middleware('auth')->group(function () {
 
     Route::patch(
         'retur-pembelian/{returPembelian}/proses',
-        [ReturPembelianController::class, 'proses']
+        [
+            ReturPembelianController::class,
+            'proses',
+        ]
     )->name('retur-pembelian.proses');
+
 
     Route::resource(
         'retur-pembelian',
@@ -310,7 +434,10 @@ Route::middleware('auth')->group(function () {
 
     Route::get(
         '/utang',
-        [UtangController::class, 'index']
+        [
+            UtangController::class,
+            'index',
+        ]
     )->name('utang.index');
 
 
@@ -329,17 +456,28 @@ Route::middleware('auth')->group(function () {
 
     Route::get(
         '/stok-barang/template-stok-awal',
-        [StokBarangController::class, 'downloadTemplate']
+        [
+            StokBarangController::class,
+            'downloadTemplate',
+        ]
     )->name('stok-barang.template-stok-awal');
+
 
     Route::post(
         '/stok-barang/import-stok-awal',
-        [StokBarangController::class, 'importStokAwal']
+        [
+            StokBarangController::class,
+            'importStokAwal',
+        ]
     )->name('stok-barang.import-stok-awal');
+
 
     Route::get(
         '/stok-barang',
-        [StokBarangController::class, 'index']
+        [
+            StokBarangController::class,
+            'index',
+        ]
     )->name('stok-barang.index');
 
 
@@ -351,7 +489,10 @@ Route::middleware('auth')->group(function () {
 
     Route::get(
         '/kartu-stok',
-        [KartuStokController::class, 'index']
+        [
+            KartuStokController::class,
+            'index',
+        ]
     )->name('kartu-stok.index');
 
 
@@ -406,8 +547,12 @@ Route::middleware('auth')->group(function () {
 
     Route::post(
         '/uang-masuk/{uangMasuk}/catat',
-        [UangMasukController::class, 'catat']
+        [
+            UangMasukController::class,
+            'catat',
+        ]
     )->name('uang-masuk.catat');
+
 
     Route::resource(
         'uang-masuk',
@@ -423,8 +568,12 @@ Route::middleware('auth')->group(function () {
 
     Route::post(
         '/uang-keluar/{uangKeluar}/catat',
-        [UangKeluarController::class, 'catat']
+        [
+            UangKeluarController::class,
+            'catat',
+        ]
     )->name('uang-keluar.catat');
+
 
     Route::resource(
         'uang-keluar',
@@ -440,8 +589,12 @@ Route::middleware('auth')->group(function () {
 
     Route::post(
         '/transfer-kas-bank/{transferKasBank}/catat',
-        [TransferKasBankController::class, 'catat']
+        [
+            TransferKasBankController::class,
+            'catat',
+        ]
     )->name('transfer-kas-bank.catat');
+
 
     Route::resource(
         'transfer-kas-bank',
@@ -457,7 +610,10 @@ Route::middleware('auth')->group(function () {
 
     Route::get(
         '/mutasi-kas-bank',
-        [MutasiKasBankController::class, 'index']
+        [
+            MutasiKasBankController::class,
+            'index',
+        ]
     )->name('mutasi-kas-bank.index');
 
 
@@ -469,8 +625,14 @@ Route::middleware('auth')->group(function () {
 
     Route::patch(
         '/transaksi-belum-teridentifikasi/{transaksiBelumTeridentifikasi}/abaikan',
-        [TransaksiBelumTeridentifikasiController::class, 'abaikan']
-    )->name('transaksi-belum-teridentifikasi.abaikan');
+        [
+            TransaksiBelumTeridentifikasiController::class,
+            'abaikan',
+        ]
+    )->name(
+        'transaksi-belum-teridentifikasi.abaikan'
+    );
+
 
     Route::resource(
         'transaksi-belum-teridentifikasi',
@@ -478,36 +640,55 @@ Route::middleware('auth')->group(function () {
     );
 
 
-   /*
-|--------------------------------------------------------------------------
-| IMPORT REKENING KORAN
-|--------------------------------------------------------------------------
-*/
+    /*
+    |--------------------------------------------------------------------------
+    | IMPORT REKENING KORAN
+    |--------------------------------------------------------------------------
+    */
 
-Route::get(
-    '/rekening-koran-import',
-    [ImportRekeningKoranController::class, 'create']
-)->name('rekening-koran-import.create');
+    Route::get(
+        '/rekening-koran-import',
+        [
+            ImportRekeningKoranController::class,
+            'create',
+        ]
+    )->name('rekening-koran-import.create');
 
-Route::post(
-    '/rekening-koran-import/preview',
-    [ImportRekeningKoranController::class, 'preview']
-)->name('rekening-koran-import.preview.process');
 
-Route::get(
-    '/rekening-koran-import/preview',
-    [ImportRekeningKoranController::class, 'showPreview']
-)->name('rekening-koran-import.preview');
+    Route::post(
+        '/rekening-koran-import/preview',
+        [
+            ImportRekeningKoranController::class,
+            'preview',
+        ]
+    )->name('rekening-koran-import.preview.process');
 
-Route::post(
-    '/rekening-koran-import/store',
-    [ImportRekeningKoranController::class, 'store']
-)->name('rekening-koran-import.store');
 
-Route::post(
-    '/rekening-koran-import/cancel',
-    [ImportRekeningKoranController::class, 'cancel']
-)->name('rekening-koran-import.cancel');
+    Route::get(
+        '/rekening-koran-import/preview',
+        [
+            ImportRekeningKoranController::class,
+            'showPreview',
+        ]
+    )->name('rekening-koran-import.preview');
+
+
+    Route::post(
+        '/rekening-koran-import/store',
+        [
+            ImportRekeningKoranController::class,
+            'store',
+        ]
+    )->name('rekening-koran-import.store');
+
+
+    Route::post(
+        '/rekening-koran-import/cancel',
+        [
+            ImportRekeningKoranController::class,
+            'cancel',
+        ]
+    )->name('rekening-koran-import.cancel');
 
 
     /*
@@ -518,22 +699,37 @@ Route::post(
 
     Route::get(
         '/rekonsiliasi-bank',
-        [RekonsiliasiBankController::class, 'index']
+        [
+            RekonsiliasiBankController::class,
+            'index',
+        ]
     )->name('rekonsiliasi-bank.index');
+
 
     Route::get(
         '/rekonsiliasi-bank/{transaksiBank}',
-        [RekonsiliasiBankController::class, 'show']
+        [
+            RekonsiliasiBankController::class,
+            'show',
+        ]
     )->name('rekonsiliasi-bank.show');
+
 
     Route::post(
         '/rekonsiliasi-bank/{transaksiBank}/cocokkan',
-        [RekonsiliasiBankController::class, 'cocokkan']
+        [
+            RekonsiliasiBankController::class,
+            'cocokkan',
+        ]
     )->name('rekonsiliasi-bank.cocokkan');
+
 
     Route::patch(
         '/rekonsiliasi-bank/{transaksiBank}/batalkan',
-        [RekonsiliasiBankController::class, 'batalkan']
+        [
+            RekonsiliasiBankController::class,
+            'batalkan',
+        ]
     )->name('rekonsiliasi-bank.batalkan');
 
 
@@ -552,17 +748,28 @@ Route::post(
 
     Route::get(
         '/laporan/pembelian',
-        [LaporanPembelianController::class, 'index']
+        [
+            LaporanPembelianController::class,
+            'index',
+        ]
     )->name('laporan.pembelian');
+
 
     Route::get(
         '/laporan/pembelian/pdf',
-        [LaporanPembelianController::class, 'pdf']
+        [
+            LaporanPembelianController::class,
+            'pdf',
+        ]
     )->name('laporan.pembelian.pdf');
+
 
     Route::get(
         '/laporan/pembelian/excel',
-        [LaporanPembelianController::class, 'excel']
+        [
+            LaporanPembelianController::class,
+            'excel',
+        ]
     )->name('laporan.pembelian.excel');
 
 
@@ -574,17 +781,28 @@ Route::post(
 
     Route::get(
         '/laporan/persediaan',
-        [LaporanPersediaanController::class, 'index']
+        [
+            LaporanPersediaanController::class,
+            'index',
+        ]
     )->name('laporan.persediaan');
+
 
     Route::get(
         '/laporan/persediaan/pdf',
-        [LaporanPersediaanController::class, 'pdf']
+        [
+            LaporanPersediaanController::class,
+            'pdf',
+        ]
     )->name('laporan.persediaan.pdf');
+
 
     Route::get(
         '/laporan/persediaan/excel',
-        [LaporanPersediaanController::class, 'excel']
+        [
+            LaporanPersediaanController::class,
+            'excel',
+        ]
     )->name('laporan.persediaan.excel');
 
 
@@ -596,12 +814,19 @@ Route::post(
 
     Route::get(
         '/laporan/persediaan/mutasi/pdf',
-        [LaporanPersediaanController::class, 'mutasiPdf']
+        [
+            LaporanPersediaanController::class,
+            'mutasiPdf',
+        ]
     )->name('laporan.persediaan.mutasi.pdf');
+
 
     Route::get(
         '/laporan/persediaan/mutasi/excel',
-        [LaporanPersediaanController::class, 'mutasiExcel']
+        [
+            LaporanPersediaanController::class,
+            'mutasiExcel',
+        ]
     )->name('laporan.persediaan.mutasi.excel');
 
 
@@ -611,8 +836,14 @@ Route::post(
     |--------------------------------------------------------------------------
     */
 
-    Route::get('/laporan/utang', [LaporanPembelianController::class, 'index'])
-    ->name('laporan.utang');
+    Route::get(
+        '/laporan/utang',
+        [
+            LaporanPembelianController::class,
+            'index',
+        ]
+    )->name('laporan.utang');
+
 
     /*
     |--------------------------------------------------------------------------
@@ -620,83 +851,532 @@ Route::post(
     |--------------------------------------------------------------------------
     */
 
-    Route::get('coa/import/template', [CoaController::class, 'downloadTemplate'])->name('coa.import.template');
-    Route::post('coa/import', [CoaController::class, 'import'])->name('coa.import');
-    Route::resource('coa', CoaController::class)->except('show');
-    Route::resource('jurnal-umum', JurnalUmumController::class)->except(['edit', 'update']);
-    Route::get('buku-besar', [BukuBesarController::class, 'index'])->name('buku-besar.index');
 
-    // 1. Penjualan
-    Route::get('laporan/penjualan', [LaporanPenjualanController::class, 'index'])->name('laporan.penjualan');
-    Route::get('laporan/penjualan/pdf', [LaporanPenjualanController::class, 'pdf'])->name('laporan.penjualan.pdf');
-    Route::get('laporan/penjualan/excel', [LaporanPenjualanController::class, 'excel'])->name('laporan.penjualan.excel');
+    /*
+    |--------------------------------------------------------------------------
+    | CHART OF ACCOUNTS
+    |--------------------------------------------------------------------------
+    */
 
-    // 2. Piutang
-    Route::get('laporan/piutang', [LaporanPiutangController::class, 'index'])->name('laporan.piutang');
-    Route::get('laporan/piutang/pdf', [LaporanPiutangController::class, 'pdf'])->name('laporan.piutang.pdf');
-    Route::get('laporan/piutang/excel', [LaporanPiutangController::class, 'excel'])->name('laporan.piutang.excel');
+    Route::get(
+        'coa/import/template',
+        [
+            CoaController::class,
+            'downloadTemplate',
+        ]
+    )->name('coa.import.template');
 
-    // 3. Laba Rugi
-    Route::get('laporan/laba-rugi', [LaporanKeuanganController::class, 'labaRugi'])->name('laporan.laba-rugi');
-    Route::get('laporan/laba-rugi/pdf', [LaporanKeuanganController::class, 'labaRugiPdf'])->name('laporan.laba-rugi.pdf');
-    Route::get('laporan/laba-rugi/excel', [LaporanKeuanganController::class, 'labaRugiExcel'])->name('laporan.laba-rugi.excel');
 
-    // 4. Neraca
-    Route::get('laporan/neraca', [LaporanKeuanganController::class, 'neraca'])->name('laporan.neraca');
-    Route::get('laporan/neraca/pdf', [LaporanKeuanganController::class, 'neracaPdf'])->name('laporan.neraca.pdf');
-    Route::get('laporan/neraca/excel', [LaporanKeuanganController::class, 'neracaExcel'])->name('laporan.neraca.excel');
+    Route::post(
+        'coa/import',
+        [
+            CoaController::class,
+            'import',
+        ]
+    )->name('coa.import');
 
-    // 5. Arus Kas
-    Route::get('laporan/arus-kas', [LaporanKeuanganController::class, 'arusKas'])->name('laporan.arus-kas');
-    Route::get('laporan/arus-kas/pdf', [LaporanKeuanganController::class, 'arusKasPdf'])->name('laporan.arus-kas.pdf');
-    Route::get('laporan/arus-kas/excel', [LaporanKeuanganController::class, 'arusKasExcel'])->name('laporan.arus-kas.excel');
 
-    // 6. Perubahan Ekuitas
-    Route::get('laporan/perubahan-ekuitas', [LaporanKeuanganController::class, 'perubahanEkuitas'])->name('laporan.perubahan-ekuitas');
-    Route::get('laporan/perubahan-ekuitas/pdf', [LaporanKeuanganController::class, 'perubahanEkuitasPdf'])->name('laporan.perubahan-ekuitas.pdf');
-    Route::get('laporan/perubahan-ekuitas/excel', [LaporanKeuanganController::class, 'perubahanEkuitasExcel'])->name('laporan.perubahan-ekuitas.excel');
+    Route::resource(
+        'coa',
+        CoaController::class
+    )->except('show');
 
-    // Neraca Saldo
-    Route::get('laporan/neraca-saldo', [LaporanKeuanganController::class, 'neracaSaldo'])->name('laporan.neraca-saldo');
 
-    // Pengaturan Akun Sistem
-    Route::get('pengaturan-akun', [PengaturanAkunController::class, 'index'])->name('pengaturan-akun.index');
-    Route::put('pengaturan-akun', [PengaturanAkunController::class, 'update'])->name('pengaturan-akun.update');
+    /*
+    |--------------------------------------------------------------------------
+    | JURNAL UMUM
+    |--------------------------------------------------------------------------
+    */
 
-    // Import Customer & Template
-    Route::get('customer/import/template', [CustomerImportController::class, 'downloadTemplate'])->name('customer.import.template');
-    Route::post('customer/import', [CustomerImportController::class, 'import'])->name('customer.import');
+    Route::resource(
+        'jurnal-umum',
+        JurnalUmumController::class
+    )->except([
+        'edit',
+        'update',
+    ]);
 
-    // Penerimaan Piutang & Kwitansi
-    Route::get('piutang/penerimaan', [PenerimaanPiutangController::class, 'index'])->name('piutang.penerimaan.index');
-    Route::get('piutang/penerimaan/create', [PenerimaanPiutangController::class, 'create'])->name('piutang.penerimaan.create');
-    Route::post('piutang/penerimaan', [PenerimaanPiutangController::class, 'store'])->name('piutang.penerimaan.store');
-    Route::get('piutang/penerimaan/{penerimaan}/pdf', [PenerimaanPiutangController::class, 'kwitansiPdf'])->name('piutang.kwitansi.pdf');
 
-    // Kartu Piutang Customer & Detail Penagihan
-    Route::get('piutang/kartu', [KartuPiutangController::class, 'index'])->name('piutang.kartu');
-    Route::get('piutang/{invoice}', [PiutangController::class, 'show'])->name('piutang.show');
-    Route::post('piutang/{invoice}/tindak-lanjut', [PiutangController::class, 'storeTindakLanjut'])->name('piutang.tindak-lanjut.store');
-    Route::get('piutang/{invoice}/surat-tagihan/pdf', [PiutangController::class, 'cetakSuratTagihan'])->name('piutang.surat-tagihan.pdf');
-    Route::get('piutang/{invoice}/surat-peringatan/{level}/pdf', [PiutangController::class, 'cetakSuratPeringatan'])->name('piutang.surat-peringatan.pdf');
+    /*
+    |--------------------------------------------------------------------------
+    | BUKU BESAR
+    |--------------------------------------------------------------------------
+    */
 
-    // Retur Penjualan
-    Route::get('retur-penjualan/{returPenjualan}/pdf', [ReturPenjualanController::class, 'pdf'])->name('retur-penjualan.pdf');
-    Route::resource('retur-penjualan', ReturPenjualanController::class)->only(['index', 'create', 'store', 'show']);
+    Route::get(
+        'buku-besar',
+        [
+            BukuBesarController::class,
+            'index',
+        ]
+    )->name('buku-besar.index');
 
-    // Pengaturan Format Penomoran Jurnal & Dokumen
-    Route::get('pengaturan-penomoran', [PengaturanPenomoranController::class, 'index'])->name('pengaturan-penomoran.index');
-    Route::put('pengaturan-penomoran', [PengaturanPenomoranController::class, 'update'])->name('pengaturan-penomoran.update');
 
-    // Pembatalan Resmi Invoice (Kepala Toko / Admin Only)
-    Route::post('invoice-penjualan/{invoice}/batal', [InvoicePenjualanController::class, 'batal'])->name('invoice-penjualan.batal');
+    /*
+    |--------------------------------------------------------------------------
+    | LAPORAN PENJUALAN
+    |--------------------------------------------------------------------------
+    */
 
-    // Penutupan Periode (Cut-off Bulanan)
-    Route::get('penutupan-periode', [PenutupanPeriodeController::class, 'index'])->name('penutupan-periode.index');
-    Route::post('penutupan-periode/close', [PenutupanPeriodeController::class, 'close'])->name('penutupan-periode.close');
-    Route::put('penutupan-periode/{penutupanPeriode}/reopen', [PenutupanPeriodeController::class, 'reopen'])->name('penutupan-periode.reopen');
+    Route::get(
+        'laporan/penjualan',
+        [
+            LaporanPenjualanController::class,
+            'index',
+        ]
+    )->name('laporan.penjualan');
+
+
+    Route::get(
+        'laporan/penjualan/pdf',
+        [
+            LaporanPenjualanController::class,
+            'pdf',
+        ]
+    )->name('laporan.penjualan.pdf');
+
+
+    Route::get(
+        'laporan/penjualan/excel',
+        [
+            LaporanPenjualanController::class,
+            'excel',
+        ]
+    )->name('laporan.penjualan.excel');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | LAPORAN PIUTANG
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        'laporan/piutang',
+        [
+            LaporanPiutangController::class,
+            'index',
+        ]
+    )->name('laporan.piutang');
+
+
+    Route::get(
+        'laporan/piutang/pdf',
+        [
+            LaporanPiutangController::class,
+            'pdf',
+        ]
+    )->name('laporan.piutang.pdf');
+
+
+    Route::get(
+        'laporan/piutang/excel',
+        [
+            LaporanPiutangController::class,
+            'excel',
+        ]
+    )->name('laporan.piutang.excel');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | LAPORAN LABA RUGI
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        'laporan/laba-rugi',
+        [
+            LaporanKeuanganController::class,
+            'labaRugi',
+        ]
+    )->name('laporan.laba-rugi');
+
+
+    Route::get(
+        'laporan/laba-rugi/pdf',
+        [
+            LaporanKeuanganController::class,
+            'labaRugiPdf',
+        ]
+    )->name('laporan.laba-rugi.pdf');
+
+
+    Route::get(
+        'laporan/laba-rugi/excel',
+        [
+            LaporanKeuanganController::class,
+            'labaRugiExcel',
+        ]
+    )->name('laporan.laba-rugi.excel');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | LAPORAN NERACA
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        'laporan/neraca',
+        [
+            LaporanKeuanganController::class,
+            'neraca',
+        ]
+    )->name('laporan.neraca');
+
+
+    Route::get(
+        'laporan/neraca/pdf',
+        [
+            LaporanKeuanganController::class,
+            'neracaPdf',
+        ]
+    )->name('laporan.neraca.pdf');
+
+
+    Route::get(
+        'laporan/neraca/excel',
+        [
+            LaporanKeuanganController::class,
+            'neracaExcel',
+        ]
+    )->name('laporan.neraca.excel');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | LAPORAN ARUS KAS
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        'laporan/arus-kas',
+        [
+            LaporanKeuanganController::class,
+            'arusKas',
+        ]
+    )->name('laporan.arus-kas');
+
+
+    Route::get(
+        'laporan/arus-kas/pdf',
+        [
+            LaporanKeuanganController::class,
+            'arusKasPdf',
+        ]
+    )->name('laporan.arus-kas.pdf');
+
+
+    Route::get(
+        'laporan/arus-kas/excel',
+        [
+            LaporanKeuanganController::class,
+            'arusKasExcel',
+        ]
+    )->name('laporan.arus-kas.excel');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | LAPORAN PERUBAHAN EKUITAS
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        'laporan/perubahan-ekuitas',
+        [
+            LaporanKeuanganController::class,
+            'perubahanEkuitas',
+        ]
+    )->name('laporan.perubahan-ekuitas');
+
+
+    Route::get(
+        'laporan/perubahan-ekuitas/pdf',
+        [
+            LaporanKeuanganController::class,
+            'perubahanEkuitasPdf',
+        ]
+    )->name('laporan.perubahan-ekuitas.pdf');
+
+
+    Route::get(
+        'laporan/perubahan-ekuitas/excel',
+        [
+            LaporanKeuanganController::class,
+            'perubahanEkuitasExcel',
+        ]
+    )->name('laporan.perubahan-ekuitas.excel');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | NERACA SALDO
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        'laporan/neraca-saldo',
+        [
+            LaporanKeuanganController::class,
+            'neracaSaldo',
+        ]
+    )->name('laporan.neraca-saldo');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PENGATURAN AKUN SISTEM
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        'pengaturan-akun',
+        [
+            PengaturanAkunController::class,
+            'index',
+        ]
+    )->name('pengaturan-akun.index');
+
+
+    Route::put(
+        'pengaturan-akun',
+        [
+            PengaturanAkunController::class,
+            'update',
+        ]
+    )->name('pengaturan-akun.update');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | IMPORT CUSTOMER
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        'customer/import/template',
+        [
+            CustomerImportController::class,
+            'downloadTemplate',
+        ]
+    )->name('customer.import.template');
+
+
+    Route::post(
+        'customer/import',
+        [
+            CustomerImportController::class,
+            'import',
+        ]
+    )->name('customer.import');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PENERIMAAN PIUTANG
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        'piutang/penerimaan',
+        [
+            PenerimaanPiutangController::class,
+            'index',
+        ]
+    )->name('piutang.penerimaan.index');
+
+
+    Route::get(
+        'piutang/penerimaan/create',
+        [
+            PenerimaanPiutangController::class,
+            'create',
+        ]
+    )->name('piutang.penerimaan.create');
+
+
+    Route::post(
+        'piutang/penerimaan',
+        [
+            PenerimaanPiutangController::class,
+            'store',
+        ]
+    )->name('piutang.penerimaan.store');
+
+
+    Route::get(
+        'piutang/penerimaan/{penerimaan}/pdf',
+        [
+            PenerimaanPiutangController::class,
+            'kwitansiPdf',
+        ]
+    )->name('piutang.kwitansi.pdf');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | KARTU PIUTANG
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        'piutang/kartu',
+        [
+            KartuPiutangController::class,
+            'index',
+        ]
+    )->name('piutang.kartu');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | DETAIL PIUTANG & PENAGIHAN
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        'piutang/{invoice}',
+        [
+            PiutangController::class,
+            'show',
+        ]
+    )->name('piutang.show');
+
+
+    Route::post(
+        'piutang/{invoice}/tindak-lanjut',
+        [
+            PiutangController::class,
+            'storeTindakLanjut',
+        ]
+    )->name('piutang.tindak-lanjut.store');
+
+
+    Route::get(
+        'piutang/{invoice}/surat-tagihan/pdf',
+        [
+            PiutangController::class,
+            'cetakSuratTagihan',
+        ]
+    )->name('piutang.surat-tagihan.pdf');
+
+
+    Route::get(
+        'piutang/{invoice}/surat-peringatan/{level}/pdf',
+        [
+            PiutangController::class,
+            'cetakSuratPeringatan',
+        ]
+    )->name('piutang.surat-peringatan.pdf');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | RETUR PENJUALAN PDF
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        'retur-penjualan/{returPenjualan}/pdf',
+        [
+            ReturPenjualanController::class,
+            'pdf',
+        ]
+    )->name('retur-penjualan.pdf');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | RETUR PENJUALAN
+    |--------------------------------------------------------------------------
+    */
+
+    Route::resource(
+        'retur-penjualan',
+        ReturPenjualanController::class
+    )->only([
+        'index',
+        'create',
+        'store',
+        'show',
+    ]);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PENGATURAN PENOMORAN
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        'pengaturan-penomoran',
+        [
+            PengaturanPenomoranController::class,
+            'index',
+        ]
+    )->name('pengaturan-penomoran.index');
+
+
+    Route::put(
+        'pengaturan-penomoran',
+        [
+            PengaturanPenomoranController::class,
+            'update',
+        ]
+    )->name('pengaturan-penomoran.update');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PEMBATALAN RESMI INVOICE
+    |--------------------------------------------------------------------------
+    */
+
+    Route::post(
+        'invoice-penjualan/{invoice}/batal',
+        [
+            InvoicePenjualanController::class,
+            'batal',
+        ]
+    )->name('invoice-penjualan.batal');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PENUTUPAN PERIODE
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        'penutupan-periode',
+        [
+            PenutupanPeriodeController::class,
+            'index',
+        ]
+    )->name('penutupan-periode.index');
+
+
+    Route::post(
+        'penutupan-periode/close',
+        [
+            PenutupanPeriodeController::class,
+            'close',
+        ]
+    )->name('penutupan-periode.close');
+
+
+    Route::put(
+        'penutupan-periode/{penutupanPeriode}/reopen',
+        [
+            PenutupanPeriodeController::class,
+            'reopen',
+        ]
+    )->name('penutupan-periode.reopen');
 
 });
+
 
 /*
 |--------------------------------------------------------------------------

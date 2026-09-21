@@ -143,7 +143,7 @@
                                         x-model.number="item.debit"
                                         @input="if(item.debit > 0) item.kredit = 0"
                                         min="0"
-                                        step="100"
+                                        step="1"
                                         class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-right text-sm font-semibold text-slate-800 focus:border-[#32AAA6] focus:bg-white focus:outline-none"
                                     >
                                 </td>
@@ -154,7 +154,7 @@
                                         x-model.number="item.kredit"
                                         @input="if(item.kredit > 0) item.debit = 0"
                                         min="0"
-                                        step="100"
+                                        step="1"
                                         class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-right text-sm font-semibold text-slate-800 focus:border-[#32AAA6] focus:bg-white focus:outline-none"
                                     >
                                 </td>

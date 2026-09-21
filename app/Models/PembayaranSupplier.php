@@ -19,22 +19,17 @@ class PembayaranSupplier extends Model
         'created_by',
     ];
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | CAST
-    |--------------------------------------------------------------------------
-    */
-
     protected $casts = [
-        'tanggal_pembayaran' => 'date',
-        'jumlah_bayar' => 'decimal:2',
+        'tanggal_pembayaran' =>
+            'date',
+
+        'jumlah_bayar' =>
+            'decimal:2',
     ];
 
-
     /*
     |--------------------------------------------------------------------------
-    | INVOICE SUPPLIER
+    | Invoice Supplier
     |--------------------------------------------------------------------------
     */
 
@@ -46,10 +41,9 @@ class PembayaranSupplier extends Model
         );
     }
 
-
     /*
     |--------------------------------------------------------------------------
-    | SUPPLIER
+    | Supplier
     |--------------------------------------------------------------------------
     */
 
@@ -61,10 +55,9 @@ class PembayaranSupplier extends Model
         );
     }
 
-
     /*
     |--------------------------------------------------------------------------
-    | REKENING KAS / BANK
+    | Kas / Bank
     |--------------------------------------------------------------------------
     */
 
@@ -76,14 +69,10 @@ class PembayaranSupplier extends Model
         );
     }
 
-
     /*
     |--------------------------------------------------------------------------
-    | MUTASI KAS / BANK
+    | Mutasi Kas / Bank
     |--------------------------------------------------------------------------
-    |
-    | Satu pembayaran supplier menghasilkan satu mutasi Kas/Bank.
-    |
     */
 
     public function mutasiKasBank()
@@ -102,10 +91,27 @@ class PembayaranSupplier extends Model
             );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Jurnal
+    |--------------------------------------------------------------------------
+    */
+
+    public function jurnal()
+    {
+        return $this->hasOne(
+            Jurnal::class,
+            'referensi_id'
+        )
+            ->where(
+                'referensi_type',
+                'PEMBAYARAN_SUPPLIER'
+            );
+    }
 
     /*
     |--------------------------------------------------------------------------
-    | USER PEMBUAT
+    | Creator
     |--------------------------------------------------------------------------
     */
 
@@ -117,28 +123,28 @@ class PembayaranSupplier extends Model
         );
     }
 
-
     /*
     |--------------------------------------------------------------------------
-    | STATUS POSTING KAS / BANK
+    | Sudah Posting Kas Bank
     |--------------------------------------------------------------------------
     */
 
     public function getSudahPostingKasBankAttribute(): bool
     {
-        return $this->mutasiKasBank !== null;
+        return $this->mutasiKasBank
+            !== null;
     }
-
 
     /*
     |--------------------------------------------------------------------------
-    | STATUS REKONSILIASI
+    | Sudah Direkonsiliasi
     |--------------------------------------------------------------------------
     */
 
     public function getSudahDirekonsiliasiAttribute(): bool
     {
-        return $this->mutasiKasBank
+        return $this
+            ->mutasiKasBank
             ?->rekonsiliasiBank
             !== null;
     }

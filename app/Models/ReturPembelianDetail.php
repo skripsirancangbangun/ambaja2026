@@ -17,47 +17,73 @@ class ReturPembelianDetail extends Model
     ];
 
     protected $casts = [
-        'qty' => 'decimal:2',
-        'harga_satuan' => 'decimal:2',
-        'subtotal' => 'decimal:2',
+        'qty' =>
+            'decimal:2',
+
+        'harga_satuan' =>
+            'decimal:2',
+
+        'subtotal' =>
+            'decimal:2',
     ];
 
     /*
     |--------------------------------------------------------------------------
-    | RELASI HEADER RETUR
+    | RETUR PEMBELIAN
     |--------------------------------------------------------------------------
     */
 
     public function returPembelian()
     {
         return $this->belongsTo(
-            ReturPembelian::class
+            ReturPembelian::class,
+            'retur_pembelian_id',
+            'id'
         );
     }
 
     /*
     |--------------------------------------------------------------------------
-    | RELASI PENERIMAAN BARANG ITEM
+    | PENERIMAAN BARANG ITEM
     |--------------------------------------------------------------------------
     */
 
     public function penerimaanBarangItem()
     {
         return $this->belongsTo(
-            PenerimaanBarangItem::class
+            PenerimaanBarangItem::class,
+            'penerimaan_barang_item_id',
+            'id'
         );
     }
 
     /*
     |--------------------------------------------------------------------------
-    | RELASI BARANG
+    | BARANG
     |--------------------------------------------------------------------------
     */
 
     public function barang()
     {
         return $this->belongsTo(
-            Barang::class
+            Barang::class,
+            'barang_id',
+            'id'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | ALOKASI KE INVOICE SUPPLIER
+    |--------------------------------------------------------------------------
+    */
+
+    public function allocations()
+    {
+        return $this->hasMany(
+            ReturPembelianAllocation::class,
+            'retur_pembelian_detail_id',
+            'id'
         );
     }
 }

@@ -11,18 +11,35 @@ class InvoicePenjualan extends Model
         'penjualan_id',
         'customer_id',
         'gudang_id',
+
         'tanggal_invoice',
         'tanggal_jatuh_tempo',
+
         'tipe_pembayaran',
         'rekening_kas_bank_id',
+
         'subtotal',
         'diskon',
         'pajak_persen',
         'pajak',
         'total',
+
         'sudah_dibayar',
         'sisa_piutang',
+
         'status_pembayaran',
+
+        /*
+        |--------------------------------------------------------------------------
+        | Status Dokumen Invoice
+        |--------------------------------------------------------------------------
+        */
+
+        'status_invoice',
+        'dibatalkan_at',
+        'dibatalkan_oleh',
+        'alasan_pembatalan',
+
         'catatan',
         'created_by',
     ];
@@ -30,62 +47,132 @@ class InvoicePenjualan extends Model
     protected $casts = [
         'tanggal_invoice' => 'date',
         'tanggal_jatuh_tempo' => 'date',
+
         'subtotal' => 'decimal:2',
         'diskon' => 'decimal:2',
         'pajak_persen' => 'decimal:2',
         'pajak' => 'decimal:2',
         'total' => 'decimal:2',
+
         'sudah_dibayar' => 'decimal:2',
         'sisa_piutang' => 'decimal:2',
+
+        'dibatalkan_at' => 'datetime',
     ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | RELATIONSHIPS
+    |--------------------------------------------------------------------------
+    */
 
     public function customer()
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(
+            Customer::class
+        );
     }
 
     public function gudang()
     {
-        return $this->belongsTo(Gudang::class);
+        return $this->belongsTo(
+            Gudang::class
+        );
     }
 
     public function penjualan()
     {
-        return $this->belongsTo(Penjualan::class);
+        return $this->belongsTo(
+            Penjualan::class
+        );
     }
 
     public function rekeningKasBank()
     {
-        return $this->belongsTo(RekeningKasBank::class, 'rekening_kas_bank_id');
+        return $this->belongsTo(
+            RekeningKasBank::class,
+            'rekening_kas_bank_id'
+        );
     }
 
     public function items()
     {
-        return $this->hasMany(InvoicePenjualanItem::class);
+        return $this->hasMany(
+            InvoicePenjualanItem::class
+        );
     }
 
     public function pembayaranDetails()
     {
-        return $this->hasMany(PembayaranPenjualanDetail::class);
+        return $this->hasMany(
+            PembayaranPenjualanDetail::class
+        );
     }
 
     public function returPenjualans()
     {
-        return $this->hasMany(ReturPenjualan::class);
+        return $this->hasMany(
+            ReturPenjualan::class
+        );
     }
 
     public function tindakLanjuts()
     {
-        return $this->hasMany(TindakLanjutPiutang::class)->orderByDesc('tanggal_tindak_lanjut');
+        return $this->hasMany(
+            TindakLanjutPiutang::class
+        )->orderByDesc(
+            'tanggal_tindak_lanjut'
+        );
     }
 
     public function penerimaanDetails()
     {
-        return $this->hasMany(PenerimaanPiutangDetail::class);
+        return $this->hasMany(
+            PenerimaanPiutangDetail::class
+        );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | User Pembuat Invoice
+    |--------------------------------------------------------------------------
+    */
 
     public function creator()
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(
+            User::class,
+            'created_by'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | User yang Membatalkan Invoice
+    |--------------------------------------------------------------------------
+    */
+
+    public function canceller()
+    {
+        return $this->belongsTo(
+            User::class,
+            'dibatalkan_oleh'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Helper Status
+    |--------------------------------------------------------------------------
+    */
+
+    public function isCancelled(): bool
+    {
+        return $this->status_invoice === 'DIBATALKAN';
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status_invoice === 'AKTIF';
     }
 }
