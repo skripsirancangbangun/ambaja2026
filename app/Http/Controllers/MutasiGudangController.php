@@ -39,55 +39,121 @@ class MutasiGudangController extends Controller
      */
     public function create(Request $request)
     {
-        $gudangs = Gudang::where(
-            'is_active',
-            true
-        )
+        $gudangs = Gudang::where('is_active', true)
             ->orderBy('nama_gudang')
             ->get();
 
-        $selectedGudangId =
-            $request->filled('gudang_asal_id')
-                ? (int) $request->gudang_asal_id
-                : null;
+        // Pertahankan gudang asal dan barang terpilih setelah validasi gagal.
+        $selectedGudangId = $request->filled('gudang_asal_id')
+            ? (int) $request->query('gudang_asal_id')
+            : (old('gudang_asal_id') ? (int) old('gudang_asal_id') : null);
 
-        /*
-        |--------------------------------------------------------------------------
-        | STOK GUDANG ASAL
-        |--------------------------------------------------------------------------
-        */
+        $oldItems = collect(old('items', []));
+        $oldBarangIds = $oldItems
+            ->pluck('barang_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
 
-        $stokBarangs = collect();
+        // Jangan muat ribuan stok ke halaman. Hanya pulihkan barang yang sebelumnya dipilih.
+        $stokTerpilih = collect();
 
-        if ($selectedGudangId) {
-            $stokBarangs = StokGudang::with([
-                'barang.satuan',
-            ])
-                ->where(
-                    'gudang_id',
-                    $selectedGudangId
-                )
-                ->where(
-                    'qty',
-                    '>',
-                    0
-                )
-                ->orderBy('barang_id')
-                ->get();
+        if ($selectedGudangId && $oldBarangIds->isNotEmpty()) {
+            $stokTerpilih = StokGudang::with('barang.satuan')
+                ->where('gudang_id', $selectedGudangId)
+                ->whereIn('barang_id', $oldBarangIds)
+                ->where('qty', '>', 0)
+                ->get()
+                ->keyBy('barang_id');
         }
 
-        $previewNomorMutasi =
-            $this->generateNomorMutasi();
+        $selectedItems = $oldItems->map(function ($item) use ($stokTerpilih) {
+            $barangId = (int) ($item['barang_id'] ?? 0);
+            $stok = $stokTerpilih->get($barangId);
 
-        return view(
-            'mutasi-gudang.create',
-            compact(
-                'gudangs',
-                'stokBarangs',
-                'selectedGudangId',
-                'previewNomorMutasi'
-            )
-        );
+            if (!$stok || !$stok->barang) {
+                return null;
+            }
+
+            return [
+                'barang_id' => $barangId,
+                'kode_barang' => (string) $stok->barang->kode_barang,
+                'nama_barang' => (string) $stok->barang->nama_barang,
+                'spesifikasi' => (string) ($stok->barang->spesifikasi ?? ''),
+                'merek' => (string) ($stok->barang->merek ?? ''),
+                'qty_available' => (float) $stok->qty,
+                'satuan' => (string) ($stok->barang->satuan?->nama_satuan ?? '-'),
+                'harga_rata_rata' => (float) $stok->harga_rata_rata,
+                'qty' => (float) ($item['qty'] ?? 0),
+            ];
+        })->filter()->values();
+
+        $previewNomorMutasi = $this->generateNomorMutasi();
+
+        return view('mutasi-gudang.create', compact(
+            'gudangs',
+            'selectedGudangId',
+            'previewNomorMutasi',
+            'selectedItems'
+        ));
+    }
+
+
+    /**
+     * Cari barang yang mempunyai stok pada gudang asal terpilih.
+     * Hanya mengembalikan maksimal 20 hasil agar halaman tetap ringan.
+     */
+    public function searchBarang(Request $request)
+    {
+        $validated = $request->validate([
+            'gudang_asal_id' => 'required|integer|exists:gudangs,id',
+            'q' => 'required|string|min:2|max:100',
+        ]);
+
+        $gudangAktif = Gudang::whereKey($validated['gudang_asal_id'])
+            ->where('is_active', true)
+            ->exists();
+
+        if (!$gudangAktif) {
+            return response()->json([
+                'message' => 'Pilih gudang asal yang masih aktif.',
+            ], 422);
+        }
+
+        $term = trim($validated['q']);
+        $like = '%' . addcslashes($term, '%_\\') . '%';
+
+        $stokBarangs = StokGudang::query()
+            ->with('barang.satuan')
+            ->where('gudang_id', $validated['gudang_asal_id'])
+            ->where('qty', '>', 0)
+            ->whereHas('barang', function ($query) use ($like) {
+                $query->where(function ($barangQuery) use ($like) {
+                    $barangQuery->where('kode_barang', 'like', $like)
+                        ->orWhere('nama_barang', 'like', $like)
+                        ->orWhere('spesifikasi', 'like', $like)
+                        ->orWhere('merek', 'like', $like);
+                });
+            })
+            ->orderBy('barang_id')
+            ->limit(20)
+            ->get();
+
+        $results = $stokBarangs->map(function ($stok) {
+            return [
+                'barang_id' => (int) $stok->barang_id,
+                'kode_barang' => (string) ($stok->barang?->kode_barang ?? ''),
+                'nama_barang' => (string) ($stok->barang?->nama_barang ?? ''),
+                'spesifikasi' => (string) ($stok->barang?->spesifikasi ?? ''),
+                'merek' => (string) ($stok->barang?->merek ?? ''),
+                'qty_available' => (float) $stok->qty,
+                'satuan' => (string) ($stok->barang?->satuan?->nama_satuan ?? '-'),
+                'harga_rata_rata' => (float) $stok->harga_rata_rata,
+            ];
+        })->values();
+
+        return response()->json(['data' => $results]);
     }
 
 
@@ -239,8 +305,38 @@ class MutasiGudangController extends Controller
                 |
                 */
 
-                $hargaRataRata =
-                    (float) $stok->harga_rata_rata;
+                $hargaRataRata = round(
+                    (float) $stok->harga_rata_rata,
+                    2
+                );
+
+                $qtySaldo = round($stokTersedia, 2);
+                $nilaiSaldo = round(
+                    (float) $stok->nilai_persediaan,
+                    2
+                );
+
+                /*
+                |--------------------------------------------------------------
+                | NILAI TRANSFER YANG KONSISTEN
+                |--------------------------------------------------------------
+                |
+                | InventoryService::stokKeluar menggunakan seluruh nilai saldo
+                | ketika qty yang dipindahkan menghabiskan stok gudang asal.
+                | Gunakan aturan yang sama pada detail dan stok masuk gudang
+                | tujuan agar nilai persediaan perusahaan tidak berubah karena
+                | residu pembulatan harga rata-rata.
+                */
+                $nilaiTransfer = $qtySaldo === $qty
+                    ? $nilaiSaldo
+                    : round($qty * $hargaRataRata, 2);
+
+                if ($nilaiTransfer < 0) {
+                    throw ValidationException::withMessages([
+                        "items.$index.qty" =>
+                            'Nilai persediaan gudang asal tidak boleh negatif.',
+                    ]);
+                }
 
                 $itemsToTransfer[] = [
                     'barang_id' =>
@@ -253,10 +349,7 @@ class MutasiGudangController extends Controller
                         $hargaRataRata,
 
                     'nilai' =>
-                        round(
-                            $qty * $hargaRataRata,
-                            2
-                        ),
+                        $nilaiTransfer,
                 ];
             }
 
@@ -417,7 +510,10 @@ class MutasiGudangController extends Controller
                         'MUTASI_MASUK',
 
                     tanggalTransaksi:
-                        $validated['tanggal_mutasi']
+                        $validated['tanggal_mutasi'],
+
+                    nilaiMasukOverride:
+                        (float) $item['nilai']
                 );
             }
         });

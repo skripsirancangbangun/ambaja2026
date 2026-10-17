@@ -52,6 +52,13 @@
         >
             Part 4: Retur Pembelian & Kas/Bank
         </button>
+        <button
+            @click="activeTab = 'saldo_awal'"
+            :class="activeTab === 'saldo_awal' ? 'border-[#32AAA6] bg-[#15235F] text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'"
+            class="rounded-xl border px-4 py-2.5 text-xs font-semibold shadow-sm transition"
+        >
+            Part 5: Saldo Awal Persediaan
+        </button>
     </div>
 
     {{-- FORM PENGATURAN --}}
@@ -64,6 +71,7 @@
             $part2Keys = ['AKUN_RETUR_PENJUALAN', 'AKUN_PPN_PENJUALAN'];
             $part3Keys = ['AKUN_UTANG_DAGANG', 'AKUN_PEMBELIAN_BARANG', 'AKUN_DISKON_PEMBELIAN'];
             $part4Keys = ['AKUN_RETUR_PEMBELIAN', 'AKUN_KAS_UTAMA'];
+            $part5Keys = ['AKUN_SALDO_AWAL'];
         @endphp
 
         {{-- PART 1 --}}
@@ -115,6 +123,29 @@
                 @foreach($pengaturanAkuns->filter(fn($i) => in_array($i->kunci_pengaturan, $part4Keys)) as $item)
                     @include('pengaturan-akun._row', ['item' => $item, 'akuns' => $akuns])
                 @endforeach
+            </div>
+        </div>
+
+        {{-- PART 5: SALDO AWAL PERSEDIAAN --}}
+        <div x-show="activeTab === 'saldo_awal'" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div class="border-b border-slate-200 px-6 py-4 bg-slate-50">
+                <h3 class="text-sm font-semibold text-slate-800">Part 5: Akun Lawan Saldo Awal Persediaan</h3>
+                <p class="text-xs text-slate-500">Digunakan sebagai akun kredit lawan untuk jurnal pembukaan stok awal. Pilih akun Ekuitas pembukaan sesuai kebijakan akuntansi perusahaan; jangan gunakan akun pendapatan atau pembelian.</p>
+            </div>
+            <div class="divide-y divide-slate-100 p-6 space-y-4">
+                @if($akunsEkuitas->isEmpty())
+                    <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                        Belum ada akun Ekuitas aktif pada COA. Tambahkan atau aktifkan akun Ekuitas yang sesuai sebelum mengimpor stok awal.
+                    </div>
+                @endif
+
+                @forelse($pengaturanAkuns->filter(fn($i) => in_array($i->kunci_pengaturan, $part5Keys)) as $item)
+                    @include('pengaturan-akun._row', ['item' => $item, 'akuns' => $akunsEkuitas])
+                @empty
+                    <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                        Konfigurasi AKUN_SALDO_AWAL belum ada di database. Jalankan migration perbaikan yang disertakan, lalu muat ulang halaman ini.
+                    </div>
+                @endforelse
             </div>
         </div>
 

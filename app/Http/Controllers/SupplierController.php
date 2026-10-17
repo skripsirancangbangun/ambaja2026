@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Supplier;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 
 class SupplierController extends Controller
@@ -68,7 +69,18 @@ class SupplierController extends Controller
 
     public function destroy(Supplier $supplier)
     {
-        $supplier->delete();
+        try {
+            $supplier->delete();
+        } catch (QueryException $e) {
+            report($e);
+
+            return redirect()
+                ->route('supplier.index')
+                ->with(
+                    'error',
+                    'Supplier tidak dapat dihapus karena masih digunakan oleh transaksi atau data terkait. Nonaktifkan supplier jika tidak ingin digunakan lagi.'
+                );
+        }
 
         return redirect()
             ->route('supplier.index')

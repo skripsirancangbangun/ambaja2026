@@ -29,4 +29,12 @@ class StokGudang extends Model
     {
         return $this->belongsTo(Gudang::class);
     }
+
+    /**
+     * HPP per unit menggunakan Moving Average.
+     */
+    public function getHppSatuanAttribute(): float
+    {
+        return (float) $this->harga_rata_rata;
+    }
 }

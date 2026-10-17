@@ -391,7 +391,7 @@
 
                             $minStok =
                                 (float) (
-                                    $stok->barang?->min_stok
+                                    $stok->barang?->minimum_stok
                                     ?? 0
                                 );
 

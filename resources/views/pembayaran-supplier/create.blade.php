@@ -57,6 +57,11 @@
 
         @csrf
 
+        <input
+            type="hidden"
+            name="idempotency_key"
+            value="{{ old('idempotency_key', $idempotencyKey) }}"
+        >
 
         {{-- INFORMASI PEMBAYARAN --}}
         <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

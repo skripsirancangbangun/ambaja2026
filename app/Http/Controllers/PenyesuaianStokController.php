@@ -445,14 +445,28 @@ class PenyesuaianStokController extends Controller
                             $opnameItem->harga_rata_rata;
                     }
 
+                    /*
+                     * Penambahan stok harus memiliki dasar nilai persediaan.
+                     * Jangan menambah qty dengan HPP nol karena hal itu akan
+                     * membuat stok bertambah tanpa menambah nilai persediaan.
+                     */
+                    if ($hargaRataRata <= 0) {
+                        throw ValidationException::withMessages([
+                            'stock_opname_id' =>
+                                'Penyesuaian stok tambah tidak dapat diproses karena HPP barang bernilai nol. Tetapkan nilai persediaan yang valid atau perbaiki data Stock Opname terlebih dahulu.',
+                        ]);
+                    }
 
-                    $qtySesudah =
-                        $qtySebelum
-                        + $qtyPenyesuaian;
+                    $qtySesudah = round(
+                        $qtySebelum + $qtyPenyesuaian,
+                        2
+                    );
 
-                    $nilaiPenyesuaian =
-                        $qtyPenyesuaian
-                        * $hargaRataRata;
+                    // Samakan pembulatan nilai dengan InventoryService::stokMasuk().
+                    $nilaiPenyesuaian = round(
+                        $qtyPenyesuaian * $hargaRataRata,
+                        2
+                    );
 
 
                     /*
@@ -585,14 +599,19 @@ class PenyesuaianStokController extends Controller
                         $stok->harga_rata_rata;
 
 
-                    $qtySesudah =
-                        $qtySebelum
-                        - $qtyPenyesuaian;
+                    $qtySesudah = round(
+                        $qtySebelum - $qtyPenyesuaian,
+                        2
+                    );
 
-
-                    $nilaiPenyesuaian =
-                        $qtyPenyesuaian
-                        * $hargaRataRata;
+                    /*
+                     * Harus sama dengan InventoryService::stokKeluar():
+                     * jika stok habis seluruhnya, keluarkan seluruh nilai saldo
+                     * persediaan, bukan qty x average cost yang telah dibulatkan.
+                     */
+                    $nilaiPenyesuaian = $qtySesudah == 0.0
+                        ? round((float) $stok->nilai_persediaan, 2)
+                        : round($qtyPenyesuaian * $hargaRataRata, 2);
 
 
                     /*

@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Akun;
 use App\Models\RekeningKasBank;
 use App\Models\UangMasuk;
 use App\Services\KasBankService;
+use App\Services\SystemAccountingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use RuntimeException;
 
 class UangMasukController extends Controller
@@ -16,6 +19,7 @@ class UangMasukController extends Controller
         $query = UangMasuk::query()
             ->with([
                 'rekeningKasBank',
+                'akunLawan',
                 'creator',
             ]);
 
@@ -28,32 +32,48 @@ class UangMasukController extends Controller
                     'like',
                     '%' . $search . '%'
                 )
-                ->orWhere(
-                    'sumber',
-                    'like',
-                    '%' . $search . '%'
-                )
-                ->orWhere(
-                    'referensi',
-                    'like',
-                    '%' . $search . '%'
-                )
-                ->orWhereHas(
-                    'rekeningKasBank',
-                    function ($rekeningQuery) use ($search) {
-                        $rekeningQuery
-                            ->where(
-                                'kode_rekening',
-                                'like',
-                                '%' . $search . '%'
-                            )
-                            ->orWhere(
-                                'nama_rekening',
-                                'like',
-                                '%' . $search . '%'
-                            );
-                    }
-                );
+                    ->orWhere(
+                        'sumber',
+                        'like',
+                        '%' . $search . '%'
+                    )
+                    ->orWhere(
+                        'referensi',
+                        'like',
+                        '%' . $search . '%'
+                    )
+                    ->orWhereHas(
+                        'rekeningKasBank',
+                        function ($rekeningQuery) use ($search) {
+                            $rekeningQuery
+                                ->where(
+                                    'kode_rekening',
+                                    'like',
+                                    '%' . $search . '%'
+                                )
+                                ->orWhere(
+                                    'nama_rekening',
+                                    'like',
+                                    '%' . $search . '%'
+                                );
+                        }
+                    )
+                    ->orWhereHas(
+                        'akunLawan',
+                        function ($akunQuery) use ($search) {
+                            $akunQuery
+                                ->where(
+                                    'kode_akun',
+                                    'like',
+                                    '%' . $search . '%'
+                                )
+                                ->orWhere(
+                                    'nama_akun',
+                                    'like',
+                                    '%' . $search . '%'
+                                );
+                        }
+                    );
             });
         }
 
@@ -93,11 +113,8 @@ class UangMasukController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        $rekeningKasBanks = RekeningKasBank::query()
-            ->where('is_active', true)
-            ->orderBy('jenis')
-            ->orderBy('nama_rekening')
-            ->get();
+        $rekeningKasBanks =
+            $this->getRekeningKasBanks();
 
         return view(
             'uang-masuk.index',
@@ -110,68 +127,69 @@ class UangMasukController extends Controller
 
     public function create()
     {
-        $rekeningKasBanks = RekeningKasBank::query()
-            ->where('is_active', true)
-            ->orderBy('jenis')
-            ->orderBy('nama_rekening')
-            ->get();
+        $rekeningKasBanks =
+            $this->getRekeningKasBanks();
+
+        $akunLawans =
+            $this->getAkunLawans();
 
         return view(
             'uang-masuk.create',
-            compact('rekeningKasBanks')
+            compact(
+                'rekeningKasBanks',
+                'akunLawans'
+            )
         );
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'tanggal' => [
-                'required',
-                'date',
-            ],
+        $validated =
+            $request->validate(
+                $this->validationRules()
+            );
 
-            'rekening_kas_bank_id' => [
-                'required',
-                'exists:rekening_kas_banks,id',
-            ],
+        $uangMasuk = DB::transaction(
+            function () use ($validated) {
+                return UangMasuk::create([
+                    'nomor_transaksi' =>
+                        $this->generateNomorTransaksi(),
 
-            'jumlah' => [
-                'required',
-                'numeric',
-                'gt:0',
-            ],
+                    'tanggal' =>
+                        $validated['tanggal'],
 
-            'sumber' => [
-                'required',
-                'string',
-                'max:150',
-            ],
+                    'rekening_kas_bank_id' =>
+                        $validated[
+                            'rekening_kas_bank_id'
+                        ],
 
-            'referensi' => [
-                'nullable',
-                'string',
-                'max:150',
-            ],
+                    'akun_lawan_id' =>
+                        $validated[
+                            'akun_lawan_id'
+                        ],
 
-            'keterangan' => [
-                'nullable',
-                'string',
-            ],
-        ]);
+                    'jumlah' =>
+                        $validated['jumlah'],
 
-        $uangMasuk = DB::transaction(function () use ($validated) {
-            return UangMasuk::create([
-                'nomor_transaksi' => $this->generateNomorTransaksi(),
-                'tanggal' => $validated['tanggal'],
-                'rekening_kas_bank_id' => $validated['rekening_kas_bank_id'],
-                'jumlah' => $validated['jumlah'],
-                'sumber' => $validated['sumber'],
-                'referensi' => $validated['referensi'] ?? null,
-                'keterangan' => $validated['keterangan'] ?? null,
-                'status' => 'DRAFT',
-                'created_by' => auth()->id(),
-            ]);
-        });
+                    'sumber' =>
+                        $validated['sumber'],
+
+                    'referensi' =>
+                        $validated['referensi']
+                        ?? null,
+
+                    'keterangan' =>
+                        $validated['keterangan']
+                        ?? null,
+
+                    'status' =>
+                        'DRAFT',
+
+                    'created_by' =>
+                        auth()->id(),
+                ]);
+            }
+        );
 
         return redirect()
             ->route(
@@ -188,9 +206,11 @@ class UangMasukController extends Controller
         UangMasuk $uangMasuk
     ) {
         $uangMasuk->load([
-            'rekeningKasBank',
+            'rekeningKasBank.akun',
+            'akunLawan',
             'creator',
             'mutasiKasBank',
+            'jurnal.details.akun',
         ]);
 
         return view(
@@ -202,7 +222,10 @@ class UangMasukController extends Controller
     public function edit(
         UangMasuk $uangMasuk
     ) {
-        if ($uangMasuk->status !== 'DRAFT') {
+        if (
+            $uangMasuk->status
+            !== 'DRAFT'
+        ) {
             return redirect()
                 ->route(
                     'uang-masuk.show',
@@ -214,21 +237,41 @@ class UangMasukController extends Controller
                 );
         }
 
-        $rekeningKasBanks = RekeningKasBank::query()
-            ->where('is_active', true)
-            ->orWhere(
-                'id',
-                $uangMasuk->rekening_kas_bank_id
-            )
-            ->orderBy('jenis')
-            ->orderBy('nama_rekening')
-            ->get();
+        $rekeningKasBanks =
+            RekeningKasBank::query()
+                ->where(
+                    function ($query) use (
+                        $uangMasuk
+                    ) {
+                        $query
+                            ->where(
+                                'is_active',
+                                true
+                            )
+                            ->orWhere(
+                                'id',
+                                $uangMasuk
+                                    ->rekening_kas_bank_id
+                            );
+                    }
+                )
+                ->whereNotNull('akun_id')
+                ->with('akun')
+                ->orderBy('jenis')
+                ->orderBy('nama_rekening')
+                ->get();
+
+        $akunLawans =
+            $this->getAkunLawans(
+                $uangMasuk->akun_lawan_id
+            );
 
         return view(
             'uang-masuk.edit',
             compact(
                 'uangMasuk',
-                'rekeningKasBanks'
+                'rekeningKasBanks',
+                'akunLawans'
             )
         );
     }
@@ -237,7 +280,10 @@ class UangMasukController extends Controller
         Request $request,
         UangMasuk $uangMasuk
     ) {
-        if ($uangMasuk->status !== 'DRAFT') {
+        if (
+            $uangMasuk->status
+            !== 'DRAFT'
+        ) {
             return redirect()
                 ->route(
                     'uang-masuk.show',
@@ -249,48 +295,38 @@ class UangMasukController extends Controller
                 );
         }
 
-        $validated = $request->validate([
-            'tanggal' => [
-                'required',
-                'date',
-            ],
-
-            'rekening_kas_bank_id' => [
-                'required',
-                'exists:rekening_kas_banks,id',
-            ],
-
-            'jumlah' => [
-                'required',
-                'numeric',
-                'gt:0',
-            ],
-
-            'sumber' => [
-                'required',
-                'string',
-                'max:150',
-            ],
-
-            'referensi' => [
-                'nullable',
-                'string',
-                'max:150',
-            ],
-
-            'keterangan' => [
-                'nullable',
-                'string',
-            ],
-        ]);
+        $validated =
+            $request->validate(
+                $this->validationRules()
+            );
 
         $uangMasuk->update([
-            'tanggal' => $validated['tanggal'],
-            'rekening_kas_bank_id' => $validated['rekening_kas_bank_id'],
-            'jumlah' => $validated['jumlah'],
-            'sumber' => $validated['sumber'],
-            'referensi' => $validated['referensi'] ?? null,
-            'keterangan' => $validated['keterangan'] ?? null,
+            'tanggal' =>
+                $validated['tanggal'],
+
+            'rekening_kas_bank_id' =>
+                $validated[
+                    'rekening_kas_bank_id'
+                ],
+
+            'akun_lawan_id' =>
+                $validated[
+                    'akun_lawan_id'
+                ],
+
+            'jumlah' =>
+                $validated['jumlah'],
+
+            'sumber' =>
+                $validated['sumber'],
+
+            'referensi' =>
+                $validated['referensi']
+                ?? null,
+
+            'keterangan' =>
+                $validated['keterangan']
+                ?? null,
         ]);
 
         return redirect()
@@ -307,7 +343,10 @@ class UangMasukController extends Controller
     public function destroy(
         UangMasuk $uangMasuk
     ) {
-        if ($uangMasuk->status !== 'DRAFT') {
+        if (
+            $uangMasuk->status
+            !== 'DRAFT'
+        ) {
             return redirect()
                 ->route(
                     'uang-masuk.show',
@@ -331,40 +370,145 @@ class UangMasukController extends Controller
 
     public function catat(
         UangMasuk $uangMasuk,
-        KasBankService $kasBankService
+        KasBankService $kasBankService,
+        SystemAccountingService $accountingService
     ) {
         try {
-            DB::transaction(function () use (
-                $uangMasuk,
-                $kasBankService
-            ) {
-                $uangMasuk = UangMasuk::query()
-                    ->lockForUpdate()
-                    ->findOrFail($uangMasuk->id);
+            DB::transaction(
+                function () use (
+                    $uangMasuk,
+                    $kasBankService,
+                    $accountingService
+                ) {
+                    $uangMasuk =
+                        UangMasuk::query()
+                            ->with([
+                                'rekeningKasBank.akun',
+                                'akunLawan',
+                            ])
+                            ->lockForUpdate()
+                            ->findOrFail(
+                                $uangMasuk->id
+                            );
 
-                if ($uangMasuk->status !== 'DRAFT') {
-                    throw new RuntimeException(
-                        'Transaksi Uang Masuk ini sudah tercatat.'
+                    if (
+                        $uangMasuk->status
+                        !== 'DRAFT'
+                    ) {
+                        throw new RuntimeException(
+                            'Transaksi Uang Masuk ini sudah tercatat.'
+                        );
+                    }
+
+                    if (
+                        !$uangMasuk
+                            ->rekeningKasBank
+                    ) {
+                        throw new RuntimeException(
+                            'Kas/Rekening Bank tidak ditemukan.'
+                        );
+                    }
+
+                    if (
+                        !$uangMasuk
+                            ->rekeningKasBank
+                            ->akun_id
+                    ) {
+                        throw new RuntimeException(
+                            'Kas/Rekening Bank belum terhubung dengan akun COA.'
+                        );
+                    }
+
+                    if (
+                        !$uangMasuk
+                            ->akun_lawan_id
+                    ) {
+                        throw new RuntimeException(
+                            'Akun lawan Uang Masuk belum dipilih.'
+                        );
+                    }
+
+                    if (
+                        (int) $uangMasuk
+                            ->rekeningKasBank
+                            ->akun_id
+                        ===
+                        (int) $uangMasuk
+                            ->akun_lawan_id
+                    ) {
+                        throw new RuntimeException(
+                            'Akun Kas/Bank dan akun lawan Uang Masuk tidak boleh sama.'
+                        );
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | 1. MUTASI KAS/BANK
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $kasBankService->uangMasuk(
+                        rekeningKasBankId:
+                            (int) $uangMasuk
+                                ->rekening_kas_bank_id,
+
+                        jumlah:
+                            (float) $uangMasuk
+                                ->jumlah,
+
+                        referenceType:
+                            'UANG_MASUK',
+
+                        referenceId:
+                            (int) $uangMasuk
+                                ->id,
+
+                        nomorReferensi:
+                            $uangMasuk
+                                ->nomor_transaksi,
+
+                        keterangan:
+                            $this
+                                ->buildKeteranganMutasi(
+                                    $uangMasuk
+                                ),
+
+                        tanggalTransaksi:
+                            $uangMasuk
+                                ->tanggal
+                                ->format('Y-m-d'),
+
+                        tipe:
+                            'UANG_MASUK'
                     );
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | 2. JURNAL ACCOUNTING
+                    |--------------------------------------------------------------------------
+                    |
+                    | Dr Kas/Bank
+                    |    Cr Akun Lawan
+                    |
+                    */
+
+                    $accountingService
+                        ->autoJournalUangMasuk(
+                            $uangMasuk
+                        );
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | 3. STATUS
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $uangMasuk->update([
+                        'status' =>
+                            'TERCATAT',
+                    ]);
                 }
-
-                $kasBankService->uangMasuk(
-                    rekeningKasBankId: (int) $uangMasuk->rekening_kas_bank_id,
-                    jumlah: (float) $uangMasuk->jumlah,
-                    referenceType: 'UANG_MASUK',
-                    referenceId: (int) $uangMasuk->id,
-                    nomorReferensi: $uangMasuk->nomor_transaksi,
-                    keterangan: $this->buildKeteranganMutasi(
-                        $uangMasuk
-                    ),
-                    tanggalTransaksi: $uangMasuk->tanggal->format('Y-m-d'),
-                    tipe: 'UANG_MASUK'
-                );
-
-                $uangMasuk->update([
-                    'status' => 'TERCATAT',
-                ]);
-            });
+            );
 
             return redirect()
                 ->route(
@@ -373,10 +517,10 @@ class UangMasukController extends Controller
                 )
                 ->with(
                     'success',
-                    'Uang Masuk berhasil dicatat dan saldo Kas/Bank telah diperbarui.'
+                    'Uang Masuk berhasil dicatat. Saldo Kas/Bank dan jurnal accounting telah diperbarui.'
                 );
 
-        } catch (RuntimeException $e) {
+        } catch (\Throwable $e) {
             return redirect()
                 ->route(
                     'uang-masuk.show',
@@ -389,32 +533,196 @@ class UangMasukController extends Controller
         }
     }
 
-    private function generateNomorTransaksi(): string
+    private function validationRules():
+        array
     {
-        $tahun = now()->format('Y');
-        $bulan = now()->format('m');
+        $akunKasBankIds =
+            RekeningKasBank::query()
+                ->whereNotNull('akun_id')
+                ->pluck('akun_id')
+                ->all();
 
-        $prefix = 'UM/' . $tahun . '/' . $bulan . '/';
+        return [
+            'tanggal' => [
+                'required',
+                'date',
+            ],
 
-        $terakhir = UangMasuk::query()
+            'rekening_kas_bank_id' => [
+                'required',
+
+                Rule::exists(
+                    'rekening_kas_banks',
+                    'id'
+                )->where(
+                    fn ($query) =>
+                        $query
+                            ->where(
+                                'is_active',
+                                true
+                            )
+                            ->whereNotNull(
+                                'akun_id'
+                            )
+                ),
+            ],
+
+            'akun_lawan_id' => [
+                'required',
+
+                Rule::exists(
+                    'akuns',
+                    'id'
+                )->where(
+                    function ($query) use (
+                        $akunKasBankIds
+                    ) {
+                        $query->where(
+                            'is_active',
+                            true
+                        );
+
+                        /*
+                         * Akun yang sudah dipakai sebagai Kas/Bank
+                         * tidak boleh menjadi akun lawan.
+                         *
+                         * Transfer antar rekening harus menggunakan
+                         * menu Transfer Antar Rekening.
+                         */
+                        if (
+                            !empty(
+                                $akunKasBankIds
+                            )
+                        ) {
+                            $query->whereNotIn(
+                                'id',
+                                $akunKasBankIds
+                            );
+                        }
+                    }
+                ),
+            ],
+
+            'jumlah' => [
+                'required',
+                'numeric',
+                'gt:0',
+            ],
+
+            'sumber' => [
+                'required',
+                'string',
+                'max:150',
+            ],
+
+            'referensi' => [
+                'nullable',
+                'string',
+                'max:150',
+            ],
+
+            'keterangan' => [
+                'nullable',
+                'string',
+            ],
+        ];
+    }
+
+    private function getRekeningKasBanks()
+    {
+        return RekeningKasBank::query()
             ->where(
-                'nomor_transaksi',
-                'like',
-                $prefix . '%'
+                'is_active',
+                true
             )
-            ->orderByDesc('nomor_transaksi')
-            ->lockForUpdate()
-            ->first();
+            ->whereNotNull('akun_id')
+            ->with('akun')
+            ->orderBy('jenis')
+            ->orderBy('nama_rekening')
+            ->get();
+    }
+
+    private function getAkunLawans(
+        ?int $currentAkunId = null
+    ) {
+        $akunKasBankIds =
+            RekeningKasBank::query()
+                ->whereNotNull('akun_id')
+                ->pluck('akun_id');
+
+        return Akun::query()
+            ->where(
+                'is_active',
+                true
+            )
+            ->where(
+                function ($query) use (
+                    $akunKasBankIds,
+                    $currentAkunId
+                ) {
+                    if (
+                        $akunKasBankIds
+                            ->isNotEmpty()
+                    ) {
+                        $query->whereNotIn(
+                            'id',
+                            $akunKasBankIds
+                        );
+                    }
+
+                    if ($currentAkunId) {
+                        $query->orWhere(
+                            'id',
+                            $currentAkunId
+                        );
+                    }
+                }
+            )
+            ->orderBy('kode_akun')
+            ->get();
+    }
+
+    private function generateNomorTransaksi():
+        string
+    {
+        $tahun =
+            now()->format('Y');
+
+        $bulan =
+            now()->format('m');
+
+        $prefix =
+            'UM/'
+            . $tahun
+            . '/'
+            . $bulan
+            . '/';
+
+        $terakhir =
+            UangMasuk::query()
+                ->where(
+                    'nomor_transaksi',
+                    'like',
+                    $prefix . '%'
+                )
+                ->orderByDesc(
+                    'nomor_transaksi'
+                )
+                ->lockForUpdate()
+                ->first();
 
         $urutan = 1;
 
         if ($terakhir) {
-            $nomorTerakhir = (int) substr(
-                $terakhir->nomor_transaksi,
-                -4
-            );
+            $nomorTerakhir =
+                (int) substr(
+                    $terakhir
+                        ->nomor_transaksi,
+                    -4
+                );
 
-            $urutan = $nomorTerakhir + 1;
+            $urutan =
+                $nomorTerakhir + 1;
         }
 
         return $prefix
@@ -429,20 +737,49 @@ class UangMasukController extends Controller
     private function buildKeteranganMutasi(
         UangMasuk $uangMasuk
     ): string {
+        $uangMasuk->loadMissing(
+            'akunLawan'
+        );
+
         $parts = [
-            'Uang Masuk ' . $uangMasuk->nomor_transaksi,
-            'Sumber: ' . $uangMasuk->sumber,
+            'Uang Masuk '
+            . $uangMasuk
+                ->nomor_transaksi,
+
+            'Sumber: '
+            . $uangMasuk
+                ->sumber,
         ];
 
-        if ($uangMasuk->referensi) {
+        if ($uangMasuk->akunLawan) {
             $parts[] =
-                'Referensi: '
-                . $uangMasuk->referensi;
+                'Akun lawan: '
+                . $uangMasuk
+                    ->akunLawan
+                    ->kode_akun
+                . ' '
+                . $uangMasuk
+                    ->akunLawan
+                    ->nama_akun;
         }
 
-        if ($uangMasuk->keterangan) {
+        if (
+            $uangMasuk
+                ->referensi
+        ) {
             $parts[] =
-                $uangMasuk->keterangan;
+                'Referensi: '
+                . $uangMasuk
+                    ->referensi;
+        }
+
+        if (
+            $uangMasuk
+                ->keterangan
+        ) {
+            $parts[] =
+                $uangMasuk
+                    ->keterangan;
         }
 
         return implode(

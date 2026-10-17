@@ -508,7 +508,45 @@
                             {{-- REFERENSI --}}
                             <td class="px-5 py-4">
 
-                                @if($mutasi->reference_type)
+                                @php
+
+                                    $referenceType = strtoupper(
+                                        trim(
+                                            (string) $mutasi->reference_type
+                                        )
+                                    );
+
+                                    $referenceId = (int) $mutasi->reference_id;
+
+                                    $referenceKey =
+                                        $referenceType
+                                        . ':'
+                                        . $referenceId;
+
+                                    $referensi =
+                                        $referensiMap[$referenceKey]
+                                        ?? null;
+
+                                @endphp
+
+                                @if($referensi)
+
+                                    <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                                        {{ $referensi['label'] }}
+                                    </p>
+
+                                    <p
+                                        class="mt-0.5 max-w-[220px] truncate text-sm font-semibold text-slate-700"
+                                        title="{{ $referensi['nama'] }}"
+                                    >
+                                        {{ $referensi['nama'] }}
+                                    </p>
+
+                                    <p class="mt-1 text-xs font-medium text-[#15235F]">
+                                        {{ $referensi['nomor'] }}
+                                    </p>
+
+                                @elseif($mutasi->reference_type)
 
                                     <p class="text-xs font-medium text-slate-600">
                                         {{ str_replace(

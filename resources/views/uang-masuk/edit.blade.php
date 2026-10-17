@@ -78,6 +78,10 @@
                                 @if ($rekening->jenis === 'BANK')
                                     - {{ $rekening->nama_bank }}
                                 @endif
+
+                                @if ($rekening->akun)
+                                    ({{ $rekening->akun->kode_akun }})
+                                @endif
                             </option>
                         @endforeach
                     </select>
@@ -113,6 +117,42 @@
                         required
                         class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                     >
+                </div>
+
+
+                <div class="md:col-span-2">
+                    <label class="mb-1 block text-sm font-medium text-slate-700">
+                        Akun Lawan
+                        <span class="text-red-500">*</span>
+                    </label>
+
+                    <select
+                        name="akun_lawan_id"
+                        required
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    >
+                        <option value="">
+                            Pilih akun lawan
+                        </option>
+
+                        @foreach ($akunLawans as $akun)
+                            <option
+                                value="{{ $akun->id }}"
+                                @selected(
+                                    (string) old(
+                                        'akun_lawan_id',
+                                        $uangMasuk->akun_lawan_id
+                                    ) === (string) $akun->id
+                                )
+                            >
+                                {{ $akun->kode_akun }} - {{ $akun->nama_akun }}
+                            </option>
+                        @endforeach
+                    </select>
+
+                    <p class="mt-1.5 text-xs text-slate-500">
+                        Jurnal saat dicatat: Dr Kas/Bank — Cr Akun Lawan.
+                    </p>
                 </div>
 
 

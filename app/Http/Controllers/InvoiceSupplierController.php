@@ -175,15 +175,20 @@ class InvoiceSupplierController extends Controller
                     'after_or_equal:tanggal_invoice',
                 ],
 
+                // Kolom diskon memakai DECIMAL(18,2).
                 'diskon' => [
                     'nullable',
                     'numeric',
+                    'decimal:0,2',
                     'min:0',
+                    'max:9999999999999999.99',
                 ],
 
+                // Kolom pajak_persen memakai DECIMAL(5,2).
                 'pajak_persen' => [
                     'nullable',
                     'numeric',
+                    'decimal:0,2',
                     'min:0',
                     'max:100',
                 ],
@@ -205,22 +210,30 @@ class InvoiceSupplierController extends Controller
                     'exists:penerimaan_barang_items,id',
                 ],
 
+                // invoice_supplier_items.qty memakai DECIMAL(15,2).
                 'items.*.qty' => [
                     'required',
                     'numeric',
+                    'decimal:0,2',
                     'min:0.01',
+                    'max:9999999999999.99',
                 ],
 
+                // Harga dan diskon item memakai DECIMAL(18,2).
                 'items.*.harga_satuan' => [
                     'required',
                     'numeric',
+                    'decimal:0,2',
                     'min:0',
+                    'max:9999999999999999.99',
                 ],
 
                 'items.*.diskon' => [
                     'nullable',
                     'numeric',
+                    'decimal:0,2',
                     'min:0',
+                    'max:9999999999999999.99',
                 ],
             ]);
 
@@ -408,23 +421,28 @@ class InvoiceSupplierController extends Controller
                             |--------------------------------------------------------------------------
                             */
 
-                            $qtySudahInvoice =
+                            // Semua kuantitas invoice disimpan dengan presisi 2 desimal.
+                            $qtySudahInvoice = round(
                                 (float) $penerimaanItem
                                     ->invoiceSupplierItems()
-                                    ->sum('qty');
+                                    ->sum('qty'),
+                                2
+                            );
 
-                            $qtyDiterima =
-                                (float) $penerimaanItem
-                                    ->qty_diterima;
+                            $qtyDiterima = round(
+                                (float) $penerimaanItem->qty_diterima,
+                                2
+                            );
 
-                            $sisaQtyInvoice =
-                                $qtyDiterima
-                                - $qtySudahInvoice;
+                            $sisaQtyInvoice = round(
+                                $qtyDiterima - $qtySudahInvoice,
+                                2
+                            );
 
-                            $qtyInvoice =
-                                (float) $inputItem[
-                                    'qty'
-                                ];
+                            $qtyInvoice = round(
+                                (float) $inputItem['qty'],
+                                2
+                            );
 
                             if (
                                 $sisaQtyInvoice
@@ -796,13 +814,17 @@ class InvoiceSupplierController extends Controller
 
                         /*
                         |--------------------------------------------------------------------------
-                        | Auto Journal
+                        | Auto Journal + Uang Muka PO
                         |--------------------------------------------------------------------------
+                        |
+                        | autoJournalInvoiceSupplier() akan lebih dulu
+                        | mengalokasikan Uang Muka PO yang tersedia, lalu membuat:
                         |
                         | Dr Pembelian / Persediaan
                         | Dr PPN Masukan
                         |     Cr Diskon Pembelian
-                        |     Cr Utang Dagang
+                        |     Cr Uang Muka Pembelian (jika ada)
+                        |     Cr Utang Dagang (jika masih ada sisa)
                         |
                         */
 
@@ -827,8 +849,7 @@ class InvoiceSupplierController extends Controller
                 ->withInput()
                 ->with(
                     'error',
-                    'Gagal mencatat Invoice Supplier: '
-                    . $e->getMessage()
+                    'Gagal mencatat Invoice Supplier. Tidak ada perubahan yang disimpan. Periksa kembali data dan coba lagi. Jika masalah berlanjut, hubungi administrator.'
                 );
         }
 

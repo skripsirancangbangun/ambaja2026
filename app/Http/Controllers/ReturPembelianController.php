@@ -1048,7 +1048,24 @@ class ReturPembelianController extends Controller
                 |--------------------------------------------------------------------------
                 | Stok Keluar
                 |--------------------------------------------------------------------------
+                |
+                | Tanggal mutasi mengikuti tanggal retur.
+                | Karena tanggal_retur disimpan sebagai DATE,
+                | jamnya akan menjadi 00:00:00 pada Carbon.
+                | Untuk timestamp mutasi stok, gunakan jam saat
+                | proses retur dilakukan.
+                |--------------------------------------------------------------------------
                 */
+
+                $tanggalMutasi =
+                    $retur
+                        ->tanggal_retur
+                        ->copy()
+                        ->setTime(
+                            now()->hour,
+                            now()->minute,
+                            now()->second
+                        );
 
                 foreach (
                     $retur->details
@@ -1084,8 +1101,7 @@ class ReturPembelianController extends Controller
                                 'RETUR_KELUAR',
 
                             tanggalTransaksi:
-                                $retur
-                                    ->tanggal_retur
+                                $tanggalMutasi
                         );
                 }
 

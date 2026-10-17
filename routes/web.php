@@ -7,6 +7,7 @@ use App\Http\Controllers\KategoriBarangController;
 use App\Http\Controllers\SatuanController;
 use App\Http\Controllers\GudangController;
 use App\Http\Controllers\BarangController;
+use App\Http\Controllers\BarangImportController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PenerimaanBarangController;
@@ -15,9 +16,11 @@ use App\Http\Controllers\KartuStokController;
 use App\Http\Controllers\MutasiGudangController;
 use App\Http\Controllers\StockOpnameController;
 use App\Http\Controllers\PenyesuaianStokController;
+use App\Http\Controllers\ConversionController;
 use App\Http\Controllers\InvoiceSupplierController;
 use App\Http\Controllers\UtangController;
 use App\Http\Controllers\PembayaranSupplierController;
+use App\Http\Controllers\PembayaranPOSupplierController;
 use App\Http\Controllers\ReturPembelianController;
 use App\Http\Controllers\LaporanPembelianController;
 use App\Http\Controllers\LaporanPersediaanController;
@@ -164,6 +167,48 @@ Route::middleware('auth')->group(function () {
     )->except('show');
 
 
+    /*
+    |--------------------------------------------------------------------------
+    | IMPORT MASTER BARANG EXCEL
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        'barang/import',
+        [
+            BarangImportController::class,
+            'create',
+        ]
+    )->name('barang.import.create');
+
+
+    Route::post(
+        'barang/import/preview',
+        [
+            BarangImportController::class,
+            'preview',
+        ]
+    )->name('barang.import.preview');
+
+
+    Route::post(
+        'barang/import/process',
+        [
+            BarangImportController::class,
+            'import',
+        ]
+    )->name('barang.import.process');
+
+
+    Route::post(
+        'barang/import/cancel',
+        [
+            BarangImportController::class,
+            'cancel',
+        ]
+    )->name('barang.import.cancel');
+
+
     Route::resource(
         'customer',
         CustomerController::class
@@ -178,7 +223,7 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | PENJUALAN (SALES)
+    | PENJUALAN
     |--------------------------------------------------------------------------
     */
 
@@ -356,6 +401,56 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
+    | PEMBAYARAN PO SUPPLIER
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        'purchase-order/{purchaseOrder}/pembayaran/create',
+        [
+            PembayaranPOSupplierController::class,
+            'create',
+        ]
+    )->name(
+        'pembayaran-po-supplier.create'
+    );
+
+
+    Route::post(
+        'purchase-order/{purchaseOrder}/pembayaran',
+        [
+            PembayaranPOSupplierController::class,
+            'store',
+        ]
+    )->name(
+        'pembayaran-po-supplier.store'
+    );
+
+
+    Route::get(
+        'pembayaran-po-supplier/{pembayaranPOSupplier}',
+        [
+            PembayaranPOSupplierController::class,
+            'show',
+        ]
+    )->name(
+        'pembayaran-po-supplier.show'
+    );
+
+
+    Route::post(
+        'pembayaran-po-supplier/{pembayaranPOSupplier}/catat',
+        [
+            PembayaranPOSupplierController::class,
+            'catat',
+        ]
+    )->name(
+        'pembayaran-po-supplier.catat'
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
     | PEMBATALAN SISA PURCHASE ORDER
     |--------------------------------------------------------------------------
     */
@@ -496,16 +591,22 @@ Route::middleware('auth')->group(function () {
     )->name('kartu-stok.index');
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | MUTASI GUDANG
-    |--------------------------------------------------------------------------
-    */
+/*
+|--------------------------------------------------------------------------
+| MUTASI GUDANG
+|--------------------------------------------------------------------------
+*/
 
-    Route::resource(
-        'mutasi-gudang',
-        MutasiGudangController::class
-    );
+Route::get(
+    'mutasi-gudang/search-barang',
+    [MutasiGudangController::class, 'searchBarang']
+)->name('mutasi-gudang.search-barang');
+
+Route::resource(
+    'mutasi-gudang',
+    MutasiGudangController::class
+);
+
 
 
     /*
@@ -530,6 +631,23 @@ Route::middleware('auth')->group(function () {
         'penyesuaian-stok',
         PenyesuaianStokController::class
     );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | KONVERSI BARANG
+    |--------------------------------------------------------------------------
+    */
+
+    Route::resource(
+        'conversions',
+        ConversionController::class
+    )->only([
+        'index',
+        'create',
+        'store',
+        'show',
+    ]);
 
 
     /*
@@ -847,7 +965,7 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | AKUNTANSI (ACCOUNTING)
+    | ACCOUNTING
     |--------------------------------------------------------------------------
     */
 
@@ -1289,23 +1407,6 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | RETUR PENJUALAN
-    |--------------------------------------------------------------------------
-    */
-
-    Route::resource(
-        'retur-penjualan',
-        ReturPenjualanController::class
-    )->only([
-        'index',
-        'create',
-        'store',
-        'show',
-    ]);
-
-
-    /*
-    |--------------------------------------------------------------------------
     | PENGATURAN PENOMORAN
     |--------------------------------------------------------------------------
     */
@@ -1330,7 +1431,7 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | PEMBATALAN RESMI INVOICE
+    | PEMBATALAN RESMI INVOICE PENJUALAN
     |--------------------------------------------------------------------------
     */
 

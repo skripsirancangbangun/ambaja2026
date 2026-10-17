@@ -454,7 +454,7 @@
                         href="{{ route('piutang.kartu') }}"
                         class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('piutang.kartu') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
                     >
-                        📖 Buku Pembantu Piutang
+                        Buku Pembantu Piutang
                     </a>
 
                 </div>
@@ -698,6 +698,13 @@
                         class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F]"
                     >
                         Penyesuaian Stok
+                    </a>
+
+                    <a
+                        href="{{ route('conversions.index') }}"
+                        class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('conversions.*') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
+                    >
+                        Konversi Barang
                     </a>
 
                 </div>
@@ -944,7 +951,7 @@
                         href="{{ route('penutupan-periode.index') }}"
                         class="block w-full rounded-lg px-3 py-2 text-[13px] text-slate-500 transition hover:bg-teal-50 hover:text-[#15235F] {{ request()->routeIs('penutupan-periode.*') ? 'bg-teal-50 font-semibold text-[#15235F]' : '' }}"
                     >
-                        🔒 Cut-Off (Penutupan Periode)
+                        Cut-Off (Penutupan Periode)
                     </a>
 
                 </div>

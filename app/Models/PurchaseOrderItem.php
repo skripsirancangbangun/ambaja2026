@@ -27,6 +27,12 @@ class PurchaseOrderItem extends Model
         'qty_dibatalkan' => 'decimal:2',
     ];
 
+    /*
+    |--------------------------------------------------------------------------
+    | RELATIONSHIPS
+    |--------------------------------------------------------------------------
+    */
+
     public function purchaseOrder()
     {
         return $this->belongsTo(
@@ -50,17 +56,123 @@ class PurchaseOrderItem extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | SISA YANG MASIH BISA DITERIMA
+    | QTY PESAN EFEKTIF
+    |--------------------------------------------------------------------------
+    |
+    | Qty efektif =
+    | Qty PO - Qty yang dibatalkan.
+    |
+    */
+
+    public function getQtyEfektifAttribute(): float
+    {
+        return round(
+            max(
+                0,
+                (float) $this->qty
+                - (float) $this->qty_dibatalkan
+            ),
+            2
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | SISA PENERIMAAN
     |--------------------------------------------------------------------------
     */
 
-    public function getSisaPenerimaanAttribute()
+    public function getSisaPenerimaanAttribute(): float
     {
-        return max(
-            0,
+        return round(
+            max(
+                0,
+                (float) $this->qty
+                - (float) $this->qty_diterima
+                - (float) $this->qty_dibatalkan
+            ),
+            2
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | PERSENTASE PENERIMAAN
+    |--------------------------------------------------------------------------
+    */
+
+    public function getPersentasePenerimaanAttribute(): float
+    {
+        $qtyEfektif =
+            (float) $this->qty_efektif;
+
+        if ($qtyEfektif <= 0) {
+            return 0;
+        }
+
+        return round(
+            min(
+                100,
+                (
+                    (float) $this->qty_diterima
+                    / $qtyEfektif
+                ) * 100
+            ),
+            2
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | STATUS PENERIMAAN ITEM
+    |--------------------------------------------------------------------------
+    */
+
+    public function getStatusPenerimaanAttribute(): string
+    {
+        $qty =
+            (float) $this->qty;
+
+        $diterima =
+            (float) $this->qty_diterima;
+
+        $dibatalkan =
+            (float) $this->qty_dibatalkan;
+
+        if (
+            $qty > 0
+            &&
+            $dibatalkan >= $qty
+        ) {
+            return 'Dibatalkan';
+        }
+
+        if ($diterima <= 0) {
+            return 'Belum Diterima';
+        }
+
+        if (
+            (float) $this->sisa_penerimaan
+            > 0
+        ) {
+            return 'Sebagian';
+        }
+
+        return 'Lengkap';
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | NILAI BRUTO ITEM
+    |--------------------------------------------------------------------------
+    */
+
+    public function getNilaiBrutoAttribute(): float
+    {
+        return round(
             (float) $this->qty
-            - (float) $this->qty_diterima
-            - (float) $this->qty_dibatalkan
+            * (float) $this->harga_satuan,
+            2
         );
     }
 }

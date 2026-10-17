@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Akun;
+use App\Models\MutasiKasBank;
 use App\Models\RekeningKasBank;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -13,7 +16,8 @@ class RekeningKasBankController extends Controller
      */
     public function index(Request $request)
     {
-        $query = RekeningKasBank::query();
+        $query = RekeningKasBank::query()
+            ->with('akun');
 
         /*
         |--------------------------------------------------------------------------
@@ -22,37 +26,56 @@ class RekeningKasBankController extends Controller
         */
 
         if ($request->filled('search')) {
-            $search = trim($request->search);
+            $search = trim(
+                $request->search
+            );
 
-            $query->where(function ($q) use ($search) {
-                $q->where(
-                    'kode_rekening',
-                    'like',
-                    '%' . $search . '%'
-                )
-                ->orWhere(
-                    'nama_rekening',
-                    'like',
-                    '%' . $search . '%'
-                )
-                ->orWhere(
-                    'nama_bank',
-                    'like',
-                    '%' . $search . '%'
-                )
-                ->orWhere(
-                    'nomor_rekening',
-                    'like',
-                    '%' . $search . '%'
-                )
-                ->orWhere(
-                    'atas_nama',
-                    'like',
-                    '%' . $search . '%'
-                );
-            });
+            $query->where(
+                function ($q) use ($search) {
+                    $q->where(
+                        'kode_rekening',
+                        'like',
+                        '%' . $search . '%'
+                    )
+                        ->orWhere(
+                            'nama_rekening',
+                            'like',
+                            '%' . $search . '%'
+                        )
+                        ->orWhere(
+                            'nama_bank',
+                            'like',
+                            '%' . $search . '%'
+                        )
+                        ->orWhere(
+                            'nomor_rekening',
+                            'like',
+                            '%' . $search . '%'
+                        )
+                        ->orWhere(
+                            'atas_nama',
+                            'like',
+                            '%' . $search . '%'
+                        )
+                        ->orWhereHas(
+                            'akun',
+                            function ($akunQuery) use ($search) {
+                                $akunQuery
+                                    ->where(
+                                        'kode_akun',
+                                        'like',
+                                        '%' . $search . '%'
+                                    )
+                                    ->orWhere(
+                                        'nama_akun',
+                                        'like',
+                                        '%' . $search . '%'
+                                    );
+                            }
+                        );
+                }
+            );
         }
-
 
         /*
         |--------------------------------------------------------------------------
@@ -67,7 +90,6 @@ class RekeningKasBankController extends Controller
             );
         }
 
-
         /*
         |--------------------------------------------------------------------------
         | FILTER STATUS
@@ -81,6 +103,11 @@ class RekeningKasBankController extends Controller
             );
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | GET DATA
+        |--------------------------------------------------------------------------
+        */
 
         $rekeningKasBanks = $query
             ->orderByRaw("
@@ -90,46 +117,203 @@ class RekeningKasBankController extends Controller
                     ELSE 3
                 END
             ")
-            ->orderBy('nama_rekening')
+            ->orderBy(
+                'nama_rekening'
+            )
             ->paginate(20)
             ->withQueryString();
 
+        /*
+        |--------------------------------------------------------------------------
+        | HITUNG SALDO SAAT INI
+        |--------------------------------------------------------------------------
+        |
+        | Saldo Saat Ini:
+        |
+        | Saldo Awal
+        | + Total Debit / Uang Masuk
+        | - Total Kredit / Uang Keluar
+        |
+        | Jangan hanya menggunakan saldo pada mutasi terakhir.
+        | Hal ini penting karena saldo awal rekening bisa pernah
+        | dikoreksi / disinkronisasi dengan COA.
+        |
+        */
+
+        $rekeningIds = $rekeningKasBanks
+            ->getCollection()
+            ->pluck('id');
+
+        $ringkasanMutasi = collect();
+
+        if ($rekeningIds->isNotEmpty()) {
+            $ringkasanMutasi =
+                MutasiKasBank::query()
+                    ->whereIn(
+                        'rekening_kas_bank_id',
+                        $rekeningIds
+                    )
+                    ->selectRaw('
+                        rekening_kas_bank_id,
+                        COALESCE(SUM(debit), 0) AS total_debit,
+                        COALESCE(SUM(kredit), 0) AS total_kredit
+                    ')
+                    ->groupBy(
+                        'rekening_kas_bank_id'
+                    )
+                    ->get()
+                    ->keyBy(
+                        'rekening_kas_bank_id'
+                    );
+        }
+
+        $rekeningKasBanks
+            ->getCollection()
+            ->transform(
+                function ($rekening) use ($ringkasanMutasi) {
+                    $ringkasan =
+                        $ringkasanMutasi->get(
+                            $rekening->id
+                        );
+
+                    $saldoAwal =
+                        (float) $rekening->saldo_awal;
+
+                    $totalDebit =
+                        (float) (
+                            $ringkasan
+                                ?->total_debit
+                            ?? 0
+                        );
+
+                    $totalKredit =
+                        (float) (
+                            $ringkasan
+                                ?->total_kredit
+                            ?? 0
+                        );
+
+                    $saldoSaatIni =
+                        round(
+                            $saldoAwal
+                            + $totalDebit
+                            - $totalKredit,
+                            2
+                        );
+
+                    $rekening->setAttribute(
+                        'total_debit_mutasi',
+                        $totalDebit
+                    );
+
+                    $rekening->setAttribute(
+                        'total_kredit_mutasi',
+                        $totalKredit
+                    );
+
+                    $rekening->setAttribute(
+                        'saldo_saat_ini',
+                        $saldoSaatIni
+                    );
+
+                    /*
+                     * Cek sinkronisasi saldo awal rekening
+                     * dengan saldo awal akun COA.
+                     */
+                    $saldoAwalCoa =
+                        $rekening->akun
+                            ? (float)
+                                $rekening
+                                    ->akun
+                                    ->saldo_awal
+                            : null;
+
+                    $rekening->setAttribute(
+                        'saldo_awal_coa',
+                        $saldoAwalCoa
+                    );
+
+                    $rekening->setAttribute(
+                        'saldo_awal_tidak_sinkron',
+                        $saldoAwalCoa !== null
+                        &&
+                        abs(
+                            $saldoAwal
+                            - $saldoAwalCoa
+                        ) > 0.01
+                    );
+
+                    return $rekening;
+                }
+            );
 
         return view(
             'rekening-kas-bank.index',
-            compact('rekeningKasBanks')
+            compact(
+                'rekeningKasBanks'
+            )
         );
     }
-
 
     /**
      * Form tambah.
      */
     public function create()
     {
+        $akunKasBanks =
+            $this->getAkunKasBankTersedia();
+
         return view(
-            'rekening-kas-bank.create'
+            'rekening-kas-bank.create',
+            compact(
+                'akunKasBanks'
+            )
         );
     }
-
 
     /**
      * Simpan.
      */
     public function store(Request $request)
     {
-        $validated = $this->validateData(
-            $request
-        );
+        $validated =
+            $this->validateData(
+                $request
+            );
 
         /*
-         * Jika jenis KAS, informasi bank
-         * harus dikosongkan.
-         */
-        if ($validated['jenis'] === 'KAS') {
-            $validated['nama_bank'] = null;
-            $validated['nomor_rekening'] = null;
-            $validated['atas_nama'] = null;
+        |--------------------------------------------------------------------------
+        | SALDO AWAL DARI COA
+        |--------------------------------------------------------------------------
+        */
+
+        $akun =
+            Akun::query()
+                ->findOrFail(
+                    $validated['akun_id']
+                );
+
+        $validated['saldo_awal'] =
+            (float) $akun->saldo_awal;
+
+        /*
+        |--------------------------------------------------------------------------
+        | JENIS KAS
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $validated['jenis']
+            === 'KAS'
+        ) {
+            $validated['nama_bank'] =
+                null;
+
+            $validated['nomor_rekening'] =
+                null;
+
+            $validated['atas_nama'] =
+                null;
         }
 
         RekeningKasBank::create(
@@ -137,13 +321,14 @@ class RekeningKasBankController extends Controller
         );
 
         return redirect()
-            ->route('rekening-kas-bank.index')
+            ->route(
+                'rekening-kas-bank.index'
+            )
             ->with(
                 'success',
-                'Kas/Rekening Bank berhasil ditambahkan.'
+                'Kas/Rekening Bank berhasil ditambahkan dan telah terhubung dengan akun COA.'
             );
     }
-
 
     /**
      * Form edit.
@@ -151,12 +336,33 @@ class RekeningKasBankController extends Controller
     public function edit(
         RekeningKasBank $rekeningKasBank
     ) {
+        $rekeningKasBank
+            ->loadMissing(
+                'akun'
+            );
+
+        $hasTransactions =
+            MutasiKasBank::query()
+                ->where(
+                    'rekening_kas_bank_id',
+                    $rekeningKasBank->id
+                )
+                ->exists();
+
+        $akunKasBanks =
+            $this->getAkunKasBankTersedia(
+                $rekeningKasBank
+            );
+
         return view(
             'rekening-kas-bank.edit',
-            compact('rekeningKasBank')
+            compact(
+                'rekeningKasBank',
+                'akunKasBanks',
+                'hasTransactions'
+            )
         );
     }
-
 
     /**
      * Update.
@@ -165,15 +371,74 @@ class RekeningKasBankController extends Controller
         Request $request,
         RekeningKasBank $rekeningKasBank
     ) {
-        $validated = $this->validateData(
-            $request,
-            $rekeningKasBank
-        );
+        $validated =
+            $this->validateData(
+                $request,
+                $rekeningKasBank
+            );
 
-        if ($validated['jenis'] === 'KAS') {
-            $validated['nama_bank'] = null;
-            $validated['nomor_rekening'] = null;
-            $validated['atas_nama'] = null;
+        $hasTransactions =
+            MutasiKasBank::query()
+                ->where(
+                    'rekening_kas_bank_id',
+                    $rekeningKasBank->id
+                )
+                ->exists();
+
+        /*
+        |--------------------------------------------------------------------------
+        | MAPPING COA DIKUNCI SETELAH ADA TRANSAKSI
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $hasTransactions
+            &&
+            (int) $validated['akun_id']
+            !==
+            (int) $rekeningKasBank->akun_id
+        ) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'akun_id' =>
+                        'Akun COA Kas/Rekening Bank tidak dapat diganti karena rekening sudah memiliki transaksi.',
+                ]);
+        }
+
+        $akun =
+            Akun::query()
+                ->findOrFail(
+                    $validated['akun_id']
+                );
+
+        /*
+        |--------------------------------------------------------------------------
+        | SINKRONKAN SALDO AWAL DENGAN COA
+        |--------------------------------------------------------------------------
+        */
+
+        $validated['saldo_awal'] =
+            (float) $akun->saldo_awal;
+
+        /*
+        |--------------------------------------------------------------------------
+        | JENIS KAS
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $validated['jenis']
+            === 'KAS'
+        ) {
+            $validated['nama_bank'] =
+                null;
+
+            $validated['nomor_rekening'] =
+                null;
+
+            $validated['atas_nama'] =
+                null;
         }
 
         $rekeningKasBank->update(
@@ -181,13 +446,14 @@ class RekeningKasBankController extends Controller
         );
 
         return redirect()
-            ->route('rekening-kas-bank.index')
+            ->route(
+                'rekening-kas-bank.index'
+            )
             ->with(
                 'success',
-                'Kas/Rekening Bank berhasil diperbarui.'
+                'Kas/Rekening Bank berhasil diperbarui dan saldo awal disinkronkan dengan COA.'
             );
     }
-
 
     /**
      * Hapus.
@@ -196,24 +462,50 @@ class RekeningKasBankController extends Controller
         RekeningKasBank $rekeningKasBank
     ) {
         /*
-         * Untuk tahap master data saat ini
-         * record masih boleh dihapus.
-         *
-         * Setelah modul transaksi Kas & Bank
-         * terhubung, penghapusan akan kita
-         * blok jika rekening sudah digunakan.
-         */
+        |--------------------------------------------------------------------------
+        | REKENING YANG SUDAH DIPAKAI TIDAK BOLEH DIHAPUS
+        |--------------------------------------------------------------------------
+        */
 
-        $rekeningKasBank->delete();
+        if (
+            $rekeningKasBank
+                ->mutasiKasBanks()
+                ->exists()
+        ) {
+            return redirect()
+                ->route(
+                    'rekening-kas-bank.index'
+                )
+                ->with(
+                    'error',
+                    'Kas/Rekening Bank tidak dapat dihapus karena sudah memiliki transaksi. Ubah status menjadi Nonaktif.'
+                );
+        }
+
+        try {
+            $rekeningKasBank->delete();
+
+        } catch (QueryException $e) {
+
+            return redirect()
+                ->route(
+                    'rekening-kas-bank.index'
+                )
+                ->with(
+                    'error',
+                    'Kas/Rekening Bank tidak dapat dihapus karena sudah digunakan pada data lain. Ubah status menjadi Nonaktif.'
+                );
+        }
 
         return redirect()
-            ->route('rekening-kas-bank.index')
+            ->route(
+                'rekening-kas-bank.index'
+            )
             ->with(
                 'success',
                 'Kas/Rekening Bank berhasil dihapus.'
             );
     }
-
 
     /**
      * Validasi create/update.
@@ -222,7 +514,75 @@ class RekeningKasBankController extends Controller
         Request $request,
         ?RekeningKasBank $rekeningKasBank = null
     ): array {
+        /*
+        |--------------------------------------------------------------------------
+        | COA TIDAK BOLEH DIPAKAI DUA REKENING
+        |--------------------------------------------------------------------------
+        */
+
+        $akunDipakaiRekeningLain =
+            RekeningKasBank::query()
+                ->when(
+                    $rekeningKasBank,
+                    fn ($query) =>
+                        $query->where(
+                            'id',
+                            '!=',
+                            $rekeningKasBank->id
+                        )
+                )
+                ->whereNotNull(
+                    'akun_id'
+                )
+                ->pluck(
+                    'akun_id'
+                )
+                ->all();
+
         return $request->validate([
+            'akun_id' => [
+                'required',
+
+                Rule::exists(
+                    'akuns',
+                    'id'
+                )->where(
+                    function ($query) use (
+                        $akunDipakaiRekeningLain
+                    ) {
+                        $query
+                            ->where(
+                                'is_active',
+                                true
+                            )
+                            ->where(
+                                'kategori_akun',
+                                'Aset'
+                            )
+                            ->where(
+                                'sub_kategori',
+                                'Aset Lancar'
+                            )
+                            ->where(
+                                'saldo_normal',
+                                'DEBIT'
+                            );
+
+                        if (
+                            !empty(
+                                $akunDipakaiRekeningLain
+                            )
+                        ) {
+                            $query
+                                ->whereNotIn(
+                                    'id',
+                                    $akunDipakaiRekeningLain
+                                );
+                        }
+                    }
+                ),
+            ],
+
             'kode_rekening' => [
                 'required',
                 'string',
@@ -244,6 +604,7 @@ class RekeningKasBankController extends Controller
 
             'jenis' => [
                 'required',
+
                 Rule::in([
                     'KAS',
                     'BANK',
@@ -271,11 +632,10 @@ class RekeningKasBankController extends Controller
                 'max:150',
             ],
 
-            'saldo_awal' => [
-                'required',
-                'numeric',
-                'min:0',
-            ],
+            /*
+             * saldo_awal tidak diterima dari request.
+             * Selalu diambil dari saldo awal COA.
+             */
 
             'is_active' => [
                 'required',
@@ -287,5 +647,60 @@ class RekeningKasBankController extends Controller
                 'string',
             ],
         ]);
+    }
+
+    /**
+     * Akun yang boleh digunakan sebagai Kas/Bank.
+     */
+    private function getAkunKasBankTersedia(
+        ?RekeningKasBank $rekeningKasBank = null
+    ) {
+        $akunDipakai =
+            RekeningKasBank::query()
+                ->when(
+                    $rekeningKasBank,
+                    fn ($query) =>
+                        $query->where(
+                            'id',
+                            '!=',
+                            $rekeningKasBank->id
+                        )
+                )
+                ->whereNotNull(
+                    'akun_id'
+                )
+                ->pluck(
+                    'akun_id'
+                );
+
+        return Akun::query()
+            ->where(
+                'is_active',
+                true
+            )
+            ->where(
+                'kategori_akun',
+                'Aset'
+            )
+            ->where(
+                'sub_kategori',
+                'Aset Lancar'
+            )
+            ->where(
+                'saldo_normal',
+                'DEBIT'
+            )
+            ->when(
+                $akunDipakai->isNotEmpty(),
+                fn ($query) =>
+                    $query->whereNotIn(
+                        'id',
+                        $akunDipakai
+                    )
+            )
+            ->orderBy(
+                'kode_akun'
+            )
+            ->get();
     }
 }

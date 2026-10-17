@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class PembayaranSupplier extends Model
 {
     protected $fillable = [
+        'idempotency_key',
         'nomor_pembayaran',
         'invoice_supplier_id',
         'supplier_id',

@@ -46,6 +46,12 @@ class InvoiceSupplier extends Model
         'kredit_supplier' => 'decimal:2',
     ];
 
+    /*
+    |--------------------------------------------------------------------------
+    | SUPPLIER
+    |--------------------------------------------------------------------------
+    */
+
     public function supplier()
     {
         return $this->belongsTo(
@@ -53,6 +59,12 @@ class InvoiceSupplier extends Model
             'supplier_id'
         );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | PURCHASE ORDER
+    |--------------------------------------------------------------------------
+    */
 
     public function purchaseOrder()
     {
@@ -62,6 +74,12 @@ class InvoiceSupplier extends Model
         );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | ITEMS
+    |--------------------------------------------------------------------------
+    */
+
     public function items()
     {
         return $this->hasMany(
@@ -70,6 +88,130 @@ class InvoiceSupplier extends Model
         );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | PEMBAYARAN SUPPLIER
+    |--------------------------------------------------------------------------
+    |
+    | Pembayaran yang dilakukan setelah Invoice Supplier terbentuk.
+    |
+    | Ini berbeda dengan Pembayaran PO Supplier.
+    |
+    */
+
+    public function pembayaranSuppliers()
+    {
+        return $this->hasMany(
+            PembayaranSupplier::class,
+            'invoice_supplier_id'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | ALOKASI UANG MUKA PO
+    |--------------------------------------------------------------------------
+    |
+    | Mencatat uang muka dari Pembayaran PO Supplier
+    | yang sudah digunakan untuk invoice ini.
+    |
+    */
+
+    public function uangMukaAllocations()
+    {
+        return $this->hasMany(
+            InvoiceSupplierUangMukaAllocation::class,
+            'invoice_supplier_id'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | TOTAL UANG MUKA DIALOKASIKAN
+    |--------------------------------------------------------------------------
+    */
+
+    public function getTotalUangMukaDialokasikanAttribute(): float
+    {
+        if (
+            $this->relationLoaded(
+                'uangMukaAllocations'
+            )
+        ) {
+            $total =
+                $this
+                    ->uangMukaAllocations
+                    ->sum(
+                        'jumlah_alokasi'
+                    );
+        } else {
+            $total =
+                $this
+                    ->uangMukaAllocations()
+                    ->sum(
+                        'jumlah_alokasi'
+                    );
+        }
+
+        return round(
+            (float) $total,
+            2
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | TOTAL PEMBAYARAN INVOICE
+    |--------------------------------------------------------------------------
+    |
+    | Pembayaran invoice biasa.
+    | Tidak termasuk uang muka PO.
+    |
+    */
+
+    public function getTotalPembayaranInvoiceAttribute(): float
+    {
+        return round(
+            (float)
+            $this
+                ->pembayaranSuppliers()
+                ->sum(
+                    'jumlah_bayar'
+                ),
+            2
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | TOTAL PELUNASAN
+    |--------------------------------------------------------------------------
+    |
+    | Invoice dapat dilunasi melalui:
+    |
+    | 1. Uang muka PO
+    | 2. Pembayaran Supplier setelah invoice
+    |
+    */
+
+    public function getTotalPelunasanAttribute(): float
+    {
+        return round(
+            (float)
+            $this->total_uang_muka_dialokasikan
+            +
+            (float)
+            $this->total_pembayaran_invoice,
+            2
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | CREATOR
+    |--------------------------------------------------------------------------
+    */
+
     public function creator()
     {
         return $this->belongsTo(
@@ -77,6 +219,12 @@ class InvoiceSupplier extends Model
             'created_by'
         );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | RETUR ALLOCATIONS
+    |--------------------------------------------------------------------------
+    */
 
     public function returAllocations()
     {

@@ -12,11 +12,13 @@ class PenerimaanBarangItem extends Model
         'barang_id',
         'qty_diterima',
         'harga_satuan',
+        'nilai_persediaan',
     ];
 
     protected $casts = [
         'qty_diterima' => 'decimal:2',
         'harga_satuan' => 'decimal:2',
+        'nilai_persediaan' => 'decimal:2',
     ];
 
     public function penerimaanBarang()

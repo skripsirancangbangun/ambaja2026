@@ -12,7 +12,7 @@
             </h1>
 
             <p class="mt-1 text-sm text-slate-500">
-                Tambahkan Kas Kecil atau rekening bank perusahaan.
+                Setiap Kas/Rekening Bank wajib dihubungkan ke satu akun COA.
             </p>
         </div>
 
@@ -36,6 +36,42 @@
             @csrf
 
             <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+
+                <div class="md:col-span-2">
+                    <label
+                        for="akun_id"
+                        class="mb-1 block text-sm font-medium text-slate-700"
+                    >
+                        Akun COA
+                        <span class="text-red-500">*</span>
+                    </label>
+
+                    <select
+                        name="akun_id"
+                        id="akun_id"
+                        required
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#32AAA6] focus:ring-2 focus:ring-[#32AAA6]/20"
+                    >
+                        <option value="">
+                            Pilih akun Kas/Bank pada Chart of Accounts
+                        </option>
+
+                        @foreach ($akunKasBanks as $akun)
+                            <option
+                                value="{{ $akun->id }}"
+                                data-saldo-awal="{{ (float) $akun->saldo_awal }}"
+                                @selected((string) old('akun_id') === (string) $akun->id)
+                            >
+                                {{ $akun->kode_akun }} - {{ $akun->nama_akun }}
+                            </option>
+                        @endforeach
+                    </select>
+
+                    <p class="mt-1.5 text-xs text-slate-500">
+                        Saldo awal rekening akan mengikuti saldo awal akun COA agar saldo Kas/Bank dan Buku Besar tetap sama.
+                    </p>
+                </div>
+
 
                 <div>
                     <label class="mb-1 block text-sm font-medium text-slate-700">
@@ -62,7 +98,7 @@
                         type="text"
                         name="nama_rekening"
                         value="{{ old('nama_rekening') }}"
-                        placeholder="Contoh: Kas Kecil"
+                        placeholder="Contoh: Kas Toko / BCA"
                         required
                         class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#32AAA6] focus:ring-2 focus:ring-[#32AAA6]/20"
                     >
@@ -96,17 +132,15 @@
 
                 <div>
                     <label class="mb-1 block text-sm font-medium text-slate-700">
-                        Saldo Awal
+                        Saldo Awal dari COA
                     </label>
 
                     <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        name="saldo_awal"
-                        value="{{ old('saldo_awal', 0) }}"
-                        required
-                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#32AAA6] focus:ring-2 focus:ring-[#32AAA6]/20"
+                        type="text"
+                        id="saldo_awal_preview"
+                        value="Rp 0"
+                        readonly
+                        class="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700"
                     >
                 </div>
 
@@ -192,6 +226,11 @@
             </div>
 
 
+            <div class="mt-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                Satu akun COA hanya digunakan untuk satu Kas/Rekening Bank. Contoh: Bank BCA → akun 1102 Bank BCA.
+            </div>
+
+
             <div class="mt-6 flex justify-end gap-2">
 
                 <a
@@ -221,16 +260,49 @@ function toggleBankFields() {
     const bankFields = document.querySelectorAll('.bank-field');
 
     bankFields.forEach(function (field) {
-        if (jenis === 'BANK') {
-            field.style.display = 'block';
-        } else {
-            field.style.display = 'none';
-        }
+        field.style.display = jenis === 'BANK'
+            ? 'block'
+            : 'none';
     });
+}
+
+function updateSaldoAwalPreview() {
+    const akunSelect = document.getElementById('akun_id');
+    const preview = document.getElementById('saldo_awal_preview');
+
+    const option =
+        akunSelect.options[
+            akunSelect.selectedIndex
+        ];
+
+    const saldo =
+        option
+            ? parseFloat(
+                option.dataset.saldoAwal || '0'
+            )
+            : 0;
+
+    preview.value =
+        'Rp ' +
+        new Intl.NumberFormat(
+            'id-ID',
+            {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }
+        ).format(saldo);
 }
 
 document.addEventListener('DOMContentLoaded', function () {
     toggleBankFields();
+    updateSaldoAwalPreview();
+
+    document
+        .getElementById('akun_id')
+        .addEventListener(
+            'change',
+            updateSaldoAwalPreview
+        );
 });
 </script>
 @endsection

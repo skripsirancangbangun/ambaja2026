@@ -231,6 +231,30 @@ class PengaturanAkunSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
+            | UANG MUKA PEMBELIAN
+            |--------------------------------------------------------------------------
+            */
+
+            [
+                'kunci' =>
+                    'AKUN_UANG_MUKA_PEMBELIAN',
+
+                'nama' =>
+                    'Akun Uang Muka Pembelian',
+
+                'ket' =>
+                    'Digunakan otomatis untuk DP Supplier dan kredit supplier yang belum dialokasikan.',
+
+                'search' => [
+                    'Uang Muka Pembelian',
+                    'Uang Muka Supplier',
+                    'DP Supplier',
+                ],
+            ],
+
+
+            /*
+            |--------------------------------------------------------------------------
             | RETUR PEMBELIAN
             |--------------------------------------------------------------------------
             */

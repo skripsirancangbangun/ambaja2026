@@ -1,50 +1,38 @@
 <?php
-
 namespace App\Services;
 
 use App\Models\Akun;
 use App\Models\InvoicePenjualan;
 use App\Models\InvoiceSupplier;
+use App\Models\InvoiceSupplierUangMukaAllocation;
 use App\Models\Jurnal;
 use App\Models\JurnalDetail;
 use App\Models\KartuPiutang;
 use App\Models\MutasiKasBank;
 use App\Models\PenerimaanPiutang;
+use App\Models\PembayaranPOSupplier;
 use App\Models\PembayaranSupplier;
 use App\Models\PengaturanAkun;
 use App\Models\PenutupanPeriode;
 use App\Models\ReturPembelian;
 use App\Models\ReturPenjualan;
+use App\Models\TransferKasBank;
 use App\Models\UangKeluar;
+use App\Models\UangMasuk;
 use Carbon\Carbon;
 use RuntimeException;
 
 class SystemAccountingService
 {
-    /*
-    |--------------------------------------------------------------------------
-    | GENERAL
-    |--------------------------------------------------------------------------
-    */
-
     public function canEditOpeningBalance(): bool
     {
-        $countPenjualan =
-            InvoicePenjualan::count();
+        $countPenjualan = InvoicePenjualan::count();
+        $countPembelian = InvoiceSupplier::count();
+        $countKas = MutasiKasBank::count();
 
-        $countPembelian =
-            InvoiceSupplier::count();
-
-        $countKas =
-            MutasiKasBank::count();
-
-        $countJurnalManual =
-            Jurnal::query()
-                ->where(
-                    'is_system_generated',
-                    false
-                )
-                ->count();
+        $countJurnalManual = Jurnal::query()
+            ->where('is_system_generated', false)
+            ->count();
 
         return (
             $countPenjualan === 0
@@ -57,35 +45,18 @@ class SystemAccountingService
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | PERIOD LOCK
-    |--------------------------------------------------------------------------
-    */
-
-    public function isPeriodLocked(
-        $tanggal
-    ): bool {
+    public function isPeriodLocked($tanggal): bool
+    {
         if (!$tanggal) {
             return false;
         }
 
-        $tanggal =
-            Carbon::parse(
-                $tanggal
-            );
+        $tanggal = Carbon::parse($tanggal);
 
-        $penutupan =
-            PenutupanPeriode::query()
-                ->where(
-                    'bulan',
-                    $tanggal->month
-                )
-                ->where(
-                    'tahun',
-                    $tanggal->year
-                )
-                ->first();
+        $penutupan = PenutupanPeriode::query()
+            ->where('bulan', $tanggal->month)
+            ->where('tahun', $tanggal->year)
+            ->first();
 
         return (
             $penutupan
@@ -93,12 +64,6 @@ class SystemAccountingService
             $penutupan->status === 'LOCKED'
         );
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | GET SYSTEM ACCOUNT
-    |--------------------------------------------------------------------------
-    */
 
     public function getSystemAccountId(
         string $kunciPengaturan
@@ -111,103 +76,53 @@ class SystemAccountingService
             ->value('akun_id');
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | GET UANG MUKA PEMBELIAN ACCOUNT
-    |--------------------------------------------------------------------------
-    */
-
     private function getUangMukaPembelianAccountId(): ?int
     {
-        /*
-        |--------------------------------------------------------------------------
-        | Prioritas Pengaturan Akun
-        |--------------------------------------------------------------------------
-        */
-
-        $akunId =
-            $this->getSystemAccountId(
-                'AKUN_UANG_MUKA_PEMBELIAN'
-            );
+        $akunId = $this->getSystemAccountId(
+            'AKUN_UANG_MUKA_PEMBELIAN'
+        );
 
         if ($akunId) {
             return (int) $akunId;
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Fallback COA 1140
-        |--------------------------------------------------------------------------
-        */
-
-        $akunId =
-            Akun::query()
-                ->where(
-                    'kode_akun',
-                    '1140'
-                )
-                ->value('id');
+        $akunId = Akun::query()
+            ->where('kode_akun', '1140')
+            ->value('id');
 
         if ($akunId) {
             return (int) $akunId;
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Fallback Nama
-        |--------------------------------------------------------------------------
-        */
-
-        $akunId =
-            Akun::query()
-                ->where(
-                    'nama_akun',
-                    'like',
-                    '%Uang Muka Pembelian%'
-                )
-                ->value('id');
+        $akunId = Akun::query()
+            ->where(
+                'nama_akun',
+                'like',
+                '%Uang Muka Pembelian%'
+            )
+            ->value('id');
 
         return $akunId
             ? (int) $akunId
             : null;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | GENERATE DOCUMENT NUMBER
-    |--------------------------------------------------------------------------
-    */
-
     public function generateDocumentNumber(
         string $jenisDokumen,
         $tanggal = null
     ): string {
-        $date =
-            $tanggal
-                ? Carbon::parse($tanggal)
-                : Carbon::now();
+        $date = $tanggal
+            ? Carbon::parse($tanggal)
+            : Carbon::now();
 
-        $year =
-            $date->format('Y');
+        $year = $date->format('Y');
+        $month = $date->format('m');
 
-        $month =
-            $date->format('m');
-
-        $key =
-            strtoupper(
-                trim(
-                    $jenisDokumen
-                )
-            );
+        $key = strtoupper(
+            trim($jenisDokumen)
+        );
 
         $prefixMap = [
-
-            /*
-            |--------------------------------------------------------------------------
-            | SALES ORDER
-            |--------------------------------------------------------------------------
-            */
-
             'SO' => [
                 'prefix' => 'SO',
                 'model' => \App\Models\Penjualan::class,
@@ -226,12 +141,6 @@ class SystemAccountingService
                 'date_col' => 'tanggal_penjualan',
             ],
 
-            /*
-            |--------------------------------------------------------------------------
-            | INVOICE PENJUALAN
-            |--------------------------------------------------------------------------
-            */
-
             'INV' => [
                 'prefix' => 'INV',
                 'model' => InvoicePenjualan::class,
@@ -243,12 +152,6 @@ class SystemAccountingService
                 'model' => InvoicePenjualan::class,
                 'date_col' => 'tanggal_invoice',
             ],
-
-            /*
-            |--------------------------------------------------------------------------
-            | PENERIMAAN PIUTANG
-            |--------------------------------------------------------------------------
-            */
 
             'PAY' => [
                 'prefix' => 'PAY',
@@ -274,12 +177,6 @@ class SystemAccountingService
                 'date_col' => 'tanggal',
             ],
 
-            /*
-            |--------------------------------------------------------------------------
-            | RETUR PENJUALAN
-            |--------------------------------------------------------------------------
-            */
-
             'RTJ' => [
                 'prefix' => 'RTJ',
                 'model' => ReturPenjualan::class,
@@ -291,12 +188,6 @@ class SystemAccountingService
                 'model' => ReturPenjualan::class,
                 'date_col' => 'tanggal_retur',
             ],
-
-            /*
-            |--------------------------------------------------------------------------
-            | PURCHASE ORDER
-            |--------------------------------------------------------------------------
-            */
 
             'PO' => [
                 'prefix' => 'PO',
@@ -316,12 +207,6 @@ class SystemAccountingService
                 'date_col' => 'tanggal_po',
             ],
 
-            /*
-            |--------------------------------------------------------------------------
-            | PENERIMAAN BARANG
-            |--------------------------------------------------------------------------
-            */
-
             'GRN' => [
                 'prefix' => 'GRN',
                 'model' => \App\Models\PenerimaanBarang::class,
@@ -333,12 +218,6 @@ class SystemAccountingService
                 'model' => \App\Models\PenerimaanBarang::class,
                 'date_col' => 'tanggal_penerimaan',
             ],
-
-            /*
-            |--------------------------------------------------------------------------
-            | INVOICE SUPPLIER
-            |--------------------------------------------------------------------------
-            */
 
             'INV-SUP' => [
                 'prefix' => 'INV-SUP',
@@ -358,12 +237,6 @@ class SystemAccountingService
                 'date_col' => 'tanggal_invoice',
             ],
 
-            /*
-            |--------------------------------------------------------------------------
-            | PEMBAYARAN SUPPLIER
-            |--------------------------------------------------------------------------
-            */
-
             'PAY-SUP' => [
                 'prefix' => 'PAY-SUP',
                 'model' => PembayaranSupplier::class,
@@ -382,18 +255,12 @@ class SystemAccountingService
                 'date_col' => 'tanggal_pembayaran',
             ],
 
-            /*
-            |--------------------------------------------------------------------------
-            | KAS MASUK
-            |--------------------------------------------------------------------------
-            */
-
             'KM' => [
                 'prefix' => 'KM',
                 'model' => MutasiKasBank::class,
                 'date_col' => 'tanggal',
                 'where' => [
-                    'tipe_mutasi' => 'MASUK',
+                    'tipe' => 'UANG_MASUK',
                 ],
             ],
 
@@ -402,7 +269,7 @@ class SystemAccountingService
                 'model' => MutasiKasBank::class,
                 'date_col' => 'tanggal',
                 'where' => [
-                    'tipe_mutasi' => 'MASUK',
+                    'tipe' => 'UANG_MASUK',
                 ],
             ],
 
@@ -411,15 +278,9 @@ class SystemAccountingService
                 'model' => MutasiKasBank::class,
                 'date_col' => 'tanggal',
                 'where' => [
-                    'tipe_mutasi' => 'MASUK',
+                    'tipe' => 'UANG_MASUK',
                 ],
             ],
-
-            /*
-            |--------------------------------------------------------------------------
-            | KAS KELUAR
-            |--------------------------------------------------------------------------
-            */
 
             'KK' => [
                 'prefix' => 'KK',
@@ -438,12 +299,6 @@ class SystemAccountingService
                 'model' => UangKeluar::class,
                 'date_col' => 'tanggal',
             ],
-
-            /*
-            |--------------------------------------------------------------------------
-            | JURNAL
-            |--------------------------------------------------------------------------
-            */
 
             'JU' => [
                 'prefix' => 'JU',
@@ -467,25 +322,19 @@ class SystemAccountingService
             );
         }
 
-        $config =
-            $prefixMap[$key];
+        $config = $prefixMap[$key];
 
-        $query =
-            $config['model']::query()
-                ->whereYear(
-                    $config['date_col'],
-                    $year
-                )
-                ->whereMonth(
-                    $config['date_col'],
-                    $month
-                );
-
-        if (
-            isset(
-                $config['where']
+        $query = $config['model']::query()
+            ->whereYear(
+                $config['date_col'],
+                $year
             )
-        ) {
+            ->whereMonth(
+                $config['date_col'],
+                $month
+            );
+
+        if (isset($config['where'])) {
             foreach (
                 $config['where']
                 as $column => $value
@@ -497,9 +346,7 @@ class SystemAccountingService
             }
         }
 
-        $nextSeq =
-            $query->count()
-            + 1;
+        $nextSeq = $query->count() + 1;
 
         return sprintf(
             '%s/%s/%s/%04d',
@@ -509,12 +356,6 @@ class SystemAccountingService
             $nextSeq
         );
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | INVOICE PENJUALAN
-    |--------------------------------------------------------------------------
-    */
 
     public function autoJournalInvoicePenjualan(
         InvoicePenjualan $invoice
@@ -653,8 +494,7 @@ class SystemAccountingService
             );
         }
 
-        $totalHpp =
-            0;
+        $totalHpp = 0;
 
         foreach (
             $invoice->items
@@ -680,8 +520,7 @@ class SystemAccountingService
                     (float) $item->hpp_satuan;
             }
 
-            $totalHpp +=
-                $hpp;
+            $totalHpp += $hpp;
         }
 
         if (
@@ -926,12 +765,6 @@ class SystemAccountingService
         }
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | PENERIMAAN PIUTANG
-    |--------------------------------------------------------------------------
-    */
-
     public function autoJournalPenerimaanPiutang(
         PenerimaanPiutang $penerimaan
     ): void {
@@ -1107,12 +940,6 @@ class SystemAccountingService
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | RETUR PENJUALAN
-    |--------------------------------------------------------------------------
-    */
-
     public function autoJournalReturPenjualan(
         ReturPenjualan $retur
     ): void {
@@ -1190,8 +1017,7 @@ class SystemAccountingService
             );
         }
 
-        $totalHppRetur =
-            0;
+        $totalHppRetur = 0;
 
         foreach (
             $retur->items
@@ -1217,8 +1043,7 @@ class SystemAccountingService
                     (float) $item->hpp_satuan;
             }
 
-            $totalHppRetur +=
-                $hpp;
+            $totalHppRetur += $hpp;
         }
 
         if (
@@ -1544,26 +1369,162 @@ class SystemAccountingService
         }
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | INVOICE SUPPLIER
-    |--------------------------------------------------------------------------
-    |
-    | Dr Persediaan / Pembelian
-    | Dr PPN Masukan
-    |      Cr Diskon Pembelian
-    |      Cr Utang Dagang
-    |
-    */
+    public function alokasikanUangMukaPOKeInvoice(
+        InvoiceSupplier $invoice
+    ): float {
+        if (!$invoice->purchase_order_id) {
+            return 0;
+        }
+
+        $totalInvoice = round((float) $invoice->total, 2);
+
+        if ($totalInvoice <= 0) {
+            return 0;
+        }
+
+        $alokasiExisting = round(
+            (float) InvoiceSupplierUangMukaAllocation::query()
+                ->where('invoice_supplier_id', $invoice->id)
+                ->sum('jumlah_alokasi'),
+            2
+        );
+
+        $pembayaranInvoice = round(
+            (float) $invoice->pembayaranSuppliers()
+                ->sum('jumlah_bayar'),
+            2
+        );
+
+        $kebutuhanAlokasi = round(
+            max(
+                0,
+                $totalInvoice
+                - $pembayaranInvoice
+                - $alokasiExisting
+            ),
+            2
+        );
+
+        if ($kebutuhanAlokasi > 0) {
+            $pembayaranPOs = PembayaranPOSupplier::query()
+                ->where('purchase_order_id', $invoice->purchase_order_id)
+                ->where('status', 'TERCATAT')
+                ->whereDate(
+                    'tanggal_pembayaran',
+                    '<=',
+                    $invoice->tanggal_invoice
+                )
+                ->orderBy('tanggal_pembayaran')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($pembayaranPOs as $pembayaranPO) {
+                if ($kebutuhanAlokasi <= 0.01) {
+                    break;
+                }
+
+                $sudahDialokasikan = round(
+                    (float) InvoiceSupplierUangMukaAllocation::query()
+                        ->where(
+                            'pembayaran_po_supplier_id',
+                            $pembayaranPO->id
+                        )
+                        ->sum('jumlah_alokasi'),
+                    2
+                );
+
+                $sisaPembayaranPO = round(
+                    max(
+                        0,
+                        (float) $pembayaranPO->jumlah_bayar
+                        - $sudahDialokasikan
+                    ),
+                    2
+                );
+
+                if ($sisaPembayaranPO <= 0) {
+                    continue;
+                }
+
+                $jumlahAlokasi = round(
+                    min(
+                        $sisaPembayaranPO,
+                        $kebutuhanAlokasi
+                    ),
+                    2
+                );
+
+                if ($jumlahAlokasi <= 0) {
+                    continue;
+                }
+
+                InvoiceSupplierUangMukaAllocation::create([
+                    'invoice_supplier_id' => $invoice->id,
+                    'purchase_order_id' => $invoice->purchase_order_id,
+                    'pembayaran_po_supplier_id' => $pembayaranPO->id,
+                    'jumlah_alokasi' => $jumlahAlokasi,
+                    'tanggal_alokasi' => $invoice->tanggal_invoice,
+                    'created_by' => auth()->id(),
+                ]);
+
+                $kebutuhanAlokasi = round(
+                    $kebutuhanAlokasi - $jumlahAlokasi,
+                    2
+                );
+            }
+        }
+
+        $totalAlokasi = round(
+            (float) InvoiceSupplierUangMukaAllocation::query()
+                ->where('invoice_supplier_id', $invoice->id)
+                ->sum('jumlah_alokasi'),
+            2
+        );
+
+        $pembayaranInvoice = round(
+            (float) $invoice->pembayaranSuppliers()
+                ->sum('jumlah_bayar'),
+            2
+        );
+
+        $totalPelunasan = round(
+            min(
+                $totalInvoice,
+                $totalAlokasi + $pembayaranInvoice
+            ),
+            2
+        );
+
+        $sisaUtang = round(
+            max(0, $totalInvoice - $totalPelunasan),
+            2
+        );
+
+        if ($sisaUtang <= 0.01) {
+            $status = 'LUNAS';
+            $sisaUtang = 0;
+        } elseif ($totalPelunasan > 0) {
+            $status = 'SEBAGIAN';
+        } else {
+            $status = 'BELUM_LUNAS';
+        }
+
+        $invoice->update([
+            'total_dibayar' => $totalPelunasan,
+            'sisa_utang' => $sisaUtang,
+            'status' => $status,
+        ]);
+
+        $invoice->refresh();
+
+        return $totalAlokasi;
+    }
 
     public function autoJournalInvoiceSupplier(
         InvoiceSupplier $invoice
     ): void {
-        if (
-            $this->isPeriodLocked(
-                $invoice->tanggal_invoice
-            )
-        ) {
+        if ($this->isPeriodLocked($invoice->tanggal_invoice)) {
             throw new RuntimeException(
                 'Periode accounting untuk tanggal Invoice Supplier sudah ditutup.'
             );
@@ -1573,27 +1534,33 @@ class SystemAccountingService
             'supplier',
             'items',
             'purchaseOrder',
+            'uangMukaAllocations',
         ]);
 
-        $akunPembelianId =
-            $this->getSystemAccountId(
-                'AKUN_PEMBELIAN_BARANG'
-            );
+        // Pastikan uang muka PO otomatis dialokasikan sebelum jurnal invoice dibuat.
+        // Allocation existing akan dihormati sehingga tidak terjadi double allocation.
+        $this->alokasikanUangMukaPOKeInvoice($invoice);
+        $invoice->refresh();
+        $invoice->loadMissing([
+            'supplier',
+            'items',
+            'purchaseOrder',
+            'uangMukaAllocations',
+        ]);
 
-        $akunUtangId =
-            $this->getSystemAccountId(
-                'AKUN_UTANG_DAGANG'
-            );
-
-        $akunDiskonId =
-            $this->getSystemAccountId(
-                'AKUN_DISKON_PEMBELIAN'
-            );
-
-        $akunPpnMasukanId =
-            $this->getSystemAccountId(
-                'AKUN_PPN_PEMBELIAN'
-            );
+        $akunPembelianId = $this->getSystemAccountId(
+            'AKUN_PEMBELIAN_BARANG'
+        );
+        $akunUtangId = $this->getSystemAccountId(
+            'AKUN_UTANG_DAGANG'
+        );
+        $akunDiskonId = $this->getSystemAccountId(
+            'AKUN_DISKON_PEMBELIAN'
+        );
+        $akunPpnMasukanId = $this->getSystemAccountId(
+            'AKUN_PPN_PEMBELIAN'
+        );
+        $akunUangMukaId = $this->getUangMukaPembelianAccountId();
 
         if (!$akunPembelianId) {
             throw new RuntimeException(
@@ -1607,29 +1574,10 @@ class SystemAccountingService
             );
         }
 
-        $subtotal =
-            round(
-                (float) $invoice->subtotal,
-                2
-            );
-
-        $diskon =
-            round(
-                (float) $invoice->diskon,
-                2
-            );
-
-        $pajak =
-            round(
-                (float) $invoice->pajak,
-                2
-            );
-
-        $total =
-            round(
-                (float) $invoice->total,
-                2
-            );
+        $subtotal = round((float) $invoice->subtotal, 2);
+        $diskon = round((float) $invoice->diskon, 2);
+        $pajak = round((float) $invoice->pajak, 2);
+        $total = round((float) $invoice->total, 2);
 
         if ($subtotal < 0) {
             throw new RuntimeException(
@@ -1661,104 +1609,347 @@ class SystemAccountingService
             );
         }
 
-        if (
-            $diskon > 0
-            &&
-            !$akunDiskonId
-        ) {
+        if ($diskon > 0 && !$akunDiskonId) {
             throw new RuntimeException(
                 'Akun Diskon Pembelian belum dikonfigurasi.'
             );
         }
 
-        if (
-            $pajak > 0
-            &&
-            !$akunPpnMasukanId
-        ) {
+        if ($pajak > 0 && !$akunPpnMasukanId) {
             throw new RuntimeException(
                 'Akun PPN Masukan Pembelian belum dikonfigurasi.'
             );
         }
 
-        $expectedTotal =
+        $expectedTotal = round(
+            $subtotal - $diskon + $pajak,
+            2
+        );
+
+        if (abs($expectedTotal - $total) > 0.01) {
+            throw new RuntimeException(
+                'Invoice Supplier tidak balance. Rumus: Subtotal - Diskon + Pajak = Total.'
+            );
+        }
+
+        $totalUangMuka = round(
+            (float) $invoice->uangMukaAllocations()
+                ->sum('jumlah_alokasi'),
+            2
+        );
+
+        if ($totalUangMuka > 0 && !$akunUangMukaId) {
+            throw new RuntimeException(
+                'Akun Uang Muka Pembelian belum dikonfigurasi.'
+            );
+        }
+
+        if ($totalUangMuka > $total + 0.01) {
+            throw new RuntimeException(
+                'Alokasi Uang Muka Pembelian melebihi nilai Invoice Supplier.'
+            );
+        }
+
+        $utangTerbentuk = round(
+            max(0, $total - $totalUangMuka),
+            2
+        );
+
+        Jurnal::query()
+            ->where('referensi_type', 'INVOICE_SUPPLIER')
+            ->where('referensi_id', $invoice->id)
+            ->delete();
+
+        $totalDebit = round($subtotal + $pajak, 2);
+        $totalKredit = round(
+            $diskon + $totalUangMuka + $utangTerbentuk,
+            2
+        );
+
+        if (abs($totalDebit - $totalKredit) > 0.01) {
+            throw new RuntimeException(
+                'Jurnal Invoice Supplier tidak balance.'
+            );
+        }
+
+        $jurnal = Jurnal::create([
+            'nomor_jurnal' => $this->generateDocumentNumber(
+                'JURNAL_UMUM',
+                $invoice->tanggal_invoice
+            ),
+            'tanggal' => $invoice->tanggal_invoice,
+            'keterangan' =>
+                'Invoice Supplier '
+                . $invoice->nomor_invoice_internal
+                . ' - '
+                . ($invoice->supplier?->nama_supplier ?? 'Supplier'),
+            'is_system_generated' => true,
+            'referensi_type' => 'INVOICE_SUPPLIER',
+            'referensi_id' => $invoice->id,
+            'total_debit' => $totalDebit,
+            'total_kredit' => $totalKredit,
+            'is_posted' => true,
+            'created_by' => auth()->id(),
+        ]);
+
+        if ($subtotal > 0) {
+            JurnalDetail::create([
+                'jurnal_id' => $jurnal->id,
+                'akun_id' => $akunPembelianId,
+                'debit' => $subtotal,
+                'kredit' => 0,
+                'keterangan' =>
+                    'Pembelian barang '
+                    . $invoice->nomor_invoice_internal,
+            ]);
+        }
+
+        if ($pajak > 0) {
+            JurnalDetail::create([
+                'jurnal_id' => $jurnal->id,
+                'akun_id' => $akunPpnMasukanId,
+                'debit' => $pajak,
+                'kredit' => 0,
+                'keterangan' =>
+                    'PPN Masukan '
+                    . $invoice->nomor_invoice_internal,
+            ]);
+        }
+
+        if ($diskon > 0) {
+            JurnalDetail::create([
+                'jurnal_id' => $jurnal->id,
+                'akun_id' => $akunDiskonId,
+                'debit' => 0,
+                'kredit' => $diskon,
+                'keterangan' =>
+                    'Diskon pembelian '
+                    . $invoice->nomor_invoice_internal,
+            ]);
+        }
+
+        if ($totalUangMuka > 0) {
+            JurnalDetail::create([
+                'jurnal_id' => $jurnal->id,
+                'akun_id' => $akunUangMukaId,
+                'debit' => 0,
+                'kredit' => $totalUangMuka,
+                'keterangan' =>
+                    'Pemakaian Uang Muka Pembelian '
+                    . ($invoice->purchaseOrder?->nomor_po ?? '')
+                    . ' untuk '
+                    . $invoice->nomor_invoice_internal,
+            ]);
+        }
+
+        if ($utangTerbentuk > 0) {
+            JurnalDetail::create([
+                'jurnal_id' => $jurnal->id,
+                'akun_id' => $akunUtangId,
+                'debit' => 0,
+                'kredit' => $utangTerbentuk,
+                'keterangan' =>
+                    'Utang Supplier '
+                    . $invoice->nomor_invoice_internal
+                    . ' - '
+                    . ($invoice->supplier?->nama_supplier ?? ''),
+            ]);
+        }
+    }
+
+    public function autoJournalPembayaranPOSupplier(
+        PembayaranPOSupplier $pembayaran
+    ): void {
+        if (
+            $this->isPeriodLocked(
+                $pembayaran->tanggal_pembayaran
+            )
+        ) {
+            throw new RuntimeException(
+                'Periode accounting untuk tanggal Pembayaran PO Supplier sudah ditutup.'
+            );
+        }
+
+        $pembayaran->loadMissing([
+            'purchaseOrder',
+            'supplier',
+            'rekeningKasBank.akun',
+        ]);
+
+        if (!$pembayaran->purchaseOrder) {
+            throw new RuntimeException(
+                'Purchase Order pembayaran tidak ditemukan.'
+            );
+        }
+
+        if (
+            $pembayaran
+                ->purchaseOrder
+                ->status
+            === 'Draft'
+        ) {
+            throw new RuntimeException(
+                'Purchase Order masih Draft dan belum boleh dibayar.'
+            );
+        }
+
+        if (!$pembayaran->supplier) {
+            throw new RuntimeException(
+                'Supplier Pembayaran PO tidak ditemukan.'
+            );
+        }
+
+        if (
+            (int) $pembayaran->supplier_id
+            !==
+            (int) $pembayaran
+                ->purchaseOrder
+                ->supplier_id
+        ) {
+            throw new RuntimeException(
+                'Supplier Pembayaran PO tidak sesuai dengan Supplier Purchase Order.'
+            );
+        }
+
+        $akunUangMukaId =
+            $this->getUangMukaPembelianAccountId();
+
+        if (!$akunUangMukaId) {
+            throw new RuntimeException(
+                'Akun Uang Muka Pembelian belum dikonfigurasi.'
+            );
+        }
+
+        if (!$pembayaran->rekeningKasBank) {
+            throw new RuntimeException(
+                'Kas/Rekening Bank Pembayaran PO tidak ditemukan.'
+            );
+        }
+
+        if (
+            !$pembayaran
+                ->rekeningKasBank
+                ->is_active
+        ) {
+            throw new RuntimeException(
+                'Kas/Rekening Bank Pembayaran PO sudah tidak aktif.'
+            );
+        }
+
+        $akunKasBankId =
+            $pembayaran
+                ->rekeningKasBank
+                ->akun_id;
+
+        if (!$akunKasBankId) {
+            throw new RuntimeException(
+                'Kas/Rekening Bank Pembayaran PO belum terhubung dengan akun COA.'
+            );
+        }
+
+        if (
+            (int) $akunUangMukaId
+            ===
+            (int) $akunKasBankId
+        ) {
+            throw new RuntimeException(
+                'Akun Uang Muka Pembelian dan akun Kas/Bank tidak boleh sama.'
+            );
+        }
+
+        $jumlah =
             round(
-                $subtotal
-                -
-                $diskon
-                +
-                $pajak,
+                (float) $pembayaran->jumlah_bayar,
+                2
+            );
+
+        if ($jumlah <= 0) {
+            throw new RuntimeException(
+                'Jumlah Pembayaran PO harus lebih besar dari 0.'
+            );
+        }
+
+        $totalPO =
+            round(
+                (float) $pembayaran
+                    ->purchaseOrder
+                    ->total,
+                2
+            );
+
+        if ($totalPO <= 0) {
+            throw new RuntimeException(
+                'Total Purchase Order tidak valid.'
+            );
+        }
+
+        $totalPembayaranLain =
+            round(
+                (float)
+                PembayaranPOSupplier::query()
+                    ->where(
+                        'purchase_order_id',
+                        $pembayaran->purchase_order_id
+                    )
+                    ->where(
+                        'status',
+                        'TERCATAT'
+                    )
+                    ->where(
+                        'id',
+                        '!=',
+                        $pembayaran->id
+                    )
+                    ->sum('jumlah_bayar'),
                 2
             );
 
         if (
-            abs(
-                $expectedTotal
-                -
-                $total
-            ) > 0.01
+            $totalPembayaranLain
+            + $jumlah
+            >
+            $totalPO + 0.01
         ) {
             throw new RuntimeException(
-                'Invoice Supplier tidak balance. Rumus: Subtotal - Diskon + Pajak = Total.'
+                'Total Pembayaran PO melebihi nilai Purchase Order.'
             );
         }
 
         Jurnal::query()
             ->where(
                 'referensi_type',
-                'INVOICE_SUPPLIER'
+                'PEMBAYARAN_PO_SUPPLIER'
             )
             ->where(
                 'referensi_id',
-                $invoice->id
+                $pembayaran->id
             )
             ->delete();
-
-        $totalDebit =
-            round(
-                $subtotal
-                +
-                $pajak,
-                2
-            );
-
-        $totalKredit =
-            round(
-                $total
-                +
-                $diskon,
-                2
-            );
-
-        if (
-            abs(
-                $totalDebit
-                -
-                $totalKredit
-            ) > 0.01
-        ) {
-            throw new RuntimeException(
-                'Jurnal Invoice Supplier tidak balance.'
-            );
-        }
 
         $jurnal =
             Jurnal::create([
                 'nomor_jurnal' =>
                     $this->generateDocumentNumber(
                         'JURNAL_UMUM',
-                        $invoice->tanggal_invoice
+                        $pembayaran->tanggal_pembayaran
                     ),
 
                 'tanggal' =>
-                    $invoice->tanggal_invoice,
+                    $pembayaran->tanggal_pembayaran,
 
                 'keterangan' =>
-                    'Invoice Supplier '
-                    . $invoice->nomor_invoice_internal
+                    'Pembayaran PO Supplier '
+                    . $pembayaran->nomor_pembayaran
                     . ' - '
                     . (
-                        $invoice
+                        $pembayaran
+                            ->purchaseOrder
+                            ?->nomor_po
+                        ?? ''
+                    )
+                    . ' - '
+                    . (
+                        $pembayaran
                             ->supplier
                             ?->nama_supplier
                         ?? 'Supplier'
@@ -1768,16 +1959,16 @@ class SystemAccountingService
                     true,
 
                 'referensi_type' =>
-                    'INVOICE_SUPPLIER',
+                    'PEMBAYARAN_PO_SUPPLIER',
 
                 'referensi_id' =>
-                    $invoice->id,
+                    $pembayaran->id,
 
                 'total_debit' =>
-                    $totalDebit,
+                    $jumlah,
 
                 'total_kredit' =>
-                    $totalKredit,
+                    $jumlah,
 
                 'is_posted' =>
                     true,
@@ -1786,109 +1977,53 @@ class SystemAccountingService
                     auth()->id(),
             ]);
 
-        if ($subtotal > 0) {
-            JurnalDetail::create([
-                'jurnal_id' =>
-                    $jurnal->id,
+        JurnalDetail::create([
+            'jurnal_id' =>
+                $jurnal->id,
 
-                'akun_id' =>
-                    $akunPembelianId,
+            'akun_id' =>
+                $akunUangMukaId,
 
-                'debit' =>
-                    $subtotal,
+            'debit' =>
+                $jumlah,
 
-                'kredit' =>
-                    0,
+            'kredit' =>
+                0,
 
-                'keterangan' =>
-                    'Pembelian barang '
-                    . $invoice->nomor_invoice_internal,
-            ]);
-        }
-
-        if ($pajak > 0) {
-            JurnalDetail::create([
-                'jurnal_id' =>
-                    $jurnal->id,
-
-                'akun_id' =>
-                    $akunPpnMasukanId,
-
-                'debit' =>
-                    $pajak,
-
-                'kredit' =>
-                    0,
-
-                'keterangan' =>
-                    'PPN Masukan '
-                    . $invoice->nomor_invoice_internal,
-            ]);
-        }
-
-        if ($diskon > 0) {
-            JurnalDetail::create([
-                'jurnal_id' =>
-                    $jurnal->id,
-
-                'akun_id' =>
-                    $akunDiskonId,
-
-                'debit' =>
-                    0,
-
-                'kredit' =>
-                    $diskon,
-
-                'keterangan' =>
-                    'Diskon pembelian '
-                    . $invoice->nomor_invoice_internal,
-            ]);
-        }
+            'keterangan' =>
+                'Uang muka pembelian untuk '
+                . $pembayaran
+                    ->purchaseOrder
+                    ->nomor_po,
+        ]);
 
         JurnalDetail::create([
             'jurnal_id' =>
                 $jurnal->id,
 
             'akun_id' =>
-                $akunUtangId,
+                $akunKasBankId,
 
             'debit' =>
                 0,
 
             'kredit' =>
-                $total,
+                $jumlah,
 
             'keterangan' =>
-                'Utang Supplier '
-                . $invoice->nomor_invoice_internal
-                . ' - '
-                . (
-                    $invoice
-                        ->supplier
-                        ?->nama_supplier
-                    ?? ''
-                ),
+                'Pembayaran melalui '
+                . $pembayaran
+                    ->rekeningKasBank
+                    ->nama_rekening,
         ]);
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | PEMBAYARAN SUPPLIER
-    |--------------------------------------------------------------------------
-    |
-    | Dr Utang Dagang
-    |      Cr Kas / Bank
-    |
-    */
 
     public function autoJournalPembayaranSupplier(
         PembayaranSupplier $pembayaran
     ): void {
         if (
             $this->isPeriodLocked(
-                $pembayaran
-                    ->tanggal_pembayaran
+                $pembayaran->tanggal_pembayaran
             )
         ) {
             throw new RuntimeException(
@@ -1902,19 +2037,13 @@ class SystemAccountingService
             'rekeningKasBank.akun',
         ]);
 
-        if (
-            !$pembayaran
-                ->invoiceSupplier
-        ) {
+        if (!$pembayaran->invoiceSupplier) {
             throw new RuntimeException(
                 'Invoice Supplier pembayaran tidak ditemukan.'
             );
         }
 
-        if (
-            !$pembayaran
-                ->supplier
-        ) {
+        if (!$pembayaran->supplier) {
             throw new RuntimeException(
                 'Supplier pembayaran tidak ditemukan.'
             );
@@ -1931,10 +2060,7 @@ class SystemAccountingService
             );
         }
 
-        if (
-            !$pembayaran
-                ->rekeningKasBank
-        ) {
+        if (!$pembayaran->rekeningKasBank) {
             throw new RuntimeException(
                 'Kas/Rekening Bank pembayaran supplier tidak ditemukan.'
             );
@@ -1953,8 +2079,7 @@ class SystemAccountingService
 
         $jumlah =
             round(
-                (float) $pembayaran
-                    ->jumlah_bayar,
+                (float) $pembayaran->jumlah_bayar,
                 2
             );
 
@@ -1980,18 +2105,15 @@ class SystemAccountingService
                 'nomor_jurnal' =>
                     $this->generateDocumentNumber(
                         'JURNAL_UMUM',
-                        $pembayaran
-                            ->tanggal_pembayaran
+                        $pembayaran->tanggal_pembayaran
                     ),
 
                 'tanggal' =>
-                    $pembayaran
-                        ->tanggal_pembayaran,
+                    $pembayaran->tanggal_pembayaran,
 
                 'keterangan' =>
                     'Pembayaran Supplier '
-                    . $pembayaran
-                        ->nomor_pembayaran
+                    . $pembayaran->nomor_pembayaran
                     . ' - '
                     . (
                         $pembayaran
@@ -2066,42 +2188,9 @@ class SystemAccountingService
         ]);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | RETUR PEMBELIAN
-    |--------------------------------------------------------------------------
-    |
-    | Jika Invoice Belum Dibayar:
-    |
-    | Dr Utang Dagang
-    | Dr Diskon Pembelian
-    |      Cr Persediaan
-    |      Cr PPN Masukan
-    |
-    |
-    | Jika Invoice Sudah Dibayar:
-    |
-    | Dr Uang Muka Pembelian / Kredit Supplier
-    | Dr Diskon Pembelian
-    |      Cr Persediaan
-    |      Cr PPN Masukan
-    |
-    |
-    | Bisa juga kombinasi:
-    | sebagian mengurangi Utang,
-    | sebagian menjadi Kredit Supplier.
-    |
-    */
-
     public function autoJournalReturPembelian(
         ReturPembelian $retur
     ): void {
-        /*
-        |--------------------------------------------------------------------------
-        | Period Lock
-        |--------------------------------------------------------------------------
-        */
-
         if (
             $this->isPeriodLocked(
                 $retur->tanggal_retur
@@ -2112,23 +2201,11 @@ class SystemAccountingService
             );
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Load
-        |--------------------------------------------------------------------------
-        */
-
         $retur->loadMissing([
             'supplier',
             'allocations',
             'allocations.invoiceSupplier',
         ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Hapus Jurnal Lama
-        |--------------------------------------------------------------------------
-        */
 
         Jurnal::query()
             ->where(
@@ -2141,16 +2218,6 @@ class SystemAccountingService
             )
             ->delete();
 
-        /*
-        |--------------------------------------------------------------------------
-        | Jika Barang Belum Pernah Di-Invoice
-        |--------------------------------------------------------------------------
-        |
-        | Tidak ada koreksi accounting karena sebelumnya
-        | belum pernah terbentuk Utang / Persediaan dari invoice.
-        |
-        */
-
         if (
             $retur
                 ->allocations
@@ -2158,12 +2225,6 @@ class SystemAccountingService
         ) {
             return;
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Nilai Allocation
-        |--------------------------------------------------------------------------
-        */
 
         $nilaiBarang =
             round(
@@ -2213,15 +2274,7 @@ class SystemAccountingService
                 2
             );
 
-        /*
-        |--------------------------------------------------------------------------
-        | Validasi Nominal
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            $nilaiBarang <= 0
-        ) {
+        if ($nilaiBarang <= 0) {
             throw new RuntimeException(
                 'Nilai barang Retur Pembelian tidak valid.'
             );
@@ -2242,12 +2295,6 @@ class SystemAccountingService
                 'Nilai accounting Retur Pembelian tidak valid.'
             );
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Validasi Rumus Total Koreksi
-        |--------------------------------------------------------------------------
-        */
 
         $expectedTotalKoreksi =
             round(
@@ -2271,12 +2318,6 @@ class SystemAccountingService
             );
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Total Koreksi Harus Terbagi
-        |--------------------------------------------------------------------------
-        */
-
         if (
             abs(
                 (
@@ -2292,12 +2333,6 @@ class SystemAccountingService
                 'Nilai pengurangan utang dan kredit supplier pada Retur Pembelian tidak balance.'
             );
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Accounts
-        |--------------------------------------------------------------------------
-        */
 
         $akunPersediaanId =
             $this->getSystemAccountId(
@@ -2324,14 +2359,7 @@ class SystemAccountingService
             );
 
         $akunUangMukaId =
-            $this
-                ->getUangMukaPembelianAccountId();
-
-        /*
-        |--------------------------------------------------------------------------
-        | Validasi Account
-        |--------------------------------------------------------------------------
-        */
+            $this->getUangMukaPembelianAccountId();
 
         if (!$akunPersediaanId) {
             throw new RuntimeException(
@@ -2379,12 +2407,6 @@ class SystemAccountingService
             );
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Journal Balance
-        |--------------------------------------------------------------------------
-        */
-
         $totalDebit =
             round(
                 $potongUtang
@@ -2414,12 +2436,6 @@ class SystemAccountingService
                 'Jurnal Retur Pembelian tidak balance.'
             );
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Journal Header
-        |--------------------------------------------------------------------------
-        */
 
         $jurnal =
             Jurnal::create([
@@ -2465,15 +2481,7 @@ class SystemAccountingService
                     auth()->id(),
             ]);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Dr Utang Dagang
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            $potongUtang > 0
-        ) {
+        if ($potongUtang > 0) {
             JurnalDetail::create([
                 'jurnal_id' =>
                     $jurnal->id,
@@ -2493,15 +2501,7 @@ class SystemAccountingService
             ]);
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Dr Uang Muka Pembelian / Kredit Supplier
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            $kreditSupplier > 0
-        ) {
+        if ($kreditSupplier > 0) {
             JurnalDetail::create([
                 'jurnal_id' =>
                     $jurnal->id,
@@ -2521,22 +2521,7 @@ class SystemAccountingService
             ]);
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Dr Diskon Pembelian
-        |--------------------------------------------------------------------------
-        |
-        | Invoice awal:
-        | Cr Diskon Pembelian.
-        |
-        | Maka saat diretur:
-        | Dr Diskon Pembelian.
-        |
-        */
-
-        if (
-            $diskonHeader > 0
-        ) {
+        if ($diskonHeader > 0) {
             JurnalDetail::create([
                 'jurnal_id' =>
                     $jurnal->id,
@@ -2556,12 +2541,6 @@ class SystemAccountingService
             ]);
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Cr Persediaan
-        |--------------------------------------------------------------------------
-        */
-
         JurnalDetail::create([
             'jurnal_id' =>
                 $jurnal->id,
@@ -2580,15 +2559,7 @@ class SystemAccountingService
                 . $retur->nomor_retur,
         ]);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Cr PPN Masukan
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            $pajak > 0
-        ) {
+        if ($pajak > 0) {
             JurnalDetail::create([
                 'jurnal_id' =>
                     $jurnal->id,
@@ -2609,11 +2580,327 @@ class SystemAccountingService
         }
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | UANG KELUAR
-    |--------------------------------------------------------------------------
-    */
+    public function autoJournalUangMasuk(
+        UangMasuk $uangMasuk
+    ): void {
+        if (
+            $this->isPeriodLocked(
+                $uangMasuk->tanggal
+            )
+        ) {
+            throw new RuntimeException(
+                'Periode accounting untuk tanggal Uang Masuk sudah ditutup.'
+            );
+        }
+
+        $uangMasuk->loadMissing([
+            'rekeningKasBank.akun',
+            'akunLawan',
+        ]);
+
+        if (!$uangMasuk->rekeningKasBank) {
+            throw new RuntimeException(
+                'Kas/Rekening Bank Uang Masuk tidak ditemukan.'
+            );
+        }
+
+        $akunKasBankId =
+            $uangMasuk
+                ->rekeningKasBank
+                ->akun_id;
+
+        if (!$akunKasBankId) {
+            throw new RuntimeException(
+                'Kas/Rekening Bank Uang Masuk belum terhubung dengan akun COA.'
+            );
+        }
+
+        $akunLawanId =
+            $uangMasuk->akun_lawan_id;
+
+        if (!$akunLawanId) {
+            throw new RuntimeException(
+                'Akun lawan Uang Masuk belum dipilih.'
+            );
+        }
+
+        if (
+            (int) $akunKasBankId
+            ===
+            (int) $akunLawanId
+        ) {
+            throw new RuntimeException(
+                'Akun Kas/Bank dan akun lawan Uang Masuk tidak boleh sama.'
+            );
+        }
+
+        $jumlah =
+            round(
+                (float) $uangMasuk->jumlah,
+                2
+            );
+
+        if ($jumlah <= 0) {
+            throw new RuntimeException(
+                'Jumlah Uang Masuk harus lebih besar dari 0.'
+            );
+        }
+
+        Jurnal::query()
+            ->where(
+                'referensi_type',
+                'UANG_MASUK'
+            )
+            ->where(
+                'referensi_id',
+                $uangMasuk->id
+            )
+            ->delete();
+
+        $jurnal =
+            Jurnal::create([
+                'nomor_jurnal' =>
+                    $this->generateDocumentNumber(
+                        'JURNAL_UMUM',
+                        $uangMasuk->tanggal
+                    ),
+
+                'tanggal' =>
+                    $uangMasuk->tanggal,
+
+                'keterangan' =>
+                    'Uang Masuk '
+                    . $uangMasuk->nomor_transaksi
+                    . ' - '
+                    . $uangMasuk->sumber,
+
+                'is_system_generated' =>
+                    true,
+
+                'referensi_type' =>
+                    'UANG_MASUK',
+
+                'referensi_id' =>
+                    $uangMasuk->id,
+
+                'total_debit' =>
+                    $jumlah,
+
+                'total_kredit' =>
+                    $jumlah,
+
+                'is_posted' =>
+                    true,
+
+                'created_by' =>
+                    auth()->id(),
+            ]);
+
+        JurnalDetail::create([
+            'jurnal_id' =>
+                $jurnal->id,
+
+            'akun_id' =>
+                $akunKasBankId,
+
+            'debit' =>
+                $jumlah,
+
+            'kredit' =>
+                0,
+
+            'keterangan' =>
+                'Penerimaan melalui '
+                . $uangMasuk
+                    ->rekeningKasBank
+                    ->nama_rekening,
+        ]);
+
+        JurnalDetail::create([
+            'jurnal_id' =>
+                $jurnal->id,
+
+            'akun_id' =>
+                $akunLawanId,
+
+            'debit' =>
+                0,
+
+            'kredit' =>
+                $jumlah,
+
+            'keterangan' =>
+                'Sumber: '
+                . $uangMasuk->sumber,
+        ]);
+    }
+
+    public function autoJournalTransferKasBank(
+        TransferKasBank $transfer
+    ): void {
+        if (
+            $this->isPeriodLocked(
+                $transfer->tanggal
+            )
+        ) {
+            throw new RuntimeException(
+                'Periode accounting untuk tanggal Transfer Kas/Bank sudah ditutup.'
+            );
+        }
+
+        $transfer->loadMissing([
+            'rekeningAsal.akun',
+            'rekeningTujuan.akun',
+        ]);
+
+        if (
+            !$transfer->rekeningAsal
+            ||
+            !$transfer->rekeningTujuan
+        ) {
+            throw new RuntimeException(
+                'Rekening asal atau rekening tujuan transfer tidak ditemukan.'
+            );
+        }
+
+        $akunAsalId =
+            $transfer
+                ->rekeningAsal
+                ->akun_id;
+
+        $akunTujuanId =
+            $transfer
+                ->rekeningTujuan
+                ->akun_id;
+
+        if (
+            !$akunAsalId
+            ||
+            !$akunTujuanId
+        ) {
+            throw new RuntimeException(
+                'Rekening asal dan tujuan transfer harus terhubung dengan akun COA.'
+            );
+        }
+
+        if (
+            (int) $akunAsalId
+            ===
+            (int) $akunTujuanId
+        ) {
+            throw new RuntimeException(
+                'Rekening asal dan tujuan transfer tidak boleh menggunakan akun COA yang sama.'
+            );
+        }
+
+        $jumlah =
+            round(
+                (float) $transfer->jumlah,
+                2
+            );
+
+        if ($jumlah <= 0) {
+            throw new RuntimeException(
+                'Jumlah Transfer Kas/Bank harus lebih besar dari 0.'
+            );
+        }
+
+        Jurnal::query()
+            ->where(
+                'referensi_type',
+                'TRANSFER_KAS_BANK'
+            )
+            ->where(
+                'referensi_id',
+                $transfer->id
+            )
+            ->delete();
+
+        $jurnal =
+            Jurnal::create([
+                'nomor_jurnal' =>
+                    $this->generateDocumentNumber(
+                        'JURNAL_UMUM',
+                        $transfer->tanggal
+                    ),
+
+                'tanggal' =>
+                    $transfer->tanggal,
+
+                'keterangan' =>
+                    'Transfer Kas/Bank '
+                    . $transfer->nomor_transaksi
+                    . ' - '
+                    . $transfer
+                        ->rekeningAsal
+                        ->nama_rekening
+                    . ' ke '
+                    . $transfer
+                        ->rekeningTujuan
+                        ->nama_rekening,
+
+                'is_system_generated' =>
+                    true,
+
+                'referensi_type' =>
+                    'TRANSFER_KAS_BANK',
+
+                'referensi_id' =>
+                    $transfer->id,
+
+                'total_debit' =>
+                    $jumlah,
+
+                'total_kredit' =>
+                    $jumlah,
+
+                'is_posted' =>
+                    true,
+
+                'created_by' =>
+                    auth()->id(),
+            ]);
+
+        JurnalDetail::create([
+            'jurnal_id' =>
+                $jurnal->id,
+
+            'akun_id' =>
+                $akunTujuanId,
+
+            'debit' =>
+                $jumlah,
+
+            'kredit' =>
+                0,
+
+            'keterangan' =>
+                'Transfer masuk ke '
+                . $transfer
+                    ->rekeningTujuan
+                    ->nama_rekening,
+        ]);
+
+        JurnalDetail::create([
+            'jurnal_id' =>
+                $jurnal->id,
+
+            'akun_id' =>
+                $akunAsalId,
+
+            'debit' =>
+                0,
+
+            'kredit' =>
+                $jumlah,
+
+            'keterangan' =>
+                'Transfer keluar dari '
+                . $transfer
+                    ->rekeningAsal
+                    ->nama_rekening,
+        ]);
+    }
 
     public function autoJournalUangKeluar(
         UangKeluar $uangKeluar
@@ -2633,10 +2920,7 @@ class SystemAccountingService
             'rekeningKasBank.akun',
         ]);
 
-        if (
-            !$uangKeluar
-                ->rekeningKasBank
-        ) {
+        if (!$uangKeluar->rekeningKasBank) {
             throw new RuntimeException(
                 'Kas/Rekening Bank transaksi tidak ditemukan.'
             );
@@ -2789,12 +3073,6 @@ class SystemAccountingService
         ]);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | PEMBATALAN INVOICE PENJUALAN
-    |--------------------------------------------------------------------------
-    */
-
     public function cancelInvoicePenjualan(
         InvoicePenjualan $invoice,
         string $alasan
@@ -2919,8 +3197,7 @@ class SystemAccountingService
             );
         }
 
-        $totalHpp =
-            0;
+        $totalHpp = 0;
 
         foreach (
             $invoice->items
@@ -2946,8 +3223,7 @@ class SystemAccountingService
                     (float) $item->hpp_satuan;
             }
 
-            $totalHpp +=
-                $hpp;
+            $totalHpp += $hpp;
         }
 
         if (
@@ -2976,9 +3252,7 @@ class SystemAccountingService
                 )
                 ->exists();
 
-        if (
-            $jurnalPembatalanSudahAda
-        ) {
+        if ($jurnalPembatalanSudahAda) {
             throw new RuntimeException(
                 'Jurnal pembatalan invoice sudah pernah dibuat.'
             );
@@ -3226,12 +3500,6 @@ class SystemAccountingService
         ]);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | KARTU PIUTANG
-    |--------------------------------------------------------------------------
-    */
-
     public function recordKartuPiutang(
         int $customerId,
         $tanggal,
@@ -3273,8 +3541,7 @@ class SystemAccountingService
 
         $saldoSebelumnya =
             $lastKartu
-                ? (float) $lastKartu
-                    ->saldo_akhir
+                ? (float) $lastKartu->saldo_akhir
                 : 0;
 
         $saldoAkhirBaru =

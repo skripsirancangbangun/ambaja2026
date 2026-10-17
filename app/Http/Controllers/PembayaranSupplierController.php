@@ -11,6 +11,8 @@ use App\Services\KasBankService;
 use App\Services\SystemAccountingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Carbon\Carbon;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
@@ -276,13 +278,17 @@ class PembayaranSupplierController extends Controller
                     'PEMBAYARAN_SUPPLIER'
                 );
 
+        // Token unik untuk mencegah satu form yang sama diproses dua kali.
+        $idempotencyKey = (string) Str::uuid();
+
         return view(
             'pembayaran-supplier.create',
             compact(
                 'invoices',
                 'selectedInvoice',
                 'rekeningKasBanks',
-                'previewNomorPembayaran'
+                'previewNomorPembayaran',
+                'idempotencyKey'
             )
         );
     }
@@ -306,6 +312,11 @@ class PembayaranSupplierController extends Controller
 
         $validated =
             $request->validate([
+                'idempotency_key' => [
+                    'required',
+                    'uuid',
+                ],
+
                 'invoice_supplier_id' => [
                     'required',
                     'exists:invoice_suppliers,id',
@@ -319,6 +330,7 @@ class PembayaranSupplierController extends Controller
                 'jumlah_bayar' => [
                     'required',
                     'numeric',
+                    'decimal:0,2',
                     'min:0.01',
                 ],
 
@@ -345,6 +357,26 @@ class PembayaranSupplierController extends Controller
                 ],
             ]);
 
+        // Fast path untuk retry setelah request pertama berhasil.
+        // Pemeriksaan yang sama tetap diulang di dalam transaksi untuk menangani race condition.
+        $existingPayment = PembayaranSupplier::query()
+            ->where('idempotency_key', $validated['idempotency_key'])
+            ->first();
+
+        if ($existingPayment) {
+            if (!$this->matchesIdempotencyPayload($existingPayment, $validated, auth()->id())) {
+                return back()
+                    ->withInput()
+                    ->withErrors([
+                        'idempotency_key' => 'Token formulir ini sudah digunakan untuk data pembayaran yang berbeda. Muat ulang formulir sebelum mencoba lagi.',
+                    ]);
+            }
+
+            return redirect()
+                ->route('pembayaran-supplier.show', $existingPayment)
+                ->with('success', 'Permintaan pembayaran ini sudah diproses sebelumnya. Tidak ada pembayaran, mutasi, atau jurnal baru yang dibuat.');
+        }
+
         /*
         |--------------------------------------------------------------------------
         | Cut-Off
@@ -367,10 +399,13 @@ class PembayaranSupplierController extends Controller
                 );
         }
 
+        $alreadyProcessed = false;
+
         try {
             $pembayaran =
                 DB::transaction(
                     function () use (
+                        &$alreadyProcessed,
                         $validated,
                         $kasBankService,
                         $accountingService
@@ -392,6 +427,24 @@ class PembayaranSupplierController extends Controller
                                 )
                                 ->lockForUpdate()
                                 ->firstOrFail();
+
+                        // Cek ulang setelah lock invoice agar request paralel dengan token
+                        // yang sama tidak membuat pembayaran kedua.
+                        $existingPayment = PembayaranSupplier::query()
+                            ->where('idempotency_key', $validated['idempotency_key'])
+                            ->lockForUpdate()
+                            ->first();
+
+                        if ($existingPayment) {
+                            if (!$this->matchesIdempotencyPayload($existingPayment, $validated, auth()->id())) {
+                                throw ValidationException::withMessages([
+                                    'idempotency_key' => 'Token formulir ini sudah digunakan untuk data pembayaran yang berbeda. Muat ulang formulir sebelum mencoba lagi.',
+                                ]);
+                            }
+
+                            $alreadyProcessed = true;
+                            return $existingPayment;
+                        }
 
                         /*
                         |--------------------------------------------------------------------------
@@ -574,9 +627,10 @@ class PembayaranSupplierController extends Controller
                                 )
                                 ->exists()
                         ) {
-                            throw new RuntimeException(
-                                'Nomor pembayaran supplier sudah digunakan. Silakan simpan kembali.'
-                            );
+                            throw ValidationException::withMessages([
+                                'nomor_pembayaran' =>
+                                    'Nomor pembayaran supplier sudah digunakan. Silakan simpan kembali.',
+                            ]);
                         }
 
                         /*
@@ -587,6 +641,9 @@ class PembayaranSupplierController extends Controller
 
                         $pembayaran =
                             PembayaranSupplier::create([
+                                'idempotency_key' =>
+                                    $validated['idempotency_key'],
+
                                 'nomor_pembayaran' =>
                                     $nomorPembayaran,
 
@@ -692,9 +749,10 @@ class PembayaranSupplierController extends Controller
                             > (float) $invoice->total
                             + 0.01
                         ) {
-                            throw new RuntimeException(
-                                'Total pembayaran melebihi total Invoice Supplier.'
-                            );
+                            throw ValidationException::withMessages([
+                                'jumlah_bayar' =>
+                                    'Total pembayaran melebihi total Invoice Supplier.',
+                            ]);
                         }
 
                         $sisaUtang =
@@ -713,9 +771,10 @@ class PembayaranSupplierController extends Controller
                         }
 
                         if ($sisaUtang < 0) {
-                            throw new RuntimeException(
-                                'Sisa utang menjadi negatif. Transaksi dihentikan.'
-                            );
+                            throw ValidationException::withMessages([
+                                'jumlah_bayar' =>
+                                    'Sisa utang menjadi negatif. Transaksi dihentikan.',
+                            ]);
                         }
 
                         /*
@@ -776,6 +835,22 @@ class PembayaranSupplierController extends Controller
         ) {
             throw $e;
 
+        } catch (\Illuminate\Database\QueryException $e) {
+            report($e);
+
+            return back()
+                ->withInput()
+                ->with(
+                    'error',
+                    'Gagal mencatat pembayaran supplier karena terjadi masalah pada penyimpanan data. Periksa data dan coba lagi.'
+                );
+
+        } catch (RuntimeException $e) {
+            // Pesan KasBankService/SystemAccountingService untuk aturan bisnis.
+            return back()
+                ->withInput()
+                ->with('error', $e->getMessage());
+
         } catch (\Throwable $e) {
             report($e);
 
@@ -783,8 +858,7 @@ class PembayaranSupplierController extends Controller
                 ->withInput()
                 ->with(
                     'error',
-                    'Gagal mencatat pembayaran supplier: '
-                    . $e->getMessage()
+                    'Gagal mencatat pembayaran supplier. Periksa kembali data dan coba lagi. Jika masalah berlanjut, hubungi administrator.'
                 );
         }
 
@@ -795,7 +869,9 @@ class PembayaranSupplierController extends Controller
             )
             ->with(
                 'success',
-                'Pembayaran supplier berhasil dicatat. Utang, saldo Kas/Bank, dan jurnal accounting telah diperbarui.'
+                $alreadyProcessed
+                    ? 'Permintaan pembayaran ini sudah diproses sebelumnya. Tidak ada pembayaran, mutasi, atau jurnal baru yang dibuat.'
+                    : 'Pembayaran supplier berhasil dicatat. Utang, saldo Kas/Bank, dan jurnal accounting telah diperbarui.'
             );
     }
 
@@ -940,6 +1016,26 @@ class PembayaranSupplierController extends Controller
                 'error',
                 'Pembayaran Supplier tidak dapat dihapus langsung karena sudah memengaruhi Utang, Kas/Bank, dan jurnal. Gunakan mekanisme reversal.'
             );
+    }
+
+    /**
+     * Memastikan token idempotensi hanya dapat mengulang payload pembayaran yang sama.
+     */
+    private function matchesIdempotencyPayload(
+        PembayaranSupplier $payment,
+        array $validated,
+        ?int $userId
+    ): bool {
+        $normalizeText = static fn ($value): string => trim((string) ($value ?? ''));
+
+        return (int) $payment->invoice_supplier_id === (int) $validated['invoice_supplier_id']
+            && Carbon::parse($payment->tanggal_pembayaran)->toDateString() === Carbon::parse($validated['tanggal_pembayaran'])->toDateString()
+            && round((float) $payment->jumlah_bayar, 2) === round((float) $validated['jumlah_bayar'], 2)
+            && (string) $payment->metode_pembayaran === (string) $validated['metode_pembayaran']
+            && (int) $payment->rekening_kas_bank_id === (int) $validated['rekening_kas_bank_id']
+            && $normalizeText($payment->referensi) === $normalizeText($validated['referensi'] ?? null)
+            && $normalizeText($payment->catatan) === $normalizeText($validated['catatan'] ?? null)
+            && (int) ($payment->created_by ?? 0) === (int) ($userId ?? 0);
     }
 
     /*

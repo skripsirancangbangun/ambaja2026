@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Satuan;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 
 class SatuanController extends Controller
@@ -58,7 +59,18 @@ class SatuanController extends Controller
 
     public function destroy(Satuan $satuan)
     {
-        $satuan->delete();
+        try {
+            $satuan->delete();
+        } catch (QueryException $e) {
+            report($e);
+
+            return redirect()
+                ->route('satuan.index')
+                ->with(
+                    'error',
+                    'Satuan tidak dapat dihapus karena masih digunakan oleh barang atau data terkait. Nonaktifkan satuan jika tidak ingin digunakan lagi.'
+                );
+        }
 
         return redirect()
             ->route('satuan.index')

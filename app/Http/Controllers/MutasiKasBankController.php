@@ -144,23 +144,51 @@ class MutasiKasBankController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $saldoRekenings = $rekeningKasBanks->map(function ($rekening) {
+        /*
+        |--------------------------------------------------------------------------
+        | SALDO REKENING SAAT INI
+        |--------------------------------------------------------------------------
+        |
+        | Gunakan rumus yang sama dengan halaman Rekening Kas/Bank:
+        |
+        | Saldo awal + total debit mutasi - total kredit mutasi.
+        |
+        | Jangan mengambil saldo dari mutasi terakhir karena saldo_awal dapat
+        | disinkronkan/dikoreksi setelah mutasi lama tercatat. Kolom `saldo`
+        | pada setiap mutasi tetap dipertahankan sebagai saldo historis mutasi.
+        | Ringkasan dihitung secara agregat agar tidak menjalankan query per rekening.
+        |
+        */
 
-            $mutasiTerakhir = MutasiKasBank::query()
-                ->where(
-                    'rekening_kas_bank_id',
-                    $rekening->id
-                )
-                ->orderByDesc('tanggal')
-                ->orderByDesc('id')
-                ->first();
+        $ringkasanMutasi = MutasiKasBank::query()
+            ->selectRaw('
+                rekening_kas_bank_id,
+                COALESCE(SUM(debit), 0) AS total_debit,
+                COALESCE(SUM(kredit), 0) AS total_kredit
+            ')
+            ->groupBy('rekening_kas_bank_id')
+            ->get()
+            ->keyBy('rekening_kas_bank_id');
 
-            $rekening->saldo_saat_ini = $mutasiTerakhir
-                ? (float) $mutasiTerakhir->saldo
-                : (float) $rekening->saldo_awal;
+        $saldoRekenings = $rekeningKasBanks->map(
+            function ($rekening) use ($ringkasanMutasi) {
+                $ringkasan = $ringkasanMutasi->get($rekening->id);
 
-            return $rekening;
-        });
+                $saldoAwal = (float) $rekening->saldo_awal;
+                $totalDebit = (float) ($ringkasan?->total_debit ?? 0);
+                $totalKredit = (float) ($ringkasan?->total_kredit ?? 0);
+
+                $rekening->saldo_saat_ini = round(
+                    $saldoAwal + $totalDebit - $totalKredit,
+                    2
+                );
+
+                $rekening->total_debit_mutasi = $totalDebit;
+                $rekening->total_kredit_mutasi = $totalKredit;
+
+                return $rekening;
+            }
+        );
 
         $totalSaldo = $saldoRekenings->sum(
             'saldo_saat_ini'

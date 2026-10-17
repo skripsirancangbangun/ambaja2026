@@ -6,7 +6,9 @@ use App\Models\Barang;
 use App\Models\Gudang;
 use App\Models\MutasiStok;
 use App\Models\StokGudang;
+use App\Models\StokAwalImport;
 use App\Services\InventoryService;
+use App\Services\StokAwalAccountingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -87,7 +89,7 @@ class StokBarangController extends Controller
                     ->whereHas('barang', function ($q) {
 
                         $q->whereRaw(
-                            'stok_gudangs.qty <= barangs.min_stok'
+                            'stok_gudangs.qty <= barangs.minimum_stok'
                         );
                     });
             }
@@ -208,440 +210,135 @@ class StokBarangController extends Controller
 
     public function importStokAwal(
         Request $request,
-        InventoryService $inventoryService
+        InventoryService $inventoryService,
+        StokAwalAccountingService $accountingService
     ) {
         $validated = $request->validate([
-            'file_stok_awal' =>
-                'required|file|mimes:csv,txt|max:5120',
+            'file_stok_awal' => 'required|file|mimes:csv,txt|max:5120',
         ]);
+        $file = $validated['file_stok_awal'];
+        $fileHash = hash_file('sha256', $file->getRealPath());
 
-        $file = $validated[
-            'file_stok_awal'
-        ];
+        if (!$fileHash) {
+            return back()->with('error', 'File CSV tidak dapat diverifikasi.');
+        }
+        if (StokAwalImport::where('file_hash', $fileHash)->exists()) {
+            return back()->with('error', 'File dengan isi yang sama sudah pernah diproses. Tidak ada stok yang diubah.');
+        }
 
-        $handle = fopen(
-            $file->getRealPath(),
-            'r'
-        );
-
+        $handle = fopen($file->getRealPath(), 'r');
         if (!$handle) {
-
-            return back()->with(
-                'error',
-                'File stok awal tidak dapat dibaca.'
-            );
+            return back()->with('error', 'File stok awal tidak dapat dibaca.');
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | BACA HEADER
-        |--------------------------------------------------------------------------
-        */
+        try {
+            $header = fgetcsv($handle);
+            if (!$header) {
+                return back()->with('error', 'File CSV kosong atau tidak memiliki header.');
+            }
+            $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $header[0]);
+            $header = array_map(fn ($v) => strtolower(trim((string) $v)), $header);
+            $required = ['kode_barang', 'kode_gudang', 'qty', 'harga_satuan'];
+            if (count($header) !== count(array_unique($header))) {
+                return back()->with('error', 'Header CSV memiliki nama kolom duplikat.');
+            }
+            foreach ($required as $column) {
+                if (!in_array($column, $header, true)) {
+                    return back()->with('error', "Kolom {$column} tidak ditemukan pada file import.");
+                }
+            }
 
-        $header = fgetcsv($handle);
+            $rows = [];
+            $line = 1;
+            while (($row = fgetcsv($handle)) !== false) {
+                $line++;
+                if (count(array_filter($row, fn ($v) => trim((string) $v) !== '')) === 0) continue;
+                if (count($row) !== count($header)) {
+                    return back()->with('error', "Format kolom tidak sesuai pada baris {$line}.");
+                }
+                $data = array_combine($header, $row);
+                $kode = trim((string) ($data['kode_barang'] ?? ''));
+                $kodeGudang = trim((string) ($data['kode_gudang'] ?? ''));
+                $qtyRaw = trim((string) ($data['qty'] ?? ''));
+                $hargaRaw = trim((string) ($data['harga_satuan'] ?? ''));
+                if ($kode === '' || $kodeGudang === '') {
+                    return back()->with('error', "Kode barang/gudang kosong pada baris {$line}.");
+                }
+                if (!is_numeric($qtyRaw) || !is_numeric($hargaRaw)) {
+                    return back()->with('error', "Qty dan harga_satuan harus berupa angka pada baris {$line}.");
+                }
+                $qty = round((float) $qtyRaw, 2);
+                $harga = round((float) $hargaRaw, 2);
+                if ($qty <= 0 || $harga <= 0) {
+                    return back()->with('error', "Qty dan harga_satuan harus lebih dari 0 pada baris {$line}.");
+                }
+                $key = strtoupper($kode).'|'.strtoupper($kodeGudang);
+                if (isset($rows[$key])) {
+                    return back()->with('error', "Barang-gudang duplikat pada baris {$line}.");
+                }
+                $barang = Barang::where('kode_barang', $kode)->first();
+                if (!$barang) return back()->with('error', "Barang {$kode} tidak ditemukan pada baris {$line}.");
+                $gudang = Gudang::where('kode_gudang', $kodeGudang)->first();
+                if (!$gudang) return back()->with('error', "Gudang {$kodeGudang} tidak ditemukan pada baris {$line}.");
 
-        if (!$header) {
-
+                $rows[$key] = [
+                    'line' => $line, 'barang_id' => (int) $barang->id,
+                    'kode_barang' => $barang->kode_barang, 'nama_barang' => $barang->nama_barang,
+                    'gudang_id' => (int) $gudang->id, 'kode_gudang' => $gudang->kode_gudang,
+                    'qty' => $qty, 'harga_satuan' => $harga,
+                ];
+            }
             fclose($handle);
+            $handle = null;
+            $preparedRows = array_values($rows);
+            if (!$preparedRows) return back()->with('error', 'Tidak ada data stok yang dapat diimport.');
 
-            return back()->with(
-                'error',
-                'File CSV kosong atau tidak memiliki header.'
-            );
+            DB::transaction(function () use ($preparedRows, $fileHash, $inventoryService, $accountingService) {
+                $batch = StokAwalImport::create([
+                    'nomor_import' => 'SA-'.now()->format('YmdHis').'-'.strtoupper(substr($fileHash, 0, 6)),
+                    'tanggal' => now(), 'file_hash' => $fileHash,
+                    'total_qty' => 0, 'total_nilai' => 0, 'jurnal_id' => null,
+                    'created_by' => auth()->id(),
+                ]);
+                $totalQty = 0.0;
+                $totalNilai = 0.0;
+
+                foreach ($preparedRows as $data) {
+                    $saldoAda = StokGudang::where('barang_id', $data['barang_id'])
+                        ->where('gudang_id', $data['gudang_id'])->lockForUpdate()->exists();
+                    $mutasiAda = MutasiStok::where('barang_id', $data['barang_id'])
+                        ->where('gudang_id', $data['gudang_id'])->lockForUpdate()->exists();
+                    if ($saldoAda || $mutasiAda) {
+                        throw new \RuntimeException("{$data['kode_barang']} sudah memiliki saldo atau riwayat mutasi di gudang {$data['kode_gudang']}. Seluruh import dibatalkan.");
+                    }
+                    $totalQty += $data['qty'];
+                    $totalNilai += round($data['qty'] * $data['harga_satuan'], 2);
+                    $inventoryService->stokMasuk(
+                        barangId: $data['barang_id'], gudangId: $data['gudang_id'],
+                        qty: $data['qty'], hargaSatuan: $data['harga_satuan'],
+                        referenceType: 'STOK_AWAL_IMPORT', referenceId: (int) $batch->id,
+                        keterangan: 'Import stok awal '.$batch->nomor_import,
+                        tipeMutasi: 'PENYESUAIAN', tanggalTransaksi: $batch->tanggal
+                    );
+                }
+
+                $totalQty = round($totalQty, 2);
+                $totalNilai = round($totalNilai, 2);
+                $jurnal = $accountingService->createOpeningInventoryJournal($batch, $totalNilai);
+                $batch->update(['total_qty' => $totalQty, 'total_nilai' => $totalNilai, 'jurnal_id' => $jurnal->id]);
+            }, 3);
+        } catch (\Throwable $e) {
+            report($e);
+            $message = $e instanceof \RuntimeException
+                ? $e->getMessage()
+                : 'Import stok awal gagal. Tidak ada perubahan yang disimpan. Periksa log Laravel untuk detail teknis.';
+            return back()->with('error', $message);
+        } finally {
+            if (is_resource($handle)) fclose($handle);
         }
 
-        /*
-         * Hilangkan BOM dari kolom pertama.
-         */
-        $header[0] = preg_replace(
-            '/^\xEF\xBB\xBF/',
-            '',
-            $header[0]
-        );
-
-        $header = array_map(
-            fn ($value) =>
-                strtolower(
-                    trim($value)
-                ),
-            $header
-        );
-
-        $requiredColumns = [
-            'kode_barang',
-            'kode_gudang',
-            'qty',
-            'harga_satuan',
-        ];
-
-        foreach ($requiredColumns as $column) {
-
-            if (!in_array(
-                $column,
-                $header
-            )) {
-
-                fclose($handle);
-
-                return back()->with(
-                    'error',
-                    "Kolom {$column} tidak ditemukan pada file import."
-                );
-            }
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | BACA SELURUH BARIS
-        |--------------------------------------------------------------------------
-        */
-
-        $rows = [];
-
-        $lineNumber = 1;
-
-        while (
-            ($row = fgetcsv($handle))
-            !== false
-        ) {
-
-            $lineNumber++;
-
-            /*
-             * Abaikan baris kosong.
-             */
-            if (
-                count(
-                    array_filter(
-                        $row,
-                        fn ($value) =>
-                            trim((string) $value) !== ''
-                    )
-                ) === 0
-            ) {
-                continue;
-            }
-
-            /*
-             * Jumlah kolom harus sesuai header.
-             */
-            if (
-                count($row)
-                !==
-                count($header)
-            ) {
-
-                fclose($handle);
-
-                return back()->with(
-                    'error',
-                    "Format kolom tidak sesuai pada baris {$lineNumber}."
-                );
-            }
-
-            $data = array_combine(
-                $header,
-                $row
-            );
-
-            $rows[] = [
-                'line' =>
-                    $lineNumber,
-
-                'kode_barang' =>
-                    trim(
-                        (string) $data[
-                            'kode_barang'
-                        ]
-                    ),
-
-                'kode_gudang' =>
-                    trim(
-                        (string) $data[
-                            'kode_gudang'
-                        ]
-                    ),
-
-                'qty' =>
-                    trim(
-                        (string) $data['qty']
-                    ),
-
-                'harga_satuan' =>
-                    trim(
-                        (string) $data[
-                            'harga_satuan'
-                        ]
-                    ),
-            ];
-        }
-
-        fclose($handle);
-
-        if (empty($rows)) {
-
-            return back()->with(
-                'error',
-                'Tidak ada data stok yang dapat diimport.'
-            );
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | CEGAH DUPLIKAT DALAM FILE
-        |--------------------------------------------------------------------------
-        */
-
-        $kombinasiFile = [];
-
-        foreach ($rows as $row) {
-
-            $key =
-                strtoupper(
-                    $row['kode_barang']
-                )
-                . '|'
-                . strtoupper(
-                    $row['kode_gudang']
-                );
-
-            if (isset(
-                $kombinasiFile[$key]
-            )) {
-
-                return back()->with(
-                    'error',
-                    'Barang dan gudang yang sama ditemukan lebih dari satu kali '
-                    . "pada file import. Baris {$row['line']}."
-                );
-            }
-
-            $kombinasiFile[$key] =
-                true;
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDASI SEMUA DATA TERLEBIH DAHULU
-        |--------------------------------------------------------------------------
-        */
-
-        $preparedRows = [];
-
-        foreach ($rows as $row) {
-
-            $line =
-                $row['line'];
-
-            if (
-                $row['kode_barang']
-                === ''
-            ) {
-
-                return back()->with(
-                    'error',
-                    "Kode barang kosong pada baris {$line}."
-                );
-            }
-
-            if (
-                $row['kode_gudang']
-                === ''
-            ) {
-
-                return back()->with(
-                    'error',
-                    "Kode gudang kosong pada baris {$line}."
-                );
-            }
-
-            if (
-                !is_numeric(
-                    $row['qty']
-                )
-                ||
-                (float) $row['qty']
-                <= 0
-            ) {
-
-                return back()->with(
-                    'error',
-                    "Qty harus lebih dari 0 pada baris {$line}."
-                );
-            }
-
-            if (
-                !is_numeric(
-                    $row['harga_satuan']
-                )
-                ||
-                (float) $row[
-                    'harga_satuan'
-                ] < 0
-            ) {
-
-                return back()->with(
-                    'error',
-                    "Harga satuan tidak valid pada baris {$line}."
-                );
-            }
-
-            $barang = Barang::where(
-                'kode_barang',
-                $row['kode_barang']
-            )->first();
-
-            if (!$barang) {
-
-                return back()->with(
-                    'error',
-                    "Barang dengan kode {$row['kode_barang']} "
-                    . "tidak ditemukan. Baris {$line}."
-                );
-            }
-
-            $gudang = Gudang::where(
-                'kode_gudang',
-                $row['kode_gudang']
-            )->first();
-
-            if (!$gudang) {
-
-                return back()->with(
-                    'error',
-                    "Gudang dengan kode {$row['kode_gudang']} "
-                    . "tidak ditemukan. Baris {$line}."
-                );
-            }
-
-            /*
-            |--------------------------------------------------------------------------
-            | CEK RIWAYAT MUTASI
-            |--------------------------------------------------------------------------
-            |
-            | Kalau barang + gudang sudah punya mutasi,
-            | maka stok awal tidak boleh diimport lagi.
-            |
-            */
-
-            $sudahAdaMutasi =
-                MutasiStok::where(
-                    'barang_id',
-                    $barang->id
-                )
-                    ->where(
-                        'gudang_id',
-                        $gudang->id
-                    )
-                    ->exists();
-
-            if ($sudahAdaMutasi) {
-
-                return back()->with(
-                    'error',
-                    "{$barang->kode_barang} - {$barang->nama_barang} "
-                    . "pada gudang {$gudang->nama_gudang} "
-                    . 'sudah memiliki riwayat stok sehingga tidak dapat '
-                    . "diimport sebagai stok awal. Baris {$line}."
-                );
-            }
-
-            $preparedRows[] = [
-                'barang' =>
-                    $barang,
-
-                'gudang' =>
-                    $gudang,
-
-                'qty' =>
-                    round(
-                        (float) $row['qty'],
-                        2
-                    ),
-
-                'harga_satuan' =>
-                    round(
-                        (float) $row[
-                            'harga_satuan'
-                        ],
-                        2
-                    ),
-            ];
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | PROSES IMPORT
-        |--------------------------------------------------------------------------
-        */
-
-        DB::transaction(function () use (
-            $preparedRows,
-            $inventoryService
-        ) {
-
-            foreach (
-                $preparedRows
-                as $data
-            ) {
-
-                /*
-                 * Gunakan PENYESUAIAN supaya kompatibel
-                 * dengan tipe mutasi yang sudah tersedia.
-                 *
-                 * Reference Type membedakan bahwa transaksi
-                 * ini berasal dari STOK AWAL.
-                 */
-
-                $inventoryService->stokMasuk(
-
-                    barangId:
-                        (int) $data[
-                            'barang'
-                        ]->id,
-
-                    gudangId:
-                        (int) $data[
-                            'gudang'
-                        ]->id,
-
-                    qty:
-                        (float) $data[
-                            'qty'
-                        ],
-
-                    hargaSatuan:
-                        (float) $data[
-                            'harga_satuan'
-                        ],
-
-                    referenceType:
-                        'STOK_AWAL',
-
-                    /*
-                     * Tidak ada header transaksi khusus
-                     * untuk stok awal saat ini.
-                     */
-                    referenceId:
-                        0,
-
-                    keterangan:
-                        'Import Stok Awal',
-
-                    tipeMutasi:
-                        'PENYESUAIAN'
-                );
-            }
-        });
-
-        return redirect()
-            ->route(
-                'stok-barang.index'
-            )
-            ->with(
-                'success',
-                count($preparedRows)
-                . ' data stok awal berhasil diimport.'
-            );
+        return redirect()->route('stok-barang.index')
+            ->with('success', count($preparedRows).' data stok awal berhasil diimport beserta jurnal pembukaan persediaan.');
     }
+
 }

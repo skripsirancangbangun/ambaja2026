@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\KategoriBarang;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 
 class KategoriBarangController extends Controller
@@ -38,7 +39,7 @@ class KategoriBarangController extends Controller
     public function edit(KategoriBarang $kategori_barang)
     {
         return view('kategori-barang.edit', [
-            'kategori' => $kategori_barang
+            'kategori' => $kategori_barang,
         ]);
     }
 
@@ -60,7 +61,18 @@ class KategoriBarangController extends Controller
 
     public function destroy(KategoriBarang $kategori_barang)
     {
-        $kategori_barang->delete();
+        try {
+            $kategori_barang->delete();
+        } catch (QueryException $e) {
+            report($e);
+
+            return redirect()
+                ->route('kategori-barang.index')
+                ->with(
+                    'error',
+                    'Kategori tidak dapat dihapus karena masih digunakan oleh barang atau data terkait. Nonaktifkan kategori jika tidak ingin digunakan lagi.'
+                );
+        }
 
         return redirect()
             ->route('kategori-barang.index')

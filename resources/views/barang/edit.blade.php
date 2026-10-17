@@ -27,17 +27,25 @@
 
 
     @if($errors->any())
+
         <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+
             <p class="text-sm font-semibold text-red-700">
                 Periksa kembali data yang diinput.
             </p>
 
             <ul class="mt-2 list-disc space-y-1 pl-5 text-xs text-red-600">
+
                 @foreach($errors->all() as $error)
+
                     <li>{{ $error }}</li>
+
                 @endforeach
+
             </ul>
+
         </div>
+
     @endif
 
 
@@ -53,7 +61,8 @@
 
         <div class="grid grid-cols-1 gap-5 p-6 md:grid-cols-2">
 
-            {{-- KODE --}}
+
+            {{-- KODE BARANG --}}
             <div>
 
                 <label
@@ -76,7 +85,7 @@
             </div>
 
 
-            {{-- NAMA --}}
+            {{-- NAMA BARANG --}}
             <div>
 
                 <label
@@ -121,12 +130,13 @@
 
                         <option
                             value="{{ $kategori->id }}"
-                            {{ old(
-                                'kategori_barang_id',
-                                $barang->kategori_barang_id
-                            ) == $kategori->id
-                                ? 'selected'
-                                : ''
+                            {{
+                                old(
+                                    'kategori_barang_id',
+                                    $barang->kategori_barang_id
+                                ) == $kategori->id
+                                    ? 'selected'
+                                    : ''
                             }}
                         >
                             {{ $kategori->nama_kategori }}
@@ -161,12 +171,13 @@
 
                         <option
                             value="{{ $satuan->id }}"
-                            {{ old(
-                                'satuan_id',
-                                $barang->satuan_id
-                            ) == $satuan->id
-                                ? 'selected'
-                                : ''
+                            {{
+                                old(
+                                    'satuan_id',
+                                    $barang->satuan_id
+                                ) == $satuan->id
+                                    ? 'selected'
+                                    : ''
                             }}
                         >
                             {{ $satuan->nama_satuan }}
@@ -221,7 +232,7 @@
             </div>
 
 
-            {{-- HARGA BELI --}}
+            {{-- HARGA BELI DEFAULT --}}
             <div>
 
                 <label
@@ -234,7 +245,9 @@
 
                 <div class="relative">
 
-                    <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+                    <span
+                        class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400"
+                    >
                         Rp
                     </span>
 
@@ -255,20 +268,78 @@
                 </div>
 
                 <p class="mt-1.5 text-xs text-slate-400">
-                    Harga referensi pembelian dan default pada Purchase Order.
+                    Harga referensi pembelian/default saat membuat Purchase Order.
+                    Tidak sama dengan HPP aktual.
                 </p>
 
             </div>
 
 
-            {{-- MARGIN --}}
+            {{-- HPP AKTUAL --}}
+            <div>
+
+                <label
+                    for="hpp_aktual"
+                    class="mb-2 block text-sm font-medium text-slate-700"
+                >
+                    HPP Aktual
+                </label>
+
+                <div class="relative">
+
+                    <span
+                        class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400"
+                    >
+                        Rp
+                    </span>
+
+                    <input
+                        type="text"
+                        id="hpp_aktual"
+                        value="{{ number_format(
+                            $hppAktual,
+                            2,
+                            ',',
+                            '.'
+                        ) }}"
+                        class="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3.5 text-sm font-semibold text-slate-700 outline-none"
+                        readonly
+                    >
+
+                </div>
+
+                @if($stokQtyTotal > 0)
+
+                    <p class="mt-1.5 text-xs text-slate-400">
+                        Moving average gabungan stok saat ini.
+                        Total stok:
+                        {{ number_format(
+                            $stokQtyTotal,
+                            2,
+                            ',',
+                            '.'
+                        ) }}.
+                    </p>
+
+                @else
+
+                    <p class="mt-1.5 text-xs text-slate-400">
+                        Belum ada stok. Untuk sementara menggunakan Harga Beli Default sebagai referensi.
+                    </p>
+
+                @endif
+
+            </div>
+
+
+            {{-- TARGET MARKUP --}}
             <div>
 
                 <label
                     for="margin_persen"
                     class="mb-2 block text-sm font-medium text-slate-700"
                 >
-                    Margin
+                    Target Markup
                     <span class="text-red-500">*</span>
                 </label>
 
@@ -283,25 +354,28 @@
                             $barang->margin_persen
                         ) }}"
                         min="0"
+                        max="999.99"
                         step="0.01"
                         class="w-full rounded-lg border border-slate-300 py-2.5 pl-3.5 pr-10 text-sm outline-none transition focus:border-[#32AAA6] focus:ring-2 focus:ring-teal-100"
                         required
                     >
 
-                    <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+                    <span
+                        class="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400"
+                    >
                         %
                     </span>
 
                 </div>
 
-                <p class="mt-1.5 text-xs text-slate-400">
-                    Persentase margin dari harga beli.
+                <p class="mt-1.5 text-xs font-medium text-emerald-600">
+                    Nilai ini adalah setting target dan tidak berubah otomatis ketika harga pembelian/HPP berubah.
                 </p>
 
             </div>
 
 
-            {{-- MIN STOK --}}
+            {{-- MINIMUM STOK --}}
             <div>
 
                 <label
@@ -333,25 +407,33 @@
             </div>
 
 
-            {{-- HARGA JUAL --}}
+            {{-- HARGA JUAL SARAN --}}
             <div>
 
                 <label
-                    for="harga_jual_preview"
+                    for="harga_jual_saran"
                     class="mb-2 block text-sm font-medium text-slate-700"
                 >
-                    Harga Jual
+                    Harga Jual Saran
                 </label>
 
                 <div class="relative">
 
-                    <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+                    <span
+                        class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400"
+                    >
                         Rp
                     </span>
 
                     <input
                         type="text"
-                        id="harga_jual_preview"
+                        id="harga_jual_saran"
+                        value="{{ number_format(
+                            $hargaJualSaran,
+                            2,
+                            ',',
+                            '.'
+                        ) }}"
                         class="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3.5 text-sm font-semibold text-[#15235F] outline-none"
                         readonly
                     >
@@ -359,8 +441,117 @@
                 </div>
 
                 <p class="mt-1.5 text-xs text-slate-400">
-                    Dihitung otomatis dari harga beli + margin.
+                    HPP aktual + Target Markup.
+                    Perubahan angka ini tidak otomatis mengubah Harga Jual Aktif.
                 </p>
+
+            </div>
+
+
+            {{-- HARGA JUAL AKTIF --}}
+            <div>
+
+                <div class="flex items-end justify-between gap-3">
+
+                    <label
+                        for="harga_jual"
+                        class="mb-2 block text-sm font-medium text-slate-700"
+                    >
+                        Harga Jual Aktif
+                        <span class="text-red-500">*</span>
+                    </label>
+
+                    <button
+                        type="button"
+                        id="gunakan_harga_saran"
+                        class="mb-2 text-xs font-semibold text-[#15235F] transition hover:text-[#32AAA6]"
+                    >
+                        Gunakan Harga Saran
+                    </button>
+
+                </div>
+
+                <div class="relative">
+
+                    <span
+                        class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400"
+                    >
+                        Rp
+                    </span>
+
+                    <input
+                        type="number"
+                        id="harga_jual"
+                        name="harga_jual"
+                        value="{{ old(
+                            'harga_jual',
+                            $barang->harga_jual
+                        ) }}"
+                        min="0"
+                        step="0.01"
+                        class="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-3.5 text-sm font-semibold text-[#15235F] outline-none transition focus:border-[#32AAA6] focus:ring-2 focus:ring-teal-100"
+                        required
+                    >
+
+                </div>
+
+                <p class="mt-1.5 text-xs text-slate-400">
+                    Harga ini tidak berubah sampai user mengubahnya atau menekan Gunakan Harga Saran.
+                </p>
+
+            </div>
+
+
+            {{-- INFORMASI MARKUP AKTUAL --}}
+            <div class="md:col-span-2">
+
+                <div
+                    class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+                >
+
+                    <div
+                        class="flex flex-wrap items-center justify-between gap-3"
+                    >
+
+                        <div>
+
+                            <p class="text-sm font-medium text-slate-700">
+                                Markup Aktual Harga Jual
+                            </p>
+
+                            <p class="mt-0.5 text-xs text-slate-400">
+                                Hanya informasi berdasarkan Harga Jual Aktif dibanding HPP aktual.
+                                Angka ini boleh berubah saat HPP berubah dan bukan Target Markup.
+                            </p>
+
+                        </div>
+
+                        <div
+                            id="markup_aktual"
+                            class="text-lg font-semibold text-[#15235F]"
+                        >
+                            -
+                        </div>
+
+                    </div>
+
+                </div>
+
+                {{-- PERINGATAN HPP / MARGIN --}}
+                <div
+                    id="peringatan_harga"
+                    class="hidden rounded-xl border px-4 py-3"
+                >
+                    <p
+                        id="peringatan_harga_judul"
+                        class="text-sm font-semibold"
+                    ></p>
+
+                    <p
+                        id="peringatan_harga_text"
+                        class="mt-1 text-xs"
+                    ></p>
+                </div>
 
             </div>
 
@@ -383,12 +574,15 @@
 
                     <option
                         value="1"
-                        {{ old(
-                            'is_active',
-                            $barang->is_active ? '1' : '0'
-                        ) == '1'
-                            ? 'selected'
-                            : ''
+                        {{
+                            old(
+                                'is_active',
+                                $barang->is_active
+                                    ? '1'
+                                    : '0'
+                            ) == '1'
+                                ? 'selected'
+                                : ''
                         }}
                     >
                         Aktif
@@ -396,12 +590,15 @@
 
                     <option
                         value="0"
-                        {{ old(
-                            'is_active',
-                            $barang->is_active ? '1' : '0'
-                        ) == '0'
-                            ? 'selected'
-                            : ''
+                        {{
+                            old(
+                                'is_active',
+                                $barang->is_active
+                                    ? '1'
+                                    : '0'
+                            ) == '0'
+                                ? 'selected'
+                                : ''
                         }}
                     >
                         Nonaktif
@@ -411,11 +608,14 @@
 
             </div>
 
+
         </div>
 
 
         {{-- ACTION --}}
-        <div class="flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
+        <div
+            class="flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4"
+        >
 
             <a
                 href="{{ route('barang.index') }}"
@@ -433,59 +633,369 @@
 
         </div>
 
+
     </form>
 
 </div>
 
 
 <script>
-    const hargaBeliInput =
-        document.getElementById('harga_beli_default');
+document.addEventListener(
+    'DOMContentLoaded',
+    function () {
 
-    const marginInput =
-        document.getElementById('margin_persen');
+        const hargaBeliInput =
+            document.getElementById(
+                'harga_beli_default'
+            );
 
-    const hargaJualPreview =
-        document.getElementById('harga_jual_preview');
+        const markupInput =
+            document.getElementById(
+                'margin_persen'
+            );
+
+        const hargaJualInput =
+            document.getElementById(
+                'harga_jual'
+            );
+
+        const hargaJualSaranInput =
+            document.getElementById(
+                'harga_jual_saran'
+            );
+
+        const gunakanHargaSaranButton =
+            document.getElementById(
+                'gunakan_harga_saran'
+            );
+
+        const markupAktualText =
+            document.getElementById(
+                'markup_aktual'
+            );
+
+        const peringatanHarga =
+            document.getElementById(
+                'peringatan_harga'
+            );
+
+        const peringatanHargaJudul =
+            document.getElementById(
+                'peringatan_harga_judul'
+            );
+
+        const peringatanHargaText =
+            document.getElementById(
+                'peringatan_harga_text'
+            );
 
 
-    function formatRupiah(value) {
-        return new Intl.NumberFormat('id-ID', {
-            maximumFractionDigits: 2
-        }).format(value || 0);
+        /*
+         * HPP saat halaman dibuka.
+         *
+         * HPP tidak diubah oleh form master barang.
+         */
+        const hppAktual =
+            Number(
+                @json((float) $hppAktual)
+            );
+
+
+        const stokQtyTotal =
+            Number(
+                @json((float) $stokQtyTotal)
+            );
+
+
+        function angka(value) {
+
+            const hasil =
+                parseFloat(value);
+
+            return Number.isFinite(hasil)
+                ? hasil
+                : 0;
+        }
+
+
+        function formatRupiah(value) {
+
+            return new Intl.NumberFormat(
+                'id-ID',
+                {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2,
+                }
+            ).format(
+                angka(value)
+            );
+        }
+
+
+        /*
+         * Kalau barang sudah memiliki stok:
+         * saran harga menggunakan HPP Moving Average.
+         *
+         * Kalau belum ada stok:
+         * gunakan Harga Beli Default.
+         */
+        function getDasarHarga() {
+
+            if (
+                stokQtyTotal > 0
+            ) {
+                return hppAktual;
+            }
+
+            return angka(
+                hargaBeliInput.value
+            );
+        }
+
+
+        function hitungHargaSaran() {
+
+            const hargaDasar =
+                getDasarHarga();
+
+            const targetMarkup =
+                angka(
+                    markupInput.value
+                );
+
+            const hargaSaran =
+                hargaDasar
+                +
+                (
+                    hargaDasar
+                    * targetMarkup
+                    / 100
+                );
+
+            hargaJualSaranInput.value =
+                formatRupiah(
+                    hargaSaran
+                );
+
+            hargaJualSaranInput.dataset.nilai =
+                hargaSaran.toFixed(2);
+
+            return hargaSaran;
+        }
+
+
+        function hitungMarkupAktual() {
+
+            const hargaDasar =
+                getDasarHarga();
+
+            const hargaJual =
+                angka(
+                    hargaJualInput.value
+                );
+
+            const targetMarkup =
+                angka(
+                    markupInput.value
+                );
+
+            if (
+                hargaDasar <= 0
+            ) {
+
+                markupAktualText.textContent =
+                    '-';
+
+                updatePeringatanHarga(
+                    hargaDasar,
+                    hargaJual,
+                    null,
+                    targetMarkup
+                );
+
+                return;
+            }
+
+            const markupAktual =
+                (
+                    (
+                        hargaJual
+                        - hargaDasar
+                    )
+                    / hargaDasar
+                )
+                * 100;
+
+            markupAktualText.textContent =
+                `${markupAktual.toFixed(2)}%`;
+
+            updatePeringatanHarga(
+                hargaDasar,
+                hargaJual,
+                markupAktual,
+                targetMarkup
+            );
+        }
+
+
+        function updatePeringatanHarga(
+            hargaDasar,
+            hargaJual,
+            markupAktual,
+            targetMarkup
+        ) {
+
+            if (
+                !peringatanHarga
+                || !peringatanHargaJudul
+                || !peringatanHargaText
+            ) {
+                return;
+            }
+
+            peringatanHarga.className =
+                'hidden rounded-xl border px-4 py-3';
+
+            peringatanHargaJudul.textContent =
+                '';
+
+            peringatanHargaText.textContent =
+                '';
+
+            if (
+                hargaDasar <= 0
+                || markupAktual === null
+            ) {
+                return;
+            }
+
+            /*
+             * Kondisi 1:
+             * Harga jual berada di bawah HPP.
+             */
+            if (
+                hargaJual < hargaDasar
+            ) {
+
+                peringatanHarga.className =
+                    'rounded-xl border border-red-200 bg-red-50 px-4 py-3';
+
+                peringatanHargaJudul.className =
+                    'text-sm font-semibold text-red-700';
+
+                peringatanHargaText.className =
+                    'mt-1 text-xs text-red-600';
+
+                peringatanHargaJudul.textContent =
+                    'Harga jual berada di bawah HPP.';
+
+                peringatanHargaText.textContent =
+                    `Harga jual Rp ${formatRupiah(hargaJual)} lebih rendah dari HPP Rp ${formatRupiah(hargaDasar)}. Barang berpotensi menghasilkan rugi kotor.`;
+
+                return;
+            }
+
+            /*
+             * Kondisi 2:
+             * Harga jual masih di atas HPP,
+             * tetapi markup aktual di bawah target.
+             */
+            if (
+                markupAktual < targetMarkup
+            ) {
+
+                peringatanHarga.className =
+                    'rounded-xl border border-amber-200 bg-amber-50 px-4 py-3';
+
+                peringatanHargaJudul.className =
+                    'text-sm font-semibold text-amber-700';
+
+                peringatanHargaText.className =
+                    'mt-1 text-xs text-amber-600';
+
+                peringatanHargaJudul.textContent =
+                    'Markup aktual berada di bawah target.';
+
+                peringatanHargaText.textContent =
+                    `Markup aktual ${markupAktual.toFixed(2)}%, sedangkan target markup ${targetMarkup.toFixed(2)}%. Periksa kembali harga jual jika diperlukan.`;
+
+                return;
+            }
+        }
+
+
+
+        /*
+         * Perubahan Harga Beli Default
+         * hanya berpengaruh ke saran harga
+         * jika barang belum memiliki stok.
+         */
+        hargaBeliInput.addEventListener(
+            'input',
+            function () {
+
+                hitungHargaSaran();
+
+                hitungMarkupAktual();
+            }
+        );
+
+
+        /*
+         * Target markup berubah:
+         * HANYA update saran.
+         *
+         * Harga jual aktif tidak disentuh.
+         */
+        markupInput.addEventListener(
+            'input',
+            function () {
+
+                hitungHargaSaran();
+
+                hitungMarkupAktual();
+            }
+        );
+
+
+        /*
+         * Harga jual user berubah:
+         * hitung informasi markup aktual.
+         */
+        hargaJualInput.addEventListener(
+            'input',
+            hitungMarkupAktual
+        );
+
+
+        /*
+         * Harga jual aktif baru berubah
+         * ketika user menekan tombol ini.
+         */
+        gunakanHargaSaranButton.addEventListener(
+            'click',
+            function () {
+
+                const hargaSaran =
+                    angka(
+                        hargaJualSaranInput
+                            .dataset
+                            .nilai
+                    );
+
+                hargaJualInput.value =
+                    hargaSaran.toFixed(2);
+
+                hitungMarkupAktual();
+            }
+        );
+
+
+        hitungHargaSaran();
+
+        hitungMarkupAktual();
     }
-
-
-    function hitungHargaJual() {
-
-        const hargaBeli =
-            parseFloat(hargaBeliInput.value) || 0;
-
-        const margin =
-            parseFloat(marginInput.value) || 0;
-
-
-        const hargaJual =
-            hargaBeli + (hargaBeli * margin / 100);
-
-
-        hargaJualPreview.value =
-            formatRupiah(hargaJual);
-    }
-
-
-    hargaBeliInput.addEventListener(
-        'input',
-        hitungHargaJual
-    );
-
-    marginInput.addEventListener(
-        'input',
-        hitungHargaJual
-    );
-
-
-    hitungHargaJual();
+);
 </script>
 
 @endsection

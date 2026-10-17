@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Gudang;
 use App\Models\PenerimaanBarang;
+use App\Models\PenerimaanBarangItem;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Services\InventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class PenerimaanBarangController extends Controller
@@ -138,6 +140,33 @@ class PenerimaanBarangController extends Controller
                 ]);
             }
 
+            // Periksa ulang status gudang di dalam transaksi agar penerimaan
+            // tidak masuk ke gudang yang sudah dinonaktifkan.
+            $gudang = Gudang::query()
+                ->whereKey($validated['gudang_id'])
+                ->lockForUpdate()
+                ->first();
+
+            if (!$gudang || !$gudang->is_active) {
+                throw ValidationException::withMessages([
+                    'gudang_id' =>
+                        'Gudang tujuan tidak ditemukan atau sudah nonaktif. Pilih gudang aktif.',
+                ]);
+            }
+
+            // Lock seluruh item PO dengan urutan konsisten agar alokasi diskon
+            // header dihitung dari satu snapshot PO yang sama.
+            $poItems = PurchaseOrderItem::query()
+                ->where('purchase_order_id', $purchaseOrder->id)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            $nilaiPO = $this->hitungNilaiPersediaanPO(
+                $purchaseOrder,
+                $poItems->values()
+            );
 
             /*
             |--------------------------------------------------------------------------
@@ -186,16 +215,9 @@ class PenerimaanBarangController extends Controller
                     continue;
                 }
 
-                $poItem = PurchaseOrderItem::where(
-                    'id',
-                    $inputItem['purchase_order_item_id']
-                )
-                    ->where(
-                        'purchase_order_id',
-                        $purchaseOrder->id
-                    )
-                    ->lockForUpdate()
-                    ->first();
+                $poItem = $poItems->get(
+                    (int) $inputItem['purchase_order_item_id']
+                );
 
                 if (!$poItem) {
                     throw ValidationException::withMessages([
@@ -231,12 +253,17 @@ class PenerimaanBarangController extends Controller
                     ]);
                 }
 
-                $itemsToReceive[] = [
-                    'po_item' =>
-                        $poItem,
+                $nilaiPersediaanDiterima = $this->hitungNilaiPenerimaanItem(
+                    $poItem,
+                    $qtyDiterima,
+                    $sisa,
+                    $nilaiPO[$poItem->id]
+                );
 
-                    'qty_diterima' =>
-                        $qtyDiterima,
+                $itemsToReceive[] = [
+                    'po_item' => $poItem,
+                    'qty_diterima' => $qtyDiterima,
+                    'nilai_persediaan' => $nilaiPersediaanDiterima,
                 ];
             }
 
@@ -302,29 +329,22 @@ class PenerimaanBarangController extends Controller
                 $qtyDiterima =
                     $item['qty_diterima'];
 
-                $hargaSatuan =
-                    (float) $poItem->harga_satuan;
-
-
-                /*
-                 * Simpan detail penerimaan.
-                 */
+                // Harga PO bruto tetap disimpan sebagai harga dokumen.
+                // Nilai persediaan dicatat terpisah setelah diskon item dan
+                // alokasi diskon header diperhitungkan.
+                $hargaSatuan = (float) $poItem->harga_satuan;
+                $nilaiPersediaan = (float) $item['nilai_persediaan'];
+                $hargaSatuanPenilaian = $nilaiPersediaan / $qtyDiterima;
 
                 $penerimaanItem =
                     $penerimaan
                         ->items()
                         ->create([
-                            'purchase_order_item_id' =>
-                                $poItem->id,
-
-                            'barang_id' =>
-                                $poItem->barang_id,
-
-                            'qty_diterima' =>
-                                $qtyDiterima,
-
-                            'harga_satuan' =>
-                                $hargaSatuan,
+                            'purchase_order_item_id' => $poItem->id,
+                            'barang_id' => $poItem->barang_id,
+                            'qty_diterima' => $qtyDiterima,
+                            'harga_satuan' => $hargaSatuan,
+                            'nilai_persediaan' => $nilaiPersediaan,
                         ]);
 
 
@@ -351,7 +371,7 @@ class PenerimaanBarangController extends Controller
                         (float) $qtyDiterima,
 
                     hargaSatuan:
-                        $hargaSatuan,
+                        $hargaSatuanPenilaian,
 
                     referenceType:
                         'PENERIMAAN_BARANG',
@@ -367,7 +387,10 @@ class PenerimaanBarangController extends Controller
                         'MASUK',
 
                     tanggalTransaksi:
-                        $validated['tanggal_penerimaan']
+                        $validated['tanggal_penerimaan'],
+
+                    nilaiMasukOverride:
+                        $nilaiPersediaan
                 );
 
 
@@ -567,6 +590,190 @@ class PenerimaanBarangController extends Controller
             );
     }
 
+
+    /**
+     * Hitung biaya perolehan per item PO setelah diskon item dan alokasi
+     * diskon header. PPN tidak dimasukkan ke HPP karena diasumsikan PPN Masukan
+     * dapat dikreditkan. Jika pajak tidak dapat dikreditkan, kebijakan biaya
+     * perolehan harus ditentukan terpisah.
+     */
+    private function hitungNilaiPersediaanPO(
+        PurchaseOrder $purchaseOrder,
+        Collection $items
+    ): array {
+        $lines = [];
+        $subtotalHitung = 0.0;
+
+        foreach ($items as $item) {
+            $qty = round((float) $item->qty, 2);
+            $harga = round((float) $item->harga_satuan, 2);
+            $diskonItem = round((float) $item->diskon, 2);
+            $bruto = round($qty * $harga, 2);
+
+            if ($qty <= 0 || $harga < 0 || $diskonItem < 0 || $diskonItem > $bruto + 0.01) {
+                throw ValidationException::withMessages([
+                    'purchase_order_id' =>
+                        'Data kuantitas, harga, atau diskon pada PO tidak valid. Periksa detail PO sebelum menerima barang.',
+                ]);
+            }
+
+            $subtotalItem = round($bruto - $diskonItem, 2);
+            $subtotalHitung = round($subtotalHitung + $subtotalItem, 2);
+
+            $lines[$item->id] = [
+                'qty' => $qty,
+                'qty_dibatalkan' => round((float) $item->qty_dibatalkan, 2),
+                'subtotal' => $subtotalItem,
+                'diskon_header' => 0.0,
+                'nilai_bersih' => $subtotalItem,
+            ];
+        }
+
+        $subtotalTersimpan = round((float) $purchaseOrder->subtotal, 2);
+        if (abs($subtotalHitung - $subtotalTersimpan) > 0.01) {
+            throw ValidationException::withMessages([
+                'purchase_order_id' =>
+                    'Subtotal detail PO tidak sama dengan subtotal header. Periksa PO sebelum penerimaan diproses.',
+            ]);
+        }
+
+        $diskonHeader = round((float) $purchaseOrder->diskon, 2);
+        if ($diskonHeader < 0 || $diskonHeader > $subtotalHitung + 0.01) {
+            throw ValidationException::withMessages([
+                'purchase_order_id' =>
+                    'Diskon header PO tidak valid atau melebihi subtotal.',
+            ]);
+        }
+
+        // Alokasi proporsional dengan residu sen pada baris terakhir yang bernilai.
+        $positiveIds = [];
+        foreach ($lines as $id => $line) {
+            if ($line['subtotal'] > 0) {
+                $positiveIds[] = $id;
+            }
+        }
+
+        $lastPositiveId = empty($positiveIds) ? null : end($positiveIds);
+        $allocatedSoFar = 0.0;
+
+        foreach ($lines as $id => &$line) {
+            if ($line['subtotal'] <= 0 || $subtotalHitung <= 0 || $diskonHeader <= 0) {
+                $allocation = 0.0;
+            } elseif ($id === $lastPositiveId) {
+                $allocation = round($diskonHeader - $allocatedSoFar, 2);
+            } else {
+                $allocation = round(
+                    $diskonHeader * $line['subtotal'] / $subtotalHitung,
+                    2
+                );
+                $allocatedSoFar = round($allocatedSoFar + $allocation, 2);
+            }
+
+            if ($allocation < 0 || $allocation > $line['subtotal'] + 0.01) {
+                unset($line);
+                throw ValidationException::withMessages([
+                    'purchase_order_id' =>
+                        'Alokasi diskon PO menghasilkan nilai item yang tidak valid.',
+                ]);
+            }
+
+            $line['diskon_header'] = $allocation;
+            $line['nilai_bersih'] = round($line['subtotal'] - $allocation, 2);
+        }
+        unset($line);
+
+        foreach ($lines as $id => &$line) {
+            $qtyEfektif = round(max(0, $line['qty'] - $line['qty_dibatalkan']), 2);
+            $line['qty_efektif'] = $qtyEfektif;
+            $line['biaya_per_unit'] = $line['qty'] > 0
+                ? $line['nilai_bersih'] / $line['qty']
+                : 0.0;
+            $line['target_nilai_diterima'] = $line['qty'] > 0
+                ? round($line['nilai_bersih'] * $qtyEfektif / $line['qty'], 2)
+                : 0.0;
+        }
+        unset($line);
+
+        return $lines;
+    }
+
+    /**
+     * Tentukan nilai penerimaan. Penerimaan parsial menggunakan biaya bersih
+     * per unit; penerimaan terakhir menyerap residu pembulatan agar total nilai
+     * yang diterima sama dengan nilai bersih PO untuk kuantitas yang tidak dibatalkan.
+     */
+    private function hitungNilaiPenerimaanItem(
+        PurchaseOrderItem $poItem,
+        float $qtyDiterima,
+        float $sisa,
+        array $nilaiPOItem
+    ): float {
+        if ($nilaiPOItem['nilai_bersih'] <= 0) {
+            throw ValidationException::withMessages([
+                'items' =>
+                    'Nilai bersih item PO setelah diskon adalah nol. Sistem tidak dapat menambahkan stok tanpa biaya perolehan yang valid.',
+            ]);
+        }
+
+        $previousItems = PenerimaanBarangItem::query()
+            ->where('purchase_order_item_id', $poItem->id)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        if ($previousItems->contains(fn ($row) => $row->nilai_persediaan === null)) {
+            throw ValidationException::withMessages([
+                'items' =>
+                    'Item PO ini memiliki penerimaan lama yang belum menyimpan nilai persediaan bersih. Audit/revaluasi penerimaan lama sebelum melanjutkan penerimaan item ini.',
+            ]);
+        }
+
+        $qtySebelumnya = round(
+            (float) $previousItems->sum(fn ($row) => (float) $row->qty_diterima),
+            2
+        );
+        if (abs($qtySebelumnya - (float) $poItem->qty_diterima) > 0.01) {
+            throw ValidationException::withMessages([
+                'items' =>
+                    'Total detail penerimaan tidak sama dengan qty_diterima PO. Periksa integritas penerimaan sebelum melanjutkan.',
+            ]);
+        }
+
+        $nilaiSebelumnya = round(
+            (float) $previousItems->sum(fn ($row) => (float) $row->nilai_persediaan),
+            2
+        );
+
+        $penerimaanTerakhir = $qtyDiterima >= ($sisa - 0.001);
+        if ($penerimaanTerakhir) {
+            $nilai = round(
+                $nilaiPOItem['target_nilai_diterima'] - $nilaiSebelumnya,
+                2
+            );
+        } else {
+            $nilai = round(
+                $nilaiPOItem['biaya_per_unit'] * $qtyDiterima,
+                2
+            );
+        }
+
+        if ($nilai < -0.01) {
+            throw ValidationException::withMessages([
+                'items' =>
+                    'Nilai penerimaan yang dihitung negatif. Data penerimaan sebelumnya perlu direkonsiliasi.',
+            ]);
+        }
+
+        $nilai = max(0, $nilai);
+        if ($nilai <= 0) {
+            throw ValidationException::withMessages([
+                'items' =>
+                    'Nilai penerimaan setelah alokasi diskon adalah nol. Periksa harga dan diskon PO.',
+            ]);
+        }
+
+        return round($nilai, 2);
+    }
 
     /*
     |--------------------------------------------------------------------------

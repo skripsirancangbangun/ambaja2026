@@ -38,6 +38,72 @@
 
             <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
 
+                <div class="md:col-span-2">
+                    <label
+                        for="akun_id"
+                        class="mb-1 block text-sm font-medium text-slate-700"
+                    >
+                        Akun COA
+                        <span class="text-red-500">*</span>
+                    </label>
+
+                    @if ($hasTransactions)
+                        <select
+                            id="akun_id_display"
+                            disabled
+                            class="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600"
+                        >
+                            @foreach ($akunKasBanks as $akun)
+                                <option
+                                    value="{{ $akun->id }}"
+                                    data-saldo-awal="{{ (float) $akun->saldo_awal }}"
+                                    @selected((string) $rekeningKasBank->akun_id === (string) $akun->id)
+                                >
+                                    {{ $akun->kode_akun }} - {{ $akun->nama_akun }}
+                                </option>
+                            @endforeach
+                        </select>
+
+                        <input
+                            type="hidden"
+                            name="akun_id"
+                            id="akun_id"
+                            value="{{ old('akun_id', $rekeningKasBank->akun_id) }}"
+                        >
+
+                        <p class="mt-1.5 text-xs text-amber-600">
+                            Mapping COA dikunci karena rekening ini sudah memiliki transaksi.
+                        </p>
+                    @else
+                        <select
+                            name="akun_id"
+                            id="akun_id"
+                            required
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#32AAA6] focus:ring-2 focus:ring-[#32AAA6]/20"
+                        >
+                            <option value="">
+                                Pilih akun Kas/Bank pada Chart of Accounts
+                            </option>
+
+                            @foreach ($akunKasBanks as $akun)
+                                <option
+                                    value="{{ $akun->id }}"
+                                    data-saldo-awal="{{ (float) $akun->saldo_awal }}"
+                                    @selected(
+                                        (string) old(
+                                            'akun_id',
+                                            $rekeningKasBank->akun_id
+                                        ) === (string) $akun->id
+                                    )
+                                >
+                                    {{ $akun->kode_akun }} - {{ $akun->nama_akun }}
+                                </option>
+                            @endforeach
+                        </select>
+                    @endif
+                </div>
+
+
                 <div>
                     <label class="mb-1 block text-sm font-medium text-slate-700">
                         Kode Rekening
@@ -99,17 +165,15 @@
 
                 <div>
                     <label class="mb-1 block text-sm font-medium text-slate-700">
-                        Saldo Awal
+                        Saldo Awal dari COA
                     </label>
 
                     <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        name="saldo_awal"
-                        value="{{ old('saldo_awal', $rekeningKasBank->saldo_awal) }}"
-                        required
-                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#32AAA6] focus:ring-2 focus:ring-[#32AAA6]/20"
+                        type="text"
+                        id="saldo_awal_preview"
+                        value="Rp {{ number_format((float) ($rekeningKasBank->akun?->saldo_awal ?? 0), 2, ',', '.') }}"
+                        readonly
+                        class="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700"
                     >
                 </div>
 
@@ -227,16 +291,66 @@ function toggleBankFields() {
     const bankFields = document.querySelectorAll('.bank-field');
 
     bankFields.forEach(function (field) {
-        if (jenis === 'BANK') {
-            field.style.display = 'block';
-        } else {
-            field.style.display = 'none';
-        }
+        field.style.display = jenis === 'BANK'
+            ? 'block'
+            : 'none';
     });
+}
+
+function updateSaldoAwalPreview() {
+    const akunSelect =
+        document.getElementById('akun_id_display')
+        || document.getElementById('akun_id');
+
+    const preview =
+        document.getElementById('saldo_awal_preview');
+
+    if (
+        !akunSelect
+        || akunSelect.tagName !== 'SELECT'
+    ) {
+        return;
+    }
+
+    const option =
+        akunSelect.options[
+            akunSelect.selectedIndex
+        ];
+
+    const saldo =
+        option
+            ? parseFloat(
+                option.dataset.saldoAwal || '0'
+            )
+            : 0;
+
+    preview.value =
+        'Rp ' +
+        new Intl.NumberFormat(
+            'id-ID',
+            {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }
+        ).format(saldo);
 }
 
 document.addEventListener('DOMContentLoaded', function () {
     toggleBankFields();
+    updateSaldoAwalPreview();
+
+    const akunSelect =
+        document.getElementById('akun_id');
+
+    if (
+        akunSelect
+        && akunSelect.tagName === 'SELECT'
+    ) {
+        akunSelect.addEventListener(
+            'change',
+            updateSaldoAwalPreview
+        );
+    }
 });
 </script>
 @endsection

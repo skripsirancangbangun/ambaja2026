@@ -45,54 +45,34 @@ class Barang extends Model
     {
         return $this->hasMany(PurchaseOrderItem::class);
     }
+
     public function mutasiGudangItems()
     {
         return $this->hasMany(
             MutasiGudangItem::class
         );
     }
-    /*
-|--------------------------------------------------------------------------
-| RELASI STOCK OPNAME ITEM
-|--------------------------------------------------------------------------
-*/
 
-public function stockOpnameItems()
-{
-    return $this->hasMany(StockOpnameItem::class);
-}
+    public function stockOpnameItems()
+    {
+        return $this->hasMany(
+            StockOpnameItem::class
+        );
+    }
 
-/*
-|--------------------------------------------------------------------------
-| RELASI PENYESUAIAN STOK ITEM
-|--------------------------------------------------------------------------
-*/
+    public function penyesuaianStokItems()
+    {
+        return $this->hasMany(
+            PenyesuaianStokItem::class
+        );
+    }
 
-public function penyesuaianStokItems()
-{
-    return $this->hasMany(
-        PenyesuaianStokItem::class
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| RELASI INVOICE SUPPLIER ITEM
-|--------------------------------------------------------------------------
-*/
-
-public function invoiceSupplierItems()
-{
-    return $this->hasMany(
-        InvoiceSupplierItem::class
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| RELASI RETUR PEMBELIAN DETAIL
-|--------------------------------------------------------------------------
-*/
+    public function invoiceSupplierItems()
+    {
+        return $this->hasMany(
+            InvoiceSupplierItem::class
+        );
+    }
 
     public function returPembelianDetails()
     {
@@ -103,11 +83,60 @@ public function invoiceSupplierItems()
 
     public function stokGudangs()
     {
-        return $this->hasMany(StokGudang::class);
+        return $this->hasMany(
+            StokGudang::class
+        );
     }
 
     public function getStokQty($gudangId)
     {
-        return $this->stokGudangs->where('gudang_id', $gudangId)->first()?->qty ?? 0;
+        return (float) (
+            $this->stokGudangs
+                ->where(
+                    'gudang_id',
+                    $gudangId
+                )
+                ->first()?->qty
+            ?? 0
+        );
+    }
+
+    /**
+     * Menghitung SARAN harga jual berdasarkan target markup.
+     *
+     * Method ini TIDAK mengubah:
+     * - harga_jual
+     * - margin_persen
+     *
+     * Jadi perubahan HPP/stok tidak otomatis mengubah setting laba.
+     */
+    public function hitungHargaJualSaran(
+        ?float $hargaDasar = null
+    ): float {
+        $hargaDasar ??=
+            (float) $this->harga_beli_default;
+
+        $markup =
+            (float) $this->margin_persen;
+
+        return round(
+            $hargaDasar
+            + (
+                $hargaDasar
+                * $markup
+                / 100
+            ),
+            2
+        );
+    }
+
+    /**
+     * Bisa dipanggil:
+     *
+     * $barang->harga_jual_saran
+     */
+    public function getHargaJualSaranAttribute(): float
+    {
+        return $this->hitungHargaJualSaran();
     }
 }

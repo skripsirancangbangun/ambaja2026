@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\RekeningKasBank;
 use App\Models\TransferKasBank;
 use App\Services\KasBankService;
+use App\Services\SystemAccountingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -283,12 +284,14 @@ class TransferKasBankController extends Controller
 
     public function catat(
         TransferKasBank $transferKasBank,
-        KasBankService $kasBankService
+        KasBankService $kasBankService,
+        SystemAccountingService $accountingService
     ) {
         try {
             DB::transaction(function () use (
                 $transferKasBank,
-                $kasBankService
+                $kasBankService,
+                $accountingService
             ) {
                 $transfer = TransferKasBank::query()
                     ->lockForUpdate()
@@ -332,6 +335,21 @@ class TransferKasBankController extends Controller
                         )
                 );
 
+                /*
+                |--------------------------------------------------------------------------
+                | JURNAL OTOMATIS
+                |--------------------------------------------------------------------------
+                |
+                | Dr Akun Kas/Bank Tujuan
+                |    Cr Akun Kas/Bank Asal
+                |
+                */
+
+                $accountingService
+                    ->autoJournalTransferKasBank(
+                        $transfer
+                    );
+
                 $transfer->update([
                     'status' => 'TERCATAT',
                 ]);
@@ -344,10 +362,10 @@ class TransferKasBankController extends Controller
                 )
                 ->with(
                     'success',
-                    'Transfer berhasil dicatat. Saldo rekening asal dan tujuan telah diperbarui.'
+                    'Transfer berhasil dicatat. Saldo rekening asal/tujuan dan jurnal accounting telah diperbarui.'
                 );
 
-        } catch (RuntimeException $e) {
+        } catch (\Throwable $e) {
             return redirect()
                 ->route(
                     'transfer-kas-bank.show',
