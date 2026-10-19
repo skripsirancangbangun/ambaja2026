@@ -50,8 +50,11 @@ use App\Http\Controllers\PenutupanPeriodeController;
 use App\Http\Controllers\CustomerImportController;
 use App\Http\Controllers\PenerimaanPiutangController;
 use App\Http\Controllers\KartuPiutangController;
+use App\Http\Controllers\KartuUtangController;
 use App\Http\Controllers\PengaturanPenomoranController;
 use App\Http\Controllers\ProfilPerusahaanController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\UserController;
 
 
 /*
@@ -71,13 +74,8 @@ Route::get('/', function () {
 |--------------------------------------------------------------------------
 */
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})
-    ->middleware([
-        'auth',
-        'verified',
-    ])
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->middleware(['auth', 'verified', 'user.active', 'module.access'])
     ->name('dashboard');
 
 
@@ -87,7 +85,23 @@ Route::get('/dashboard', function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'user.active', 'module.access'])->group(function () {
+
+    /*
+    |--------------------------------------------------------------------------
+    | USER MANAGEMENT (Owner/Admin only)
+    |--------------------------------------------------------------------------
+    */
+
+    Route::middleware('role:Owner,Admin')->prefix('users')->name('users.')->group(function () {
+        Route::get('/', [UserController::class, 'index'])->name('index');
+        Route::get('/create', [UserController::class, 'create'])->name('create');
+        Route::post('/', [UserController::class, 'store'])->name('store');
+        Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
+        Route::put('/{user}', [UserController::class, 'update'])->name('update');
+        Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
+    });
+
 
     /*
     |--------------------------------------------------------------------------
@@ -118,7 +132,6 @@ Route::middleware('auth')->group(function () {
             'destroy',
         ]
     )->name('profile.destroy');
-
 
     /*
     |--------------------------------------------------------------------------
@@ -534,6 +547,15 @@ Route::middleware('auth')->group(function () {
             'index',
         ]
     )->name('utang.index');
+
+
+    Route::get(
+        '/utang/kartu',
+        [
+            KartuUtangController::class,
+            'index',
+        ]
+    )->name('utang.kartu');
 
 
     /*

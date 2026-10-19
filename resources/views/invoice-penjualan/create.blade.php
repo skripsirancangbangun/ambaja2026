@@ -827,7 +827,7 @@
                 "
                 class="rounded-xl px-7 py-2.5 text-sm font-medium text-white shadow-sm transition"
             >
-                Terbitkan Invoice & Potong Stok
+                Terbitkan Invoice
             </button>
 
         </div>

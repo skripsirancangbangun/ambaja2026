@@ -132,3 +132,176 @@ details > summary:focus {
     background: rgba(50, 170, 166, 0.2);
     color: var(--ambaja-navy);
 }
+
+/* =====================================================================
+   AMBAJA BRAND SYSTEM — navy + turquoise, with restrained logo accents
+   ===================================================================== */
+:root {
+    --ambaja-navy: #15235f;
+    --ambaja-navy-deep: #101a49;
+    --ambaja-navy-soft: #edf0fb;
+    --ambaja-teal: #32aaa6;
+    --ambaja-teal-strong: #188b87;
+    --ambaja-teal-soft: #e4f7f5;
+    --ambaja-pink: #e6007e;
+    --ambaja-beige: #dfc09a;
+    --ambaja-bg: #f2f7fa;
+    --ambaja-border: #dce6ef;
+}
+
+/* Light, cool canvas: keeps tables/forms readable while adding brand character. */
+body.bg-slate-100,
+body[class~="bg-[#F6F8FB]"],
+body.ambaja-app-body {
+    background-color: var(--ambaja-bg) !important;
+}
+
+/* Tailwind utility refinements used throughout the existing Blade screens. */
+[class~="bg-slate-50"] { background-color: #f4f8fb !important; }
+[class~="bg-slate-100"] { background-color: #edf3f7 !important; }
+[class~="border-slate-200"] { border-color: var(--ambaja-border) !important; }
+[class~="bg-teal-50"] { background-color: var(--ambaja-teal-soft) !important; }
+[class~="hover:bg-teal-50"]:hover { background-color: #d8f2ef !important; }
+[class~="text-teal-600"] { color: var(--ambaja-teal-strong) !important; }
+[class~="text-teal-700"] { color: #147b78 !important; }
+[class~="hover:text-teal-900"]:hover { color: var(--ambaja-navy) !important; }
+[class~="bg-teal-600"] { background-color: var(--ambaja-teal-strong) !important; }
+[class~="hover:bg-teal-700"]:hover { background-color: var(--ambaja-navy) !important; }
+[class~="bg-indigo-50"] { background-color: var(--ambaja-navy-soft) !important; }
+[class~="text-indigo-700"] { color: var(--ambaja-navy) !important; }
+[class~="bg-[#15235F]"] { background-color: var(--ambaja-navy) !important; }
+[class~="text-[#15235F]"] { color: var(--ambaja-navy) !important; }
+[class~="text-[#32AAA6]"] { color: var(--ambaja-teal-strong) !important; }
+[class~="hover:bg-[#1d3078]"]:hover { background-color: var(--ambaja-teal-strong) !important; }
+[class~="hover:text-[#15235F]"]:hover { color: var(--ambaja-teal-strong) !important; }
+
+/* Shared application frame. */
+.ambaja-sidebar {
+    background: linear-gradient(180deg, #ffffff 0%, #fbfefe 100%);
+    border-right-color: #d5e4ec !important;
+}
+
+.ambaja-brand-header {
+    position: relative;
+    border-bottom-color: #dbe8ed !important;
+}
+
+.ambaja-brand-header::after {
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--ambaja-teal) 0%, var(--ambaja-navy) 72%, rgba(21, 35, 95, 0) 100%);
+    content: "";
+}
+
+.ambaja-nav-active {
+    background: linear-gradient(90deg, rgba(50, 170, 166, 0.20), rgba(50, 170, 166, 0.07)) !important;
+    box-shadow: inset 3px 0 0 var(--ambaja-teal), 0 3px 10px rgba(21, 35, 95, 0.04);
+    color: var(--ambaja-navy) !important;
+    font-weight: 700 !important;
+}
+
+.ambaja-nav-idle,
+.ambaja-nav-summary {
+    transition: background-color 160ms ease, color 160ms ease;
+}
+
+.ambaja-nav-idle:hover,
+.ambaja-nav-summary:hover,
+.ambaja-sidebar summary:hover {
+    background-color: rgba(50, 170, 166, 0.09) !important;
+    color: var(--ambaja-navy) !important;
+}
+
+.ambaja-sidebar summary {
+    transition: background-color 160ms ease, color 160ms ease;
+}
+
+.ambaja-topbar {
+    position: sticky;
+    isolation: isolate;
+    border-bottom-color: #dce7ee !important;
+    box-shadow: 0 3px 12px rgba(21, 35, 95, 0.035);
+}
+
+.ambaja-topbar::after {
+    position: absolute;
+    z-index: -1;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--ambaja-teal) 0%, rgba(50, 170, 166, 0.15) 70%, transparent 100%);
+    content: "";
+}
+
+.ambaja-main {
+    min-height: calc(100vh - 5rem);
+    background:
+        radial-gradient(ellipse at top right, rgba(50, 170, 166, 0.055), transparent 36%),
+        linear-gradient(180deg, #f2f7fa 0%, #f7fafc 100%);
+}
+
+/* Dashboard cards: recognizable accents, without turning the whole page into blocks of color. */
+.ambaja-stat-card,
+.ambaja-panel-card {
+    border-color: var(--ambaja-border) !important;
+    box-shadow: 0 2px 5px rgba(21, 35, 95, 0.035), 0 8px 22px rgba(21, 35, 95, 0.025);
+}
+
+.ambaja-stat-card {
+    position: relative;
+    overflow: hidden;
+    border-top-width: 3px !important;
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.ambaja-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px rgba(21, 35, 95, 0.09);
+}
+
+.ambaja-stat-card--sales { border-top-color: var(--ambaja-teal) !important; }
+.ambaja-stat-card--purchases { border-top-color: var(--ambaja-navy) !important; }
+.ambaja-stat-card--receivables { border-top-color: var(--ambaja-pink) !important; }
+.ambaja-stat-card--payables { border-top-color: var(--ambaja-beige) !important; }
+.ambaja-stat-card--inventory { border-top-color: var(--ambaja-teal-strong) !important; }
+
+.ambaja-role-badge {
+    border: 1px solid rgba(21, 35, 95, 0.08);
+    letter-spacing: 0.01em;
+}
+
+/* Accessible and consistent focus states across login, forms, filters and selects. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):focus,
+select:focus,
+textarea:focus {
+    border-color: var(--ambaja-teal) !important;
+    box-shadow: 0 0 0 3px rgba(50, 170, 166, 0.17) !important;
+    outline: none;
+}
+
+button:focus-visible,
+a:focus-visible {
+    outline: 2px solid var(--ambaja-teal) !important;
+    outline-offset: 2px;
+}
+
+/* Subtle hover cue on data tables. */
+tbody tr:hover {
+    background-color: rgba(50, 170, 166, 0.035);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ambaja-stat-card,
+    .ambaja-nav-idle,
+    .ambaja-nav-summary {
+        transition: none !important;
+    }
+
+    .ambaja-stat-card:hover {
+        transform: none;
+    }
+}

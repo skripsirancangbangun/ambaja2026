@@ -5,6 +5,8 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
+use RuntimeException;
 
 class DatabaseSeeder extends Seeder
 {
@@ -15,11 +17,24 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $adminPassword = env('AMBAJA_ADMIN_PASSWORD');
+        $ownerPassword = env('AMBAJA_OWNER_PASSWORD');
+
+        if (app()->environment('production') && (blank($adminPassword) || blank($ownerPassword))) {
+            throw new RuntimeException(
+                'Set AMBAJA_ADMIN_PASSWORD and AMBAJA_OWNER_PASSWORD before seeding users in production.'
+            );
+        }
+
+        // Keep the convenience password only for local/test development.
+        $adminPassword = $adminPassword ?: 'password';
+        $ownerPassword = $ownerPassword ?: 'password';
+
         User::updateOrCreate(
             ['email' => 'admin@ambaja.com'],
             [
                 'name' => 'Admin Ambaja',
-                'password' => bcrypt('password'),
+                'password' => Hash::make($adminPassword),
                 'role' => 'Admin',
                 'is_active' => true,
             ]
@@ -29,7 +44,7 @@ class DatabaseSeeder extends Seeder
             ['email' => 'owner@ambaja.com'],
             [
                 'name' => 'Owner Ambaja',
-                'password' => bcrypt('password'),
+                'password' => Hash::make($ownerPassword),
                 'role' => 'Owner',
                 'is_active' => true,
             ]
