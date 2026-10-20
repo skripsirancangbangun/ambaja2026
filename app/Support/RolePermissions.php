@@ -5,9 +5,8 @@ namespace App\Support;
 /**
  * Central role-to-module access map for AMBAJA.
  *
- * Route access is enforced server-side by EnsureModuleAccess. The same map is
- * used by the sidebar and dashboard so navigation visibility cannot drift from
- * backend authorization.
+ * Route access is enforced server-side by EnsureModuleAccess.
+ * The same map is used by the sidebar and dashboard.
  */
 final class RolePermissions
 {
@@ -23,24 +22,46 @@ final class RolePermissions
     /** @var array<string, list<string>> */
     private const ROLE_MODULES = [
         'Penjualan' => [
-            'dashboard', 'profile', 'sales', 'customers', 'receivables',
-            'reports.sales', 'reports.receivables',
+            'dashboard',
+            'profile',
+            'sales',
+            'customers',
+            'receivables',
+            'reports.sales',
+            'reports.receivables',
         ],
         'Pembelian' => [
-            'dashboard', 'profile', 'purchases', 'suppliers', 'payables',
-            'reports.purchases', 'reports.payables',
+            'dashboard',
+            'profile',
+            'purchases',
+            'suppliers',
+            'payables',
+            'reports.purchases',
+            'reports.payables',
         ],
         'Gudang' => [
-            'dashboard', 'profile', 'inventory', 'reports.inventory',
+            'dashboard',
+            'profile',
+            'inventory',
+            'reports.inventory',
         ],
         'Accounting' => [
-            'dashboard', 'profile', 'receivables', 'payables', 'cashbank', 'accounting',
-            'accounting.settings', 'accounting.period',
-            'reports.sales', 'reports.purchases', 'reports.inventory',
-            'reports.receivables', 'reports.payables', 'reports.financial',
+            'dashboard',
+            'profile',
+            'receivables',
+            'payables',
+            'cashbank',
+            'accounting',
+            'accounting.settings',
+            'accounting.period',
+            'reports.sales',
+            'reports.purchases',
+            'reports.inventory',
+            'reports.receivables',
+            'reports.payables',
+            'reports.financial',
         ],
     ];
-
 
     /** @var array<string, string> Route-name prefixes mapped to modules. */
     private const ROUTE_MODULES = [
@@ -107,13 +128,12 @@ final class RolePermissions
         'penutupan-periode.' => 'accounting.period',
     ];
 
-    public static function allowsModule(?string $role, string $module): bool
-    {
-        // User Management dikelola Admin; Owner fokus pada pemantauan bisnis.
-        if ($module === 'users' && $role === 'Owner') {
-            return false;
-        }
-
+    public static function allowsModule(
+        ?string $role,
+        string $module
+    ): bool {
+        // Owner dan Admin memiliki akses ke seluruh modul,
+        // termasuk User Management.
         if (in_array($role, ['Owner', 'Admin'], true)) {
             return true;
         }
@@ -131,7 +151,15 @@ final class RolePermissions
         }
 
         if ($module === 'master-data') {
-            foreach (['inventory', 'customers', 'suppliers', 'cashbank', 'accounting', 'users', 'company.settings'] as $candidate) {
+            foreach ([
+                'inventory',
+                'customers',
+                'suppliers',
+                'cashbank',
+                'accounting',
+                'users',
+                'company.settings',
+            ] as $candidate) {
                 if (self::allowsModule($role, $candidate)) {
                     return true;
                 }
@@ -143,19 +171,22 @@ final class RolePermissions
         return in_array($module, $modules, true);
     }
 
-    public static function moduleForRouteName(?string $routeName): ?string
-    {
+    public static function moduleForRouteName(
+        ?string $routeName
+    ): ?string {
         if (!$routeName) {
             return null;
         }
 
-        // Exact match is required for the dashboard; other entries are prefixes.
         if ($routeName === 'dashboard') {
             return 'dashboard';
         }
 
         foreach (self::ROUTE_MODULES as $prefix => $module) {
-            if ($prefix !== 'dashboard' && str_starts_with($routeName, $prefix)) {
+            if (
+                $prefix !== 'dashboard'
+                && str_starts_with($routeName, $prefix)
+            ) {
                 return $module;
             }
         }
@@ -163,20 +194,22 @@ final class RolePermissions
         return null;
     }
 
-    public static function canAccessRoute(?string $role, ?string $routeName): bool
-    {
-        // Blokir akses langsung ke /users bagi Owner, termasuk URL manual.
-        if ($role === 'Owner' && $routeName !== null && str_starts_with($routeName, 'users.')) {
-            return false;
-        }
-
+    public static function canAccessRoute(
+        ?string $role,
+        ?string $routeName
+    ): bool {
+        // Owner dan Admin diizinkan mengakses seluruh route
+        // yang dilindungi module.access.
         if (in_array($role, ['Owner', 'Admin'], true)) {
             return true;
         }
 
         $module = self::moduleForRouteName($routeName);
 
-        if ($module === null || !self::allowsModule($role, $module)) {
+        if (
+            $module === null
+            || !self::allowsModule($role, $module)
+        ) {
             return false;
         }
 
@@ -184,8 +217,9 @@ final class RolePermissions
     }
 
     /** @return list<string> */
-    public static function rolesAvailableTo(?string $actorRole): array
-    {
+    public static function rolesAvailableTo(
+        ?string $actorRole
+    ): array {
         if ($actorRole === 'Owner') {
             return self::ROLES;
         }

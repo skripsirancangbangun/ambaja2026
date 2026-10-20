@@ -110,9 +110,9 @@
                     });
                 @endphp
                 @if($totalSisaStruktur <= 0.01)
-                    <span style="color: #059669; font-weight: bold;">✓ Seluruh Faktur Terkait Telah LUNAS</span>
+                    <span style="color: #059669; font-weight: bold;"><x-icon name="check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Seluruh Faktur Terkait Telah LUNAS</span>
                 @else
-                    <span style="color: #d97706; font-weight: bold;">⚠️ Total Sisa Piutang Faktur Terkait: Rp {{ number_format($totalSisaStruktur, 0, ',', '.') }}</span>
+                    <span style="color: #d97706; font-weight: bold;"><x-icon name="alert-triangle" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Total Sisa Piutang Faktur Terkait: Rp {{ number_format($totalSisaStruktur, 0, ',', '.') }}</span>
                 @endif
             </td>
             <td width="45%" class="right">

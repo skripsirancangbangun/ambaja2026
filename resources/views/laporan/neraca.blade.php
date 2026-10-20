@@ -19,7 +19,7 @@
             onclick="window.print()"
             class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
         >
-            🖨️ Cetak Neraca
+            <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Cetak Neraca
         </button>
     </div>
 
@@ -158,7 +158,11 @@
             $isBalanced = abs($totalAset - ($totalKewajiban + $totalEkuitas)) < 0.01;
         @endphp
         <div class="mt-6 rounded-2xl border p-4 text-center font-bold text-sm {{ $isBalanced ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700' }}">
-            {{ $isBalanced ? '✓ Neraca Seimbang' : '⚠️ Neraca Tidak Seimbang' }}
+            @if ($isBalanced)
+                <x-icon name="circle-check" class="inline-block h-4 w-4 align-[-0.125em] mr-1" /> Neraca Seimbang
+            @else
+                <x-icon name="alert-triangle" class="inline-block h-4 w-4 align-[-0.125em] mr-1" /> Neraca Tidak Seimbang
+            @endif
         </div>
     </div>
 

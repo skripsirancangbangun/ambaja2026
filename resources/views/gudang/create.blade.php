@@ -11,7 +11,7 @@
             href="{{ route('gudang.index') }}"
             class="mb-3 inline-flex items-center gap-2 text-sm text-slate-500 transition hover:text-[#15235F]"
         >
-            <span>←</span>
+            <span><x-icon name="arrow-left" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /></span>
             Kembali
         </a>
 

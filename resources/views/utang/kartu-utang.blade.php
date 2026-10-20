@@ -26,7 +26,7 @@
             onclick="window.print()"
             class="no-print rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
-            🖨️ Cetak Kartu Utang
+            <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Cetak Kartu Utang
         </button>
     </div>
 

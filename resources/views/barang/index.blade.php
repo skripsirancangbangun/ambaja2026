@@ -22,9 +22,7 @@
                 href="{{ route('barang.import.create') }}"
                 class="inline-flex items-center justify-center gap-2 rounded-lg border border-[#15235F] bg-white px-4 py-2.5 text-sm font-medium text-[#15235F] transition hover:bg-slate-50"
             >
-                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L7 9m5-5l5 5M5 20h14" />
-                </svg>
+                <x-icon name="upload" class="h-4 w-4" />
                 Import Excel
             </a>
 
@@ -305,10 +303,7 @@
                                         aria-label="Edit {{ $barang->nama_barang }}"
                                         class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-[#32AAA6] hover:bg-teal-50 hover:text-[#15235F]"
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M12 20h9" />
-                                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                                        </svg>
+                                        <x-icon name="pencil" class="w-[15px] h-[15px]" />
                                     </a>
 
                                     {{-- DELETE --}}
@@ -325,13 +320,7 @@
                                             aria-label="Hapus {{ $barang->nama_barang }}"
                                             class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-500"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M3 6h18" />
-                                                <path d="M8 6V4h8v2" />
-                                                <path d="M19 6l-1 14H6L5 6" />
-                                                <path d="M10 11v5" />
-                                                <path d="M14 11v5" />
-                                            </svg>
+                                            <x-icon name="trash-2" class="w-[15px] h-[15px]" />
                                         </button>
                                     </form>
                                 </div>

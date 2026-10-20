@@ -15,7 +15,7 @@
                 href="{{ route('barang.index') }}"
                 class="mb-2 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-[#15235F]"
             >
-                ← Kembali ke Barang
+                <x-icon name="arrow-left" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kembali ke Barang
             </a>
 
             <h1 class="text-2xl font-semibold text-slate-800">
@@ -39,7 +39,7 @@
             <div class="flex gap-3">
 
                 <div class="text-red-500">
-                    ⚠
+                    <x-icon name="alert-triangle" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" />
                 </div>
 
                 <div>
@@ -69,7 +69,7 @@
             <div class="flex gap-3">
 
                 <div class="text-green-500">
-                    ✓
+                    <x-icon name="check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" />
                 </div>
 
                 <div>
@@ -151,7 +151,7 @@
             >
 
                 <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white text-2xl shadow-sm">
-                    📊
+                    <x-icon name="chart-no-axes-column" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" />
                 </div>
 
 

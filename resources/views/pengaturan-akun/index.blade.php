@@ -18,7 +18,7 @@
 
     @if(session('success'))
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">
-            ✓ {{ session('success') }}
+            <x-icon name="check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> {{ session('success') }}
         </div>
     @endif
 
@@ -154,7 +154,7 @@
                 type="submit"
                 class="rounded-xl bg-[#15235F] px-7 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#101b4d]"
             >
-                💾 Simpan Seluruh Pengaturan Akun
+                <x-icon name="save" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Simpan Seluruh Pengaturan Akun
             </button>
         </div>
     </form>

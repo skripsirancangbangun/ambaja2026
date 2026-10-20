@@ -25,16 +25,8 @@
             <div class="relative">
                 <input id="password" name="password" type="password" required autocomplete="current-password" placeholder="Masukkan password" class="block w-full rounded-xl border-slate-300 px-4 py-3 pr-12 text-sm shadow-sm focus:border-teal-500 focus:ring-teal-500">
                 <button type="button" data-password-toggle="password" aria-label="Tampilkan password" aria-pressed="false" title="Tampilkan password" class="absolute inset-y-0 right-0 inline-flex items-center justify-center rounded-r-xl px-3 text-slate-500 transition hover:text-teal-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-teal-500">
-                    <svg data-eye-icon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="h-5 w-5">
-                        <path d="M2.25 12s3.55-6.75 9.75-6.75S21.75 12 21.75 12 18.2 18.75 12 18.75 2.25 12 2.25 12Z" />
-                        <circle cx="12" cy="12" r="2.75" />
-                    </svg>
-                    <svg data-eye-off-icon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="hidden h-5 w-5">
-                        <path d="M3 3l18 18" />
-                        <path d="M10.58 10.58a2 2 0 0 0 2.84 2.84" />
-                        <path d="M9.88 5.24A10.6 10.6 0 0 1 12 5.03c6.2 0 9.75 6.97 9.75 6.97a16.7 16.7 0 0 1-3.13 3.88" />
-                        <path d="M6.61 6.61C3.77 8.3 2.25 12 2.25 12s3.55 6.97 9.75 6.97c1.17 0 2.23-.24 3.18-.64" />
-                    </svg>
+                    <x-icon name="eye" class="h-5 w-5" data-eye-icon />
+                    <x-icon name="eye-off" class="hidden h-5 w-5" data-eye-off-icon />
                 </button>
             </div>
             <x-input-error :messages="$errors->get('password')" class="mt-2" />

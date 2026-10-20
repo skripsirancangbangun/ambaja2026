@@ -127,9 +127,7 @@
                                             type="submit"
                                             class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-500"
                                             title="Hapus"
-                                        >
-                                            ×
-                                        </button>
+                                        ><x-icon name="x" class="inline-block h-[1em] w-[1em] align-[-0.125em]" /></button>
                                     </form>
 
                                 </div>

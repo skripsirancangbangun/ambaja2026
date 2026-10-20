@@ -17,11 +17,11 @@
         <div class="flex flex-wrap items-center gap-3" x-data="{ showImportModal: false }">
             @if($canEditOpeningBalance ?? true)
                 <span class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-800">
-                    🟢 Mode Migrasi (Saldo Awal Aktif)
+                    <x-icon name="circle-check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Mode Migrasi (Saldo Awal Aktif)
                 </span>
             @else
                 <span class="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-semibold text-rose-800" title="Saldo awal tidak bisa diubah karena sistem sudah memiliki transaksi operasional">
-                    🔒 Saldo Awal Terkunci (Sistem Berjalan)
+                    <x-icon name="lock" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Saldo Awal Terkunci (Sistem Berjalan)
                 </span>
             @endif
 
@@ -29,7 +29,7 @@
                 href="{{ route('coa.import.template') }}"
                 class="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
             >
-                📥 Download Template Import
+                <x-icon name="download" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Download Template Import
             </a>
 
             <button
@@ -37,7 +37,7 @@
                 @click="showImportModal = true"
                 class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
             >
-                📊 Import COA & Saldo Awal
+                <x-icon name="chart-no-axes-column" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Import COA & Saldo Awal
             </button>
 
             <a
@@ -60,11 +60,11 @@
                         <p class="text-xs text-slate-500 mt-1">Gunakan file Excel (.xlsx / .csv) sesuai format template.</p>
                         @if($canEditOpeningBalance ?? true)
                             <p class="text-[11px] text-emerald-600 font-medium mt-1">
-                                🟢 Mode Migrasi: Saldo awal dari file Excel akan diimpor ke sistem.
+                                <x-icon name="circle-check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Mode Migrasi: Saldo awal dari file Excel akan diimpor ke sistem.
                             </p>
                         @else
                             <p class="text-[11px] text-amber-600 font-medium mt-1">
-                                ⚠️ Sistem Berjalan: Akun baru/update akan dibuat, namun Saldo Awal diabaikan.
+                                <x-icon name="alert-triangle" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Sistem Berjalan: Akun baru/update akan dibuat, namun Saldo Awal diabaikan.
                             </p>
                         @endif
                     </div>
@@ -235,7 +235,7 @@
                                             class="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-400 cursor-not-allowed"
                                             title="Akun tidak dapat diubah karena sudah digunakan dalam transaksi/jurnal"
                                         >
-                                            🔒 Edit
+                                            <x-icon name="lock" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Edit
                                         </span>
                                     @else
                                         <a

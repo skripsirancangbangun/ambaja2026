@@ -13,7 +13,7 @@
             href="{{ route('conversions.index') }}"
             class="mb-3 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-[#15235F]"
         >
-            ← Kembali ke Konversi Barang
+            <x-icon name="arrow-left" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kembali ke Konversi Barang
         </a>
 
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

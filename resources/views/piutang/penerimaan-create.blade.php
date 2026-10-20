@@ -64,7 +64,7 @@
     @if(session('error'))
 
         <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-800">
-            ⚠️ {{ session('error') }}
+            <x-icon name="alert-triangle" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> {{ session('error') }}
         </div>
 
     @endif
@@ -442,7 +442,7 @@
                             type="submit"
                             class="rounded-xl bg-[#15235F] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-[#101b4d]"
                         >
-                            💾 Simpan Penerimaan Piutang
+                            <x-icon name="save" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Simpan Penerimaan Piutang
                         </button>
 
                     </div>

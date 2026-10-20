@@ -10,7 +10,7 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <a href="{{ route('retur-penjualan.index') }}" class="mb-2 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-[#15235F]">
-                ← Kembali ke Daftar Nota Retur
+                <x-icon name="arrow-left" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kembali ke Daftar Nota Retur
             </a>
             <div class="flex items-center gap-3">
                 <h2 class="text-xl font-semibold text-slate-800">
@@ -28,14 +28,14 @@
                 target="_blank"
                 class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 shadow-sm"
             >
-                🖨️ Cetak Nota Retur PDF
+                <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Cetak Nota Retur PDF
             </a>
         </div>
     </div>
 
     @if(session('success'))
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
-            ✓ {{ session('success') }}
+            <x-icon name="check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> {{ session('success') }}
         </div>
     @endif
 

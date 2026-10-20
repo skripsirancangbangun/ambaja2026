@@ -13,7 +13,7 @@
             href="{{ route('pembayaran-supplier.index') }}"
             class="mb-3 inline-flex text-sm text-slate-500 hover:text-[#15235F]"
         >
-            ← Kembali
+            <x-icon name="arrow-left" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kembali
         </a>
 
         <h2 class="text-xl font-semibold text-slate-800">

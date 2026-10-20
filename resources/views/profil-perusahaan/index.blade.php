@@ -25,7 +25,7 @@
         {{-- CARD IDENTITAS PERUSAHAAN --}}
         <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 class="mb-4 text-base font-semibold text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
-                🏢 Identitas Utama Perusahaan
+                <x-icon name="building-2" class="h-4 w-4" /> Identitas Utama Perusahaan
             </h2>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
@@ -62,7 +62,7 @@
         {{-- CARD REKENING KAS & BANK DOKUMEN --}}
         <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 class="mb-4 text-base font-semibold text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
-                💳 Rekening Pembayaran Resmi Dokumen / Cetakan Surat
+                <x-icon name="credit-card" class="h-4 w-4" /> Rekening Pembayaran Resmi Dokumen / Cetakan Surat
             </h2>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
@@ -82,7 +82,7 @@
 
         <div class="flex justify-end">
             <button type="submit" class="rounded-xl bg-[#15235F] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#101b4d]">
-                💾 Simpan Perubahan Profil
+                <x-icon name="save" class="mr-1 inline-block h-4 w-4 align-[-0.125em]" /> Simpan Perubahan Profil
             </button>
         </div>
     </form>

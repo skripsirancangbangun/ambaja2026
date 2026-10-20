@@ -8,7 +8,7 @@
 
     <div>
         <a href="{{ route('penjualan.index') }}" class="mb-3 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-[#15235F]">
-            ← Kembali ke Daftar Sales Order
+            <x-icon name="arrow-left" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kembali ke Daftar Sales Order
         </a>
         <h2 class="text-xl font-semibold text-slate-800">Buat Pesanan Penjualan (Sales Order)</h2>
         <p class="mt-1 text-sm text-slate-500">
@@ -229,7 +229,7 @@
                                         x-show="items.length > 1"
                                         class="text-rose-500 hover:text-rose-700"
                                     >
-                                        ✕
+                                        <x-icon name="x" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" />
                                     </button>
                                 </td>
                             </tr>

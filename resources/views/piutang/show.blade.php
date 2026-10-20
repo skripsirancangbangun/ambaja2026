@@ -10,7 +10,7 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <a href="{{ route('piutang.index') }}" class="mb-2 inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-[#15235F]">
-                ← Kembali ke Daftar Piutang
+                <x-icon name="arrow-left" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kembali ke Daftar Piutang
             </a>
             <h2 class="text-xl font-semibold text-slate-800">
                 Detail Piutang Invoice #{{ $invoice->nomor_invoice }}
@@ -27,7 +27,7 @@
                     @click="showPaymentModal = true"
                     class="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 shadow-sm"
                 >
-                    💵 Terima Pembayaran
+                    <x-icon name="dollar-sign" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Terima Pembayaran
                 </button>
             @endif
 
@@ -36,7 +36,7 @@
                 @click="showTindakLanjutModal = true"
                 class="rounded-xl bg-[#15235F] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#101b4d] shadow-sm"
             >
-                📝 Catat Tindak Lanjut / Terbitkan SP
+                <x-icon name="clipboard-pen" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Catat Tindak Lanjut / Terbitkan SP
             </button>
 
             <a
@@ -44,14 +44,14 @@
                 target="_blank"
                 class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             >
-                📄 Cetak Surat Tagihan
+                <x-icon name="file-text" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Cetak Surat Tagihan
             </a>
         </div>
     </div>
 
     @if(session('success'))
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">
-            ✓ {{ session('success') }}
+            <x-icon name="check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> {{ session('success') }}
         </div>
     @endif
 
@@ -79,7 +79,7 @@
             </p>
             @php $isOverdue = $invoice->tanggal_jatuh_tempo && $invoice->tanggal_jatuh_tempo->isPast() && $invoice->sisa_piutang > 0; @endphp
             @if($isOverdue)
-                <span class="inline-block mt-1 text-xs font-bold text-rose-600">⚠️ Overdue {{ abs(now()->diffInDays($invoice->tanggal_jatuh_tempo, false)) }} Hari</span>
+                <span class="inline-block mt-1 text-xs font-bold text-rose-600"><x-icon name="alert-triangle" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Overdue {{ abs(now()->diffInDays($invoice->tanggal_jatuh_tempo, false)) }} Hari</span>
             @else
                 <span class="inline-block mt-1 text-xs font-semibold text-emerald-600">Status: {{ $invoice->status_pembayaran }}</span>
             @endif
@@ -127,7 +127,7 @@
                                         target="_blank"
                                         class="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-100"
                                     >
-                                        🖨️ Kwitansi PDF
+                                        <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kwitansi PDF
                                     </a>
                                 @endif
                             </td>
@@ -197,7 +197,7 @@
                                         target="_blank"
                                         class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
                                     >
-                                        🖨️ Nota Retur PDF
+                                        <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Nota Retur PDF
                                     </a>
                                 </td>
                             </tr>
@@ -271,12 +271,12 @@
                             <td class="px-6 py-4 text-right">
                                 @if($tl->jenis_tindak_lanjut === 'SURAT_TAGIHAN')
                                     <a href="{{ route('piutang.surat-tagihan.pdf', $invoice) }}" target="_blank" class="text-xs font-semibold text-purple-700 hover:underline">
-                                        🖨️ Cetak Surat Tagihan
+                                        <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Cetak Surat Tagihan
                                     </a>
                                 @elseif(in_array($tl->jenis_tindak_lanjut, ['SURAT_PERINGATAN_1', 'SURAT_PERINGATAN_2', 'SURAT_PERINGATAN_3']))
                                     @php $spLevel = substr($tl->jenis_tindak_lanjut, -1); @endphp
                                     <a href="{{ route('piutang.surat-peringatan.pdf', ['invoice' => $invoice->id, 'level' => $spLevel]) }}" target="_blank" class="text-xs font-bold text-rose-700 hover:underline">
-                                        🖨️ Cetak SP-{{ $spLevel }}
+                                        <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Cetak SP-{{ $spLevel }}
                                     </a>
                                 @else
                                     <span class="text-xs text-slate-400">-</span>
@@ -303,8 +303,8 @@
     >
         <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4">
             <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
-                <h3 class="text-base font-bold text-emerald-800">💵 Terima Pembayaran Piutang</h3>
-                <button type="button" @click="showPaymentModal = false" class="text-slate-400 hover:text-slate-600">✕</button>
+                <h3 class="text-base font-bold text-emerald-800"><x-icon name="dollar-sign" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Terima Pembayaran Piutang</h3>
+                <button type="button" @click="showPaymentModal = false" class="text-slate-400 hover:text-slate-600"><x-icon name="x" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /></button>
             </div>
 
             <form action="{{ route('piutang.penerimaan.store') }}" method="POST" class="space-y-4">
@@ -376,8 +376,8 @@
     >
         <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4">
             <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
-                <h3 class="text-base font-bold text-[#15235F]">📝 Catat Tindak Lanjut Penagihan / SP</h3>
-                <button type="button" @click="showTindakLanjutModal = false" class="text-slate-400 hover:text-slate-600">✕</button>
+                <h3 class="text-base font-bold text-[#15235F]"><x-icon name="clipboard-pen" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Catat Tindak Lanjut Penagihan / SP</h3>
+                <button type="button" @click="showTindakLanjutModal = false" class="text-slate-400 hover:text-slate-600"><x-icon name="x" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /></button>
             </div>
 
             <form action="{{ route('piutang.tindak-lanjut.store', $invoice) }}" method="POST" class="space-y-4">

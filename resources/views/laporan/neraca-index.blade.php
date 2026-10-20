@@ -64,9 +64,7 @@
                     target="_blank"
                     class="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600 transition hover:border-red-300 hover:bg-red-100"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-4 w-4">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5A3.375 3.375 0 0 0 10.125 2.25H8.25m0 12.75h7.5m-7.5 3h7.5M10.5 2.25H5.625A1.875 1.875 0 0 0 3.75 4.125v15.75c0 1.036.84 1.875 1.875 1.875h12.75a1.875 1.875 0 0 0 1.875-1.875V12.375a10.125 10.125 0 0 0-9.75-10.125Z" />
-                    </svg>
+                    <x-icon name="file-text" class="h-4 w-4" />
                     Cetak PDF
                 </a>
 
@@ -74,9 +72,7 @@
                     href="{{ route('laporan.neraca.excel', request()->query()) }}"
                     class="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-600 transition hover:border-emerald-300 hover:bg-emerald-100"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-4 w-4">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5A3.375 3.375 0 0 0 10.125 2.25H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625A1.875 1.875 0 0 0 3.75 4.125v15.75c0 1.036.84 1.875 1.875 1.875h12.75a1.875 1.875 0 0 0 1.875-1.875V12.375a10.125 10.125 0 0 0-9.75-10.125Z" />
-                    </svg>
+                    <x-icon name="file-text" class="h-4 w-4" />
                     Export Excel
                 </a>
             </div>
@@ -179,7 +175,11 @@
         {{-- BALANCE STATUS --}}
         @php $isBalanced = abs($totalAset - ($totalKewajiban + $totalEkuitas)) < 0.01; @endphp
         <div class="mt-6 rounded-2xl border p-4 text-center font-bold text-sm {{ $isBalanced ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700' }}">
-            {{ $isBalanced ? '✓ Neraca Seimbang' : '⚠️ Neraca Tidak Seimbang' }}
+            @if ($isBalanced)
+                <x-icon name="circle-check" class="inline-block h-4 w-4 align-[-0.125em] mr-1" /> Neraca Seimbang
+            @else
+                <x-icon name="alert-triangle" class="inline-block h-4 w-4 align-[-0.125em] mr-1" /> Neraca Tidak Seimbang
+            @endif
         </div>
     </div>
 

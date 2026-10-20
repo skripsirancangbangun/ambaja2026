@@ -9,7 +9,7 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <a href="{{ route('pembayaran-penjualan.index') }}" class="mb-2 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-[#15235F]">
-                ← Kembali ke Daftar Pembayaran
+                <x-icon name="arrow-left" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kembali ke Daftar Pembayaran
             </a>
             <div class="flex items-center gap-3">
                 <h2 class="text-xl font-semibold text-slate-800">
@@ -26,7 +26,7 @@
             onclick="window.print()"
             class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
         >
-            🖨️ Cetak Kuitansi
+            <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Cetak Kuitansi
         </button>
     </div>
 

@@ -95,7 +95,7 @@
                 href="{{ route('invoice-penjualan.index') }}"
                 class="mb-2 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-[#15235F]"
             >
-                ← Kembali ke Daftar Invoice
+                <x-icon name="arrow-left" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kembali ke Daftar Invoice
             </a>
 
             <div class="flex flex-wrap items-center gap-3">
@@ -164,7 +164,7 @@
                         class="inline-flex items-center gap-1 rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700"
                         title="Terkirim ke {{ $invoicePenjualan->email_sent_to }}"
                     >
-                        ✓ Email Terkirim
+                        <x-icon name="check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Email Terkirim
 
                         @if($invoicePenjualan->email_sent_at)
 
@@ -199,7 +199,7 @@
                     @click="showEmailModal = true"
                     class="rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-medium text-teal-800 transition hover:bg-teal-100"
                 >
-                    📧 Kirim Email Bukti Invoice
+                    <x-icon name="mail" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kirim Email Bukti Invoice
                 </button>
 
             @endif
@@ -217,7 +217,7 @@
                 target="_blank"
                 class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-                🖨️ Cetak PDF
+                <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Cetak PDF
             </a>
 
 
@@ -245,7 +245,7 @@
                     ) }}"
                     class="rounded-xl bg-[#15235F] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#101b4d]"
                 >
-                    💰 Catat Pembayaran
+                    <x-icon name="wallet" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Catat Pembayaran
                 </a>
 
             @endif
@@ -284,7 +284,7 @@
                     @click="showCancelModal = true"
                     class="rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
                 >
-                    ✕ Batalkan Invoice
+                    <x-icon name="x" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Batalkan Invoice
                 </button>
 
             @endif
@@ -337,7 +337,7 @@
             <div class="flex items-start gap-3">
 
                 <div class="text-xl">
-                    ⚠️
+                    <x-icon name="alert-triangle" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" />
                 </div>
 
                 <div>
@@ -1185,7 +1185,7 @@
                     @click="showEmailModal = false"
                     class="text-slate-400 hover:text-slate-600"
                 >
-                    ✕
+                    <x-icon name="x" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" />
                 </button>
 
             </div>
@@ -1270,7 +1270,7 @@
                         type="submit"
                         class="rounded-xl bg-[#15235F] px-5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#101b4d]"
                     >
-                        📤 Kirim Email Sekarang
+                        <x-icon name="send" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kirim Email Sekarang
                     </button>
 
                 </div>
@@ -1329,7 +1329,7 @@
                         @click="showCancelModal = false"
                         class="text-slate-400 hover:text-slate-600"
                     >
-                        ✕
+                        <x-icon name="x" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" />
                     </button>
 
                 </div>
@@ -1709,7 +1709,7 @@
                                         target="_blank"
                                         class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
                                     >
-                                        🖨️ Nota Retur PDF
+                                        <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Nota Retur PDF
                                     </a>
 
                                 </td>

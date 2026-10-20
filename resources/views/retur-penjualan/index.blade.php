@@ -24,7 +24,7 @@
 
     @if(session('success'))
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">
-            ✓ {{ session('success') }}
+            <x-icon name="check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> {{ session('success') }}
         </div>
     @endif
 
@@ -91,14 +91,14 @@
                                         href="{{ route('retur-penjualan.show', $r) }}"
                                         class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
                                     >
-                                        👁️ Detail
+                                        <x-icon name="eye" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Detail
                                     </a>
                                     <a
                                         href="{{ route('retur-penjualan.pdf', $r) }}"
                                         target="_blank"
                                         class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
                                     >
-                                        🖨️ PDF
+                                        <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> PDF
                                     </a>
                                 </div>
                             </td>

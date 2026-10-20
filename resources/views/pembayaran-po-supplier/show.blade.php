@@ -17,7 +17,7 @@
                     href="{{ route('purchase-order.show', $pembayaranPOSupplier->purchaseOrder) }}"
                     class="inline-flex items-center text-sm font-medium text-slate-500 transition hover:text-[#0E194F]"
                 >
-                    ← Kembali ke Purchase Order
+                    <x-icon name="arrow-left" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kembali ke Purchase Order
                 </a>
 
                 <h1 class="mt-3 text-2xl font-bold text-slate-900">
@@ -531,7 +531,7 @@
                     <div class="flex items-start gap-3">
 
                         <div class="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white">
-                            ✓
+                            <x-icon name="check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" />
                         </div>
 
                         <div>

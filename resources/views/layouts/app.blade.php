@@ -94,7 +94,7 @@
                     </div>
 
                     <div class="mt-0.5 text-[10px] text-white/90 group-hover:text-white transition">
-                        CV Andika Mustika ⚙️
+                        CV Andika Mustika
                     </div>
 
                 </div>
@@ -138,25 +138,7 @@
                 "
             >
 
-                <svg
-                    class="h-[18px] w-[18px] flex-shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                >
-
-                    <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="1.8"
-                        d="
-                            M3 11.5L12 4l9 7.5
-                            M5.5 10v10h13V10
-                            M9.5 20v-6h5v6
-                        "
-                    />
-
-                </svg>
+                <x-icon name="home" class="h-[18px] w-[18px] flex-shrink-0" />
 
                 <span>
                     Dashboard
@@ -188,25 +170,7 @@
 
                     <div class="flex items-center gap-3">
 
-                        <svg
-                            class="h-[18px] w-[18px] flex-shrink-0"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="1.8"
-                                d="
-                                    M4 6h16
-                                    M4 12h16
-                                    M4 18h16
-                                "
-                            />
-
-                        </svg>
+                        <x-icon name="menu" class="h-[18px] w-[18px] flex-shrink-0" />
 
                         <span>
                             Master Data
@@ -215,27 +179,11 @@
                     </div>
 
 
-                    <svg
-                        class="
-                            h-4 w-4
+                    <x-icon name="chevron-right" class="h-4 w-4
                             text-white/90
                             transition-transform
                             duration-200
-                            group-open:rotate-90
-                        "
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M9 5l7 7-7 7"
-                        />
-
-                    </svg>
+                            group-open:rotate-90" />
 
                 </summary>
 
@@ -313,16 +261,16 @@
                     </a>
 
 
-                    @if(in_array(auth()->user()->role, ['Owner', 'Admin']))
-
+                    {{-- USER MANAGEMENT --}}
+                    @if(auth()->check() && in_array(auth()->user()->role, ['Owner', 'Admin'], true))
                         <a
-                            href="#"
-                            class="block w-full rounded-lg px-3 py-2 text-[13px] text-white hover:bg-white/10 hover:text-white transition"
+                            href="{{ route('users.index') }}"
+                            class="block w-full rounded-lg px-3 py-2 text-[13px] text-white hover:bg-white/10 hover:text-white transition {{ request()->routeIs('users.*') ? 'bg-white font-semibold text-[#0F8B8D] shadow-sm' : '' }}"
                         >
                             User Management
                         </a>
-
                     @endif
+
 
                 </div>
 
@@ -352,38 +300,7 @@
 
                     <div class="flex items-center gap-3">
 
-                        <svg
-                            class="h-[18px] w-[18px] flex-shrink-0"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="1.8"
-                                d="
-                                    M3 4h2l2.2 10.5
-                                    a2 2 0 002 1.5h7.8
-                                    a2 2 0 001.9-1.4
-                                    L21 8H7
-                                "
-                            />
-
-                            <circle
-                                cx="10"
-                                cy="20"
-                                r="1"
-                            />
-
-                            <circle
-                                cx="18"
-                                cy="20"
-                                r="1"
-                            />
-
-                        </svg>
+                        <x-icon name="shopping-cart" class="h-[18px] w-[18px] flex-shrink-0" />
 
                         <span>
                             Penjualan
@@ -392,21 +309,7 @@
                     </div>
 
 
-                    <svg
-                        class="h-4 w-4 text-slate-400 transition-transform duration-200 group-open:rotate-90"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M9 5l7 7-7 7"
-                        />
-
-                    </svg>
+                    <x-icon name="chevron-right" class="h-4 w-4 text-slate-400 transition-transform duration-200 group-open:rotate-90" />
 
                 </summary>
 
@@ -490,25 +393,7 @@
 
                     <div class="flex items-center gap-3">
 
-                        <svg
-                            class="h-[18px] w-[18px] flex-shrink-0"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="1.8"
-                                d="
-                                    M12 3v12
-                                    M8 11l4 4 4-4
-                                    M5 20h14
-                                "
-                            />
-
-                        </svg>
+                        <x-icon name="package-open" class="h-[18px] w-[18px] flex-shrink-0" />
 
                         <span>
                             Pembelian
@@ -517,21 +402,7 @@
                     </div>
 
 
-                    <svg
-                        class="h-4 w-4 text-slate-400 transition-transform duration-200 group-open:rotate-90"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M9 5l7 7-7 7"
-                        />
-
-                    </svg>
+                    <x-icon name="chevron-right" class="h-4 w-4 text-slate-400 transition-transform duration-200 group-open:rotate-90" />
 
                 </summary>
 
@@ -622,25 +493,7 @@
 
                     <div class="flex items-center gap-3">
 
-                        <svg
-                            class="h-[18px] w-[18px] flex-shrink-0"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="1.8"
-                                d="
-                                    M4 7l8-4 8 4-8 4-8-4
-                                    M4 7v10l8 4 8-4V7
-                                    M12 11v10
-                                "
-                            />
-
-                        </svg>
+                        <x-icon name="package" class="h-[18px] w-[18px] flex-shrink-0" />
 
                         <span>
                             Persediaan
@@ -649,21 +502,7 @@
                     </div>
 
 
-                    <svg
-                        class="h-4 w-4 text-slate-400 transition-transform duration-200 group-open:rotate-90"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M9 5l7 7-7 7"
-                        />
-
-                    </svg>
+                    <x-icon name="chevron-right" class="h-4 w-4 text-slate-400 transition-transform duration-200 group-open:rotate-90" />
 
                 </summary>
 
@@ -747,26 +586,7 @@
 
                     <div class="flex items-center gap-3">
 
-                        <svg
-                            class="h-[18px] w-[18px] flex-shrink-0"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="1.8"
-                                d="
-                                    M3 7h18
-                                    M5 7v10h14V7
-                                    M8 11h4
-                                    M8 14h3
-                                "
-                            />
-
-                        </svg>
+                        <x-icon name="wallet" class="h-[18px] w-[18px] flex-shrink-0" />
 
                         <span>
                             Kas & Bank
@@ -775,21 +595,7 @@
                     </div>
 
 
-                    <svg
-                        class="h-4 w-4 text-slate-400 transition-transform duration-200 group-open:rotate-90"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M9 5l7 7-7 7"
-                        />
-
-                    </svg>
+                    <x-icon name="chevron-right" class="h-4 w-4 text-slate-400 transition-transform duration-200 group-open:rotate-90" />
 
                 </summary>
 
@@ -873,26 +679,7 @@
 
                     <div class="flex items-center gap-3">
 
-                        <svg
-                            class="h-[18px] w-[18px] flex-shrink-0"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="1.8"
-                                d="
-                                    M5 3h14v18H5z
-                                    M8 7h8
-                                    M8 11h8
-                                    M8 15h5
-                                "
-                            />
-
-                        </svg>
+                        <x-icon name="book-text" class="h-[18px] w-[18px] flex-shrink-0" />
 
                         <span>
                             Accounting
@@ -901,21 +688,7 @@
                     </div>
 
 
-                    <svg
-                        class="h-4 w-4 text-slate-400 transition-transform duration-200 group-open:rotate-90"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M9 5l7 7-7 7"
-                        />
-
-                    </svg>
+                    <x-icon name="chevron-right" class="h-4 w-4 text-slate-400 transition-transform duration-200 group-open:rotate-90" />
 
                 </summary>
 
@@ -994,26 +767,7 @@
 
                     <div class="flex items-center gap-3">
 
-                        <svg
-                            class="h-[18px] w-[18px] flex-shrink-0"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="1.8"
-                                d="
-                                    M5 20V10
-                                    M10 20V4
-                                    M15 20v-7
-                                    M20 20V7
-                                "
-                            />
-
-                        </svg>
+                        <x-icon name="chart-no-axes-column" class="h-[18px] w-[18px] flex-shrink-0" />
 
                         <span>
                             Laporan
@@ -1022,21 +776,7 @@
                     </div>
 
 
-                    <svg
-                        class="h-4 w-4 text-slate-400 transition-transform duration-200 group-open:rotate-90"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M9 5l7 7-7 7"
-                        />
-
-                    </svg>
+                    <x-icon name="chevron-right" class="h-4 w-4 text-slate-400 transition-transform duration-200 group-open:rotate-90" />
 
                 </summary>
 
@@ -1212,25 +952,7 @@
                         "
                     >
 
-                        <svg
-                            class="h-[17px] w-[17px]"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="1.8"
-                                d="
-                                    M10 17l5-5-5-5
-                                    M15 12H3
-                                    M12 3h6a2 2 0 012 2v14a2 2 0 01-2 2h-6
-                                "
-                            />
-
-                        </svg>
+                        <x-icon name="log-out" class="h-[17px] w-[17px]" />
 
                     </button>
 
@@ -1312,26 +1034,7 @@
                     "
                 >
 
-                    <svg
-                        class="h-4 w-4 text-slate-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="1.8"
-                            d="
-                                M8 3v4
-                                M16 3v4
-                                M5 9h14
-                                M5 5h14v16H5z
-                            "
-                        />
-
-                    </svg>
+                    <x-icon name="calendar-days" class="h-4 w-4 text-slate-400" />
 
 
                     <span
@@ -1366,26 +1069,7 @@
                     "
                 >
 
-                    <svg
-                        class="h-[18px] w-[18px]"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="1.8"
-                            d="
-                                M18 8a6 6 0 10-12 0
-                                c0 7-3 7-3 9h18
-                                c0-2-3-2-3-9
-                                M13.73 21a2 2 0 01-3.46 0
-                            "
-                        />
-
-                    </svg>
+                    <x-icon name="bell" class="h-[18px] w-[18px]" />
 
 
                     {{-- Notification indicator --}}

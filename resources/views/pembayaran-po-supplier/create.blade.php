@@ -15,7 +15,7 @@
                 href="{{ route('purchase-order.show', $purchaseOrder) }}"
                 class="inline-flex items-center text-sm font-medium text-slate-500 transition hover:text-[#0E194F]"
             >
-                ← Kembali ke Purchase Order
+                <x-icon name="arrow-left" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kembali ke Purchase Order
             </a>
 
             <div class="mt-3">

@@ -19,7 +19,7 @@
                 href="{{ route('customer.import.template') }}"
                 class="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
             >
-                📥 Download Template Import
+                <x-icon name="download" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Download Template Import
             </a>
 
             <button
@@ -27,7 +27,7 @@
                 @click="showImportModal = true"
                 class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
             >
-                📊 Import Customer & Saldo Awal
+                <x-icon name="chart-no-axes-column" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Import Customer & Saldo Awal
             </button>
 
             <a

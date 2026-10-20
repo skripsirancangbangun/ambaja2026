@@ -19,7 +19,7 @@
                 href="{{ route('piutang.kartu') }}"
                 class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-                📖 Kartu Piutang
+                <x-icon name="book-open" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kartu Piutang
             </a>
             <a
                 href="{{ route('piutang.penerimaan.create') }}"
@@ -32,7 +32,7 @@
 
     @if(session('success'))
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">
-            ✓ {{ session('success') }}
+            <x-icon name="check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> {{ session('success') }}
         </div>
     @endif
 
@@ -83,7 +83,7 @@
                                     target="_blank"
                                     class="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100"
                                 >
-                                    🖨️ Cetak Kwitansi
+                                    <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Cetak Kwitansi
                                 </a>
                             </td>
                         </tr>

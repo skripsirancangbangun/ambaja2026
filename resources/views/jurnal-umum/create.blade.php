@@ -8,7 +8,7 @@
 
     <div>
         <a href="{{ route('jurnal-umum.index') }}" class="mb-3 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-[#15235F]">
-            ← Kembali ke Daftar Jurnal
+            <x-icon name="arrow-left" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kembali ke Daftar Jurnal
         </a>
         <h2 class="text-xl font-semibold text-slate-800">Buat Transaksi Jurnal Umum</h2>
         <p class="mt-1 text-sm text-slate-500">
@@ -165,7 +165,7 @@
                                         x-show="items.length > 2"
                                         class="text-rose-500 hover:text-rose-700"
                                     >
-                                        ✕
+                                        <x-icon name="x" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" />
                                     </button>
                                 </td>
                             </tr>
@@ -192,7 +192,7 @@
                 </div>
 
                 <div x-show="!isBalanced()" class="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700">
-                    ⚠️ Total Debit dan Kredit harus SEIMBANG sebelum transaksi disetujui.
+                    <x-icon name="alert-triangle" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Total Debit dan Kredit harus SEIMBANG sebelum transaksi disetujui.
                 </div>
             </div>
         </div>

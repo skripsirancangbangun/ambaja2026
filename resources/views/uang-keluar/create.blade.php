@@ -229,9 +229,7 @@
                                     <button
                                         type="button"
                                         class="btn-hapus-detail rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
-                                    >
-                                        ×
-                                    </button>
+                                    ><x-icon name="x" class="inline-block h-[1em] w-[1em] align-[-0.125em]" /></button>
 
                                 </div>
 

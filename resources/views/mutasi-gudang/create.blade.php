@@ -6,7 +6,7 @@
 <div class="mx-auto max-w-6xl space-y-6">
     <div>
         <a href="{{ route('mutasi-gudang.index') }}" class="mb-3 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-[#15235F]">
-            ← Kembali
+            <x-icon name="arrow-left" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kembali
         </a>
         <h2 class="text-xl font-semibold text-slate-800">Buat Mutasi Gudang</h2>
         <p class="mt-1 text-sm text-slate-500">Pindahkan stok dari satu gudang ke gudang lainnya.</p>

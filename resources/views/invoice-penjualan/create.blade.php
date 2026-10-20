@@ -18,7 +18,7 @@
             href="{{ route('invoice-penjualan.index') }}"
             class="mb-3 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-[#15235F]"
         >
-            ← Kembali ke Daftar Invoice
+            <x-icon name="arrow-left" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kembali ke Daftar Invoice
         </a>
 
         <h2 class="text-xl font-semibold text-slate-800">
@@ -680,7 +680,7 @@
                                         class="text-rose-500 hover:text-rose-700"
                                         title="Hapus baris"
                                     >
-                                        ✕
+                                        <x-icon name="x" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" />
                                     </button>
                                 </td>
 

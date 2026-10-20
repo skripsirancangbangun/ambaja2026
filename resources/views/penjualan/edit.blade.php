@@ -8,7 +8,7 @@
 
     <div>
         <a href="{{ route('penjualan.show', $penjualan) }}" class="mb-3 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-[#15235F]">
-            ← Batal & Kembali
+            <x-icon name="arrow-left" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Batal & Kembali
         </a>
         <h2 class="text-xl font-semibold text-slate-800">Edit Sales Order ({{ $penjualan->nomor_penjualan }})</h2>
     </div>
@@ -215,7 +215,7 @@
                                         x-show="items.length > 1"
                                         class="text-rose-500 hover:text-rose-700"
                                     >
-                                        ✕
+                                        <x-icon name="x" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" />
                                     </button>
                                 </td>
                             </tr>

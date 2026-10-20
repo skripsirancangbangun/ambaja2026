@@ -23,19 +23,7 @@
             href="{{ route('kategori-barang.create') }}"
             class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#15235F] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#101b4d]"
         >
-            <svg
-                class="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-            >
-                <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 5v14M5 12h14"
-                />
-            </svg>
+            <x-icon name="plus" class="h-4 w-4" />
 
             Tambah Kategori
         </a>
@@ -163,19 +151,7 @@
                                         title="Edit"
                                     >
 
-                                        <svg
-                                            class="h-4 w-4"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="1.8"
-                                                d="M15.232 5.232l3.536 3.536M9 17l-4 1 1-4L16.5 3.5a2.121 2.121 0 013 3L9 17z"
-                                            />
-                                        </svg>
+                                        <x-icon name="pencil" class="h-4 w-4" />
 
                                     </a>
 
@@ -196,19 +172,7 @@
                                             title="Hapus"
                                         >
 
-                                            <svg
-                                                class="h-4 w-4"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <path
-                                                    stroke-linecap="round"
-                                                    stroke-linejoin="round"
-                                                    stroke-width="1.8"
-                                                    d="M6 7h12M9 7V4h6v3m-8 0l1 13h8l1-13M10 11v5m4-5v5"
-                                                />
-                                            </svg>
+                                            <x-icon name="trash-2" class="h-4 w-4" />
 
                                         </button>
 

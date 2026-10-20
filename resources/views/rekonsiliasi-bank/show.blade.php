@@ -12,7 +12,7 @@
             href="{{ route('rekonsiliasi-bank.index') }}"
             class="mb-3 inline-flex text-sm text-slate-500 hover:text-[#15235F]"
         >
-            ← Kembali
+            <x-icon name="arrow-left" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kembali
         </a>
 
         <h2 class="text-xl font-semibold text-slate-800">
@@ -536,7 +536,7 @@
                                     <div class="flex items-start gap-2">
 
                                         <span class="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-600">
-                                            ✓
+                                            <x-icon name="check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" />
                                         </span>
 
                                         <div>
@@ -556,7 +556,7 @@
                                     <div class="flex items-start gap-2">
 
                                         <span class="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-600">
-                                            ✓
+                                            <x-icon name="check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" />
                                         </span>
 
                                         <div>
@@ -578,7 +578,7 @@
                                         @if(($mutasi->selisih_hari ?? 0) === 0)
 
                                             <span class="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-600">
-                                                ✓
+                                                <x-icon name="check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" />
                                             </span>
 
                                         @else
@@ -618,7 +618,7 @@
                                         @if($mutasi->nama_cocok)
 
                                             <span class="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-600">
-                                                ✓
+                                                <x-icon name="check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" />
                                             </span>
 
                                             <div>
@@ -634,7 +634,7 @@
                                         @elseif($mutasi->alias_cocok)
 
                                             <span class="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-600">
-                                                ✓
+                                                <x-icon name="check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" />
                                             </span>
 
                                             <div>

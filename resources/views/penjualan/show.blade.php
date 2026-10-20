@@ -9,7 +9,7 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <a href="{{ route('penjualan.index') }}" class="mb-2 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-[#15235F]">
-                ← Kembali ke Daftar
+                <x-icon name="arrow-left" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kembali ke Daftar
             </a>
             <div class="flex items-center gap-3">
                 <h2 class="text-xl font-semibold text-slate-800">
@@ -36,7 +36,7 @@
                 target="_blank"
                 class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-                🖨️ Cetak PDF
+                <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Cetak PDF
             </a>
             @if($penjualan->status === 'Draft')
                 <form action="{{ route('penjualan.konfirmasi', $penjualan) }}" method="POST" class="inline">
@@ -46,7 +46,7 @@
                         class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
                         onclick="return confirm('Konfirmasi Sales Order ini?')"
                     >
-                        ✓ Konfirmasi SO
+                        <x-icon name="check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Konfirmasi SO
                     </button>
                 </form>
             @endif
@@ -59,7 +59,7 @@
                         class="rounded-xl bg-rose-50 px-4 py-2 text-sm font-medium text-rose-600 transition hover:bg-rose-100"
                         onclick="return confirm('Batalkan Sales Order ini?')"
                     >
-                        ✕ Batalkan SO
+                        <x-icon name="x" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Batalkan SO
                     </button>
                 </form>
             @endif

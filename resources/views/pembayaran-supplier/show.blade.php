@@ -14,7 +14,7 @@
                 href="{{ route('pembayaran-supplier.index') }}"
                 class="mb-3 inline-flex text-sm text-slate-500 hover:text-[#15235F]"
             >
-                ← Kembali
+                <x-icon name="arrow-left" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kembali
             </a>
 
             <h1 class="text-2xl font-bold text-slate-800">
@@ -343,7 +343,7 @@
             @if($sudahPostingKasBank)
 
                 <span class="inline-flex w-fit rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-                    ✓ Sudah Diposting
+                    <x-icon name="check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Sudah Diposting
                 </span>
 
             @else
@@ -533,7 +533,7 @@
             @if($sudahDirekonsiliasi)
 
                 <span class="inline-flex w-fit rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-                    ✓ Sudah Direkonsiliasi
+                    <x-icon name="check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Sudah Direkonsiliasi
                 </span>
 
             @elseif($sudahPostingKasBank)

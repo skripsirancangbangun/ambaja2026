@@ -19,7 +19,7 @@
             href="{{ route('piutang.kartu') }}"
             class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
-            📖 Buku Pembantu Piutang
+            <x-icon name="book-open" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Buku Pembantu Piutang
         </a>
     </div>
 
@@ -194,7 +194,7 @@
                                     href="{{ route('piutang.show', $invoice) }}"
                                     class="inline-flex items-center gap-1.5 rounded-lg bg-[#15235F] px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-[#101b4d]"
                                 >
-                                    🔍 Detail & Penagihan
+                                    <x-icon name="search" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Detail & Penagihan
                                 </a>
                             </td>
                         </tr>

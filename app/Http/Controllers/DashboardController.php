@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Barang;
 use App\Models\InvoicePenjualan;
 use App\Models\InvoiceSupplier;
+use App\Models\ReturPembelianAllocation;
 use App\Models\RekeningKasBank;
 use App\Models\MutasiKasBank;
 use App\Models\StokGudang;
@@ -26,9 +27,28 @@ class DashboardController extends Controller
             ->whereBetween('tanggal_invoice', [$monthStart, $monthEnd])
             ->sum('total');
 
-        $purchasesThisMonth = InvoiceSupplier::query()
+        // Pembelian bruto: seluruh invoice supplier pada periode berjalan.
+        $purchasesGrossThisMonth = (float) InvoiceSupplier::query()
             ->whereBetween('tanggal_invoice', [$monthStart, $monthEnd])
             ->sum('total');
+
+        // Retur hanya mengurangi pembelian ketika sudah SELESAI diproses.
+        // Gunakan tanggal retur, bukan tanggal invoice supplier, untuk cut-off periode.
+        // Hanya alokasi yang terhubung ke invoice supplier yang mengurangi nilai pembelian.
+        $purchaseReturnsThisMonth = (float) ReturPembelianAllocation::query()
+            ->whereHas('returPembelian', function ($query) use ($monthStart, $monthEnd): void {
+                $query
+                    ->where('status', 'SELESAI')
+                    ->whereBetween('tanggal_retur', [$monthStart, $monthEnd]);
+            })
+            ->sum('total_koreksi');
+
+        // Jangan membatasi hasil minimum nol: retur periode ini bisa terkait
+        // dengan invoice dari periode sebelumnya.
+        $purchasesThisMonth = round(
+            $purchasesGrossThisMonth - $purchaseReturnsThisMonth,
+            2
+        );
 
         $receivables = InvoicePenjualan::query()
             ->where('status_invoice', 'AKTIF')

@@ -157,20 +157,7 @@
 
                                 <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#15235F]/10">
 
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke-width="1.5"
-                                        stroke="currentColor"
-                                        class="h-6 w-6 text-[#15235F]"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M7.5 9 12 4.5m0 0L16.5 9M12 4.5V15"
-                                        />
-                                    </svg>
+                                    <x-icon name="download" class="h-6 w-6 text-[#15235F]" />
 
                                 </div>
 
@@ -463,20 +450,7 @@
 
                             <div class="mt-0.5">
 
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke-width="1.5"
-                                    stroke="currentColor"
-                                    class="h-5 w-5 text-amber-600"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
-                                    />
-                                </svg>
+                                <x-icon name="alert-circle" class="h-5 w-5 text-amber-600" />
 
                             </div>
 

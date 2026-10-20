@@ -18,13 +18,13 @@
 
     @if(session('success'))
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">
-            ✓ {{ session('success') }}
+            <x-icon name="check" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> {{ session('success') }}
         </div>
     @endif
 
     @if(session('warning'))
         <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800">
-            ⚠️ {{ session('warning') }}
+            <x-icon name="alert-triangle" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> {{ session('warning') }}
         </div>
     @endif
 
@@ -60,7 +60,7 @@
                     onclick="return confirm('Apakah Anda yakin ingin menutup (Cut-off) periode ini? Transaksi pada bulan ini akan TERKUNCI.')"
                     class="w-full rounded-xl bg-rose-600 py-2 text-sm font-semibold text-white transition hover:bg-rose-700"
                 >
-                    🔒 Kunci & Tutup Periode
+                    <x-icon name="lock" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Kunci & Tutup Periode
                 </button>
             </div>
         </form>
@@ -97,11 +97,11 @@
                             <td class="px-6 py-4">
                                 @if($p->status === 'LOCKED')
                                     <span class="inline-flex items-center gap-1 rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">
-                                        🔒 TERKUNCI (LOCKED)
+                                        <x-icon name="lock" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> TERKUNCI (LOCKED)
                                     </span>
                                 @else
                                     <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                                        🔓 TERBUKA (OPEN)
+                                        <x-icon name="lock-open" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> TERBUKA (OPEN)
                                     </span>
                                 @endif
                             </td>
@@ -125,7 +125,7 @@
                                         @click="showReopenModal = true; selectedId = {{ $p->id }}; selectedMonth = '{{ $namaBulan }}'"
                                         class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
                                     >
-                                        🔓 Buka Kembali Periode
+                                        <x-icon name="lock-open" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Buka Kembali Periode
                                     </button>
                                 @else
                                     <span class="text-xs text-slate-400 italic">Periode Aktif</span>
@@ -152,7 +152,7 @@
     >
         <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl space-y-4">
             <div class="border-b border-slate-100 pb-3">
-                <h3 class="text-base font-bold text-amber-700">🔓 Backup Plan: Buka Kembali Periode</h3>
+                <h3 class="text-base font-bold text-amber-700"><x-icon name="lock-open" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Backup Plan: Buka Kembali Periode</h3>
                 <p class="text-xs text-slate-500" x-text="'Membuka periode terkunci: ' + selectedMonth"></p>
             </div>
 

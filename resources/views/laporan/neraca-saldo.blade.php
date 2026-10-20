@@ -19,7 +19,7 @@
             onclick="window.print()"
             class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
         >
-            🖨️ Cetak Laporan
+            <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Cetak Laporan
         </button>
     </div>
 

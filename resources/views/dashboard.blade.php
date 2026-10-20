@@ -68,9 +68,7 @@
                         <p class="mt-2 text-xs text-slate-600">{{ number_format($cashBankAccountCount, 0, ',', '.') }} rekening aktif</p>
                     </div>
                     <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 text-[#0F8B8D]">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 10h18M5 10V20M9 10V20M15 10V20M19 10V20M2 20h20M12 3 2 8h20L12 3Z"/>
-                        </svg>
+                        <x-icon name="landmark" class="h-5 w-5" />
                     </div>
                 </div>
             </div>
