@@ -124,59 +124,46 @@ class LaporanPersediaanController extends Controller
 
     public function pdf(Request $request)
     {
-        $query =
-            $this->basePosisiQuery();
-
-        $this->applyPosisiFilters(
-            $query,
-            $request
-        );
+        // Gunakan query/filter yang sama dengan halaman posisi persediaan.
+        $query = $this->basePosisiQuery();
+        $this->applyPosisiFilters($query, $request);
 
         $stokBarangs = $query
             ->orderBy('gudang_id')
             ->orderBy('barang_id')
             ->get();
 
-        $totalJenisStok =
-            $stokBarangs
-                ->where('qty', '>', 0)
-                ->count();
+        // Semua ringkasan dihitung dari kumpulan data yang sama dengan tabel PDF.
+        $totalJenisStok = $stokBarangs
+            ->where('qty', '>', 0)
+            ->count();
 
-        $totalQty =
-            (float)
-            $stokBarangs->sum('qty');
+        $totalQty = (float) $stokBarangs->sum('qty');
+        $totalNilai = (float) $stokBarangs->sum('nilai_persediaan');
+        $stokHabis = $stokBarangs
+            ->where('qty', '<=', 0)
+            ->count();
 
-        $totalNilai =
-            (float)
-            $stokBarangs->sum(
-                'nilai_persediaan'
-            );
+        $pdf = Pdf::loadView('laporan.persediaan-pdf', [
+            'stokBarangs' => $stokBarangs,
+            'totalJenisStok' => $totalJenisStok,
+            'totalQty' => $totalQty,
+            'totalNilai' => $totalNilai,
+            'stokHabis' => $stokHabis,
+            'filterSearch' => trim((string) $request->query('search', '')),
+            'filterGudang' => $request->query('gudang_id'),
+            'filterStatus' => $request->query('status', ''),
+            'printedAt' => now(),
+        ])
+        ->setPaper('a4', 'landscape')
+        ->setOptions([
+            'isHtml5ParserEnabled' => true,
+            'isRemoteEnabled' => false,
+            'defaultFont' => 'DejaVu Sans',
+        ]);
 
-        $stokHabis =
-            $stokBarangs
-                ->where('qty', '<=', 0)
-                ->count();
-
-
-        $pdf = Pdf::loadView(
-            'laporan.persediaan-pdf',
-            compact(
-                'stokBarangs',
-                'totalJenisStok',
-                'totalQty',
-                'totalNilai',
-                'stokHabis'
-            )
-        )->setPaper(
-            'a4',
-            'landscape'
-        );
-
-
-        return $pdf->stream(
-            'laporan-persediaan-'
-            . now()->format('Y-m-d-His')
-            . '.pdf'
+        return $pdf->download(
+            'laporan-persediaan-' . now()->format('Y-m-d-His') . '.pdf'
         );
     }
 
@@ -502,7 +489,7 @@ class LaporanPersediaanController extends Controller
         );
 
 
-        return $pdf->stream(
+        return $pdf->download(
             'mutasi-persediaan-'
             . now()->format('Y-m-d-His')
             . '.pdf'

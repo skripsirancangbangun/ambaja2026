@@ -36,11 +36,16 @@ class LaporanPiutangController extends Controller
             'tempo_90plus' => 0, // > 90 hari
         ];
 
-        $today = Carbon::parse($perTanggal);
+        $cutoffDate = Carbon::parse($perTanggal)->startOfDay();
 
         foreach ($invoices as $inv) {
-            $dueDate = $inv->tanggal_jatuh_tempo ? Carbon::parse($inv->tanggal_jatuh_tempo) : Carbon::parse($inv->tanggal_invoice);
-            $daysOverdue = $dueDate->isPast() ? (int) $dueDate->diffInDays($today) : 0;
+            $dueDate = Carbon::parse(
+                $inv->tanggal_jatuh_tempo ?: $inv->tanggal_invoice
+            )->startOfDay();
+
+            $daysOverdue = $dueDate->greaterThan($cutoffDate)
+                ? 0
+                : (int) $dueDate->diffInDays($cutoffDate);
 
             if ($daysOverdue <= 30) {
                 $aging['lancar'] += $inv->sisa_piutang;
@@ -88,11 +93,16 @@ class LaporanPiutangController extends Controller
             'tempo_90plus' => 0,
         ];
 
-        $today = Carbon::parse($perTanggal);
+        $cutoffDate = Carbon::parse($perTanggal)->startOfDay();
 
         foreach ($invoices as $inv) {
-            $dueDate = $inv->tanggal_jatuh_tempo ? Carbon::parse($inv->tanggal_jatuh_tempo) : Carbon::parse($inv->tanggal_invoice);
-            $daysOverdue = $dueDate->isPast() ? (int) $dueDate->diffInDays($today) : 0;
+            $dueDate = Carbon::parse(
+                $inv->tanggal_jatuh_tempo ?: $inv->tanggal_invoice
+            )->startOfDay();
+
+            $daysOverdue = $dueDate->greaterThan($cutoffDate)
+                ? 0
+                : (int) $dueDate->diffInDays($cutoffDate);
 
             if ($daysOverdue <= 30) {
                 $aging['lancar'] += $inv->sisa_piutang;
@@ -155,11 +165,16 @@ class LaporanPiutangController extends Controller
         $sheet->getStyle('A4:I4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         $row = 5;
-        $today = Carbon::parse($perTanggal);
+        $cutoffDate = Carbon::parse($perTanggal)->startOfDay();
 
         foreach ($invoices as $inv) {
-            $dueDate = $inv->tanggal_jatuh_tempo ? Carbon::parse($inv->tanggal_jatuh_tempo) : Carbon::parse($inv->tanggal_invoice);
-            $daysOverdue = $dueDate->isPast() ? (int) $dueDate->diffInDays($today) : 0;
+            $dueDate = Carbon::parse(
+                $inv->tanggal_jatuh_tempo ?: $inv->tanggal_invoice
+            )->startOfDay();
+
+            $daysOverdue = $dueDate->greaterThan($cutoffDate)
+                ? 0
+                : (int) $dueDate->diffInDays($cutoffDate);
 
             $lancar = $daysOverdue <= 30 ? $inv->sisa_piutang : 0;
             $t30 = ($daysOverdue > 30 && $daysOverdue <= 60) ? $inv->sisa_piutang : 0;

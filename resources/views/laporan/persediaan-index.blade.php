@@ -292,7 +292,6 @@
 
             <a
                 href="{{ route('laporan.persediaan.pdf', request()->query()) }}"
-                target="_blank"
                 class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
             >
                 Export PDF
@@ -800,7 +799,6 @@
 
             <a
                 href="{{ route('laporan.persediaan.mutasi.pdf', request()->query()) }}"
-                target="_blank"
                 class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
             >
                 Export PDF

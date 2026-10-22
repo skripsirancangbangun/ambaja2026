@@ -72,7 +72,7 @@ class LaporanPenjualanController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Laporan Penjualan');
 
-        $sheet->mergeCells('A1:K1');
+        $sheet->mergeCells('A1:L1');
         $sheet->setCellValue('A1', 'LAPORAN PENJUALAN');
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
         $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -86,7 +86,7 @@ class LaporanPenjualanController extends Controller
             $periode = 'Sampai ' . $request->tanggal_selesai;
         }
 
-        $sheet->mergeCells('A2:K2');
+        $sheet->mergeCells('A2:L2');
         $sheet->setCellValue('A2', 'Periode: ' . $periode);
         $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 

@@ -979,10 +979,28 @@ Route::resource(
     Route::get(
         '/laporan/utang',
         [
-            LaporanPembelianController::class,
+            LaporanUtangController::class,
             'index',
         ]
     )->name('laporan.utang');
+
+
+    Route::get(
+        '/laporan/utang/pdf',
+        [
+            LaporanUtangController::class,
+            'pdf',
+        ]
+    )->name('laporan.utang.pdf');
+
+
+    Route::get(
+        '/laporan/utang/excel',
+        [
+            LaporanUtangController::class,
+            'excel',
+        ]
+    )->name('laporan.utang.excel');
 
 
     /*

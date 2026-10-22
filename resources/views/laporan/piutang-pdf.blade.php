@@ -41,9 +41,13 @@
         <tbody>
             @foreach($invoices as $inv)
                 @php
-                    $today = \Carbon\Carbon::parse($perTanggal);
-                    $dueDate = $inv->tanggal_jatuh_tempo ? \Carbon\Carbon::parse($inv->tanggal_jatuh_tempo) : \Carbon\Carbon::parse($inv->tanggal_invoice);
-                    $daysOverdue = $dueDate->isPast() ? (int) $dueDate->diffInDays($today) : 0;
+                    $cutoffDate = \Carbon\Carbon::parse($perTanggal)->startOfDay();
+                    $dueDate = \Carbon\Carbon::parse(
+                        $inv->tanggal_jatuh_tempo ?: $inv->tanggal_invoice
+                    )->startOfDay();
+                    $daysOverdue = $dueDate->greaterThan($cutoffDate)
+                        ? 0
+                        : (int) $dueDate->diffInDays($cutoffDate);
 
                     $lancar = $daysOverdue <= 30 ? $inv->sisa_piutang : 0;
                     $t30 = ($daysOverdue > 30 && $daysOverdue <= 60) ? $inv->sisa_piutang : 0;

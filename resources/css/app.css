@@ -380,8 +380,9 @@ main input[type="reset"] {
     line-height: 1.25;
     text-align: center;
     vertical-align: middle;
-    white-space: normal;
-    overflow-wrap: anywhere;
+    /* Keep short action labels such as "Filter" on one line. */
+    white-space: nowrap;
+    overflow-wrap: normal;
 }
 
 main button[class*="flex"],
@@ -570,3 +571,161 @@ main :where(
         padding-bottom: 0.75rem;
     }
 }
+
+
+/* ==========================================================================
+   AMBAJA FIX — sidebar active-link contrast and action-button labels
+   ========================================================================== */
+
+/*
+ * Active sidebar links combine `bg-white` with `text-white` in their base
+ * classes. Tailwind's generated utility order can leave the text white on
+ * the white active background. Scope this correction to sidebar navigation.
+ */
+aside nav a.bg-white {
+    color: #0f6f70 !important;
+    background-color: #ffffff !important;
+    font-weight: 700;
+}
+
+aside nav a.bg-white:hover,
+aside nav a.bg-white:focus-visible {
+    color: #0f6f70 !important;
+    background-color: #f0fbfa !important;
+}
+
+/* Keep ordinary sidebar links readable against the teal sidebar. */
+aside nav a:not(.bg-white) {
+    color: #ffffff;
+}
+
+aside nav a:not(.bg-white):hover {
+    color: #ffffff;
+}
+
+/*
+ * On compact screens, let the filter area scroll/wrap at its container level;
+ * do not split a button label into multiple lines.
+ */
+main button,
+main input[type="submit"],
+main input[type="button"],
+main input[type="reset"] {
+    word-break: normal;
+    hyphens: none;
+}
+
+
+
+/* ==========================================================================
+   AMBAJA — searchable barang dropdown
+   ========================================================================== */
+.ambaja-search-select {
+    position: relative;
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.ambaja-search-select-input {
+    display: block;
+    width: 100%;
+    min-height: 2.5rem;
+    padding: 0.625rem 2.25rem 0.625rem 0.875rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.55rem;
+    background-color: #fff;
+    color: #1e293b;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    outline: none;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.ambaja-search-select-input::placeholder {
+    color: #64748b;
+    opacity: 1;
+}
+
+.ambaja-search-select-input:focus {
+    border-color: var(--ambaja-teal, #32aaa6);
+    box-shadow: 0 0 0 3px rgba(50, 170, 166, 0.16);
+}
+
+.ambaja-search-select-input:disabled {
+    cursor: not-allowed;
+    background-color: #f1f5f9;
+    color: #94a3b8;
+}
+
+.ambaja-search-select-options {
+    position: absolute;
+    z-index: 60;
+    top: calc(100% + 0.25rem);
+    right: 0;
+    left: 0;
+    max-height: 15rem;
+    overflow-y: auto;
+    border: 1px solid #dbe4ee;
+    border-radius: 0.65rem;
+    background: #fff;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+}
+
+.ambaja-search-select-options[hidden] {
+    display: none !important;
+}
+
+.ambaja-search-select-option {
+    display: block;
+    width: 100%;
+    padding: 0.65rem 0.85rem;
+    border: 0;
+    background: #fff;
+    color: #334155;
+    font-size: 0.875rem;
+    line-height: 1.45;
+    text-align: left;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+}
+
+.ambaja-search-select-option + .ambaja-search-select-option {
+    border-top: 1px solid #f1f5f9;
+}
+
+.ambaja-search-select-option:hover,
+.ambaja-search-select-option.is-active {
+    background: #e4f7f5;
+    color: #0f6f70;
+}
+
+.ambaja-search-select-option[aria-selected="true"] {
+    font-weight: 600;
+    color: #15235f;
+}
+
+.ambaja-search-select-empty,
+.ambaja-search-select-hint {
+    padding: 0.75rem 0.85rem;
+    color: #64748b;
+    font-size: 0.75rem;
+    line-height: 1.45;
+}
+
+.ambaja-search-select-source {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    min-height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
