@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\RekeningKasBank;
 use App\Models\TransaksiBelumTeridentifikasi;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class TransaksiBelumTeridentifikasiController extends Controller
 {
@@ -311,116 +313,143 @@ class TransaksiBelumTeridentifikasiController extends Controller
         Request $request,
         TransaksiBelumTeridentifikasi $transaksiBelumTeridentifikasi
     ) {
-        if (
-            $transaksiBelumTeridentifikasi->status
-            !== 'BELUM_TERIDENTIFIKASI'
-        ) {
-            return redirect()
-                ->route(
-                    'transaksi-belum-teridentifikasi.show',
-                    $transaksiBelumTeridentifikasi
-                )
-                ->with(
-                    'error',
-                    'Transaksi yang sudah diproses tidak dapat diubah.'
-                );
-        }
-
         $validated = $this->validateData($request);
 
-        RekeningKasBank::query()
-            ->where('id', $validated['rekening_kas_bank_id'])
-            ->where('jenis', 'BANK')
-            ->firstOrFail();
+        $updated = DB::transaction(function () use (
+            $validated,
+            $transaksiBelumTeridentifikasi
+        ): bool {
+            $transaksi = TransaksiBelumTeridentifikasi::query()
+                ->whereKey($transaksiBelumTeridentifikasi->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $transaksiBelumTeridentifikasi->update([
-            'tanggal' => $validated['tanggal'],
+            if ($transaksi->status !== 'BELUM_TERIDENTIFIKASI') {
+                return false;
+            }
 
-            'rekening_kas_bank_id' =>
-                $validated['rekening_kas_bank_id'],
+            $rekening = RekeningKasBank::query()
+                ->whereKey($validated['rekening_kas_bank_id'])
+                ->where('jenis', 'BANK')
+                ->where(function ($query) use ($transaksi) {
+                    $query->where('is_active', true)
+                        ->orWhere('id', $transaksi->rekening_kas_bank_id);
+                })
+                ->lockForUpdate()
+                ->first();
 
-            'jenis' => $validated['jenis'],
+            if (!$rekening) {
+                throw ValidationException::withMessages([
+                    'rekening_kas_bank_id' =>
+                        'Pilih rekening bank yang aktif.',
+                ]);
+            }
 
-            'jumlah' => $validated['jumlah'],
+            $transaksi->update([
+                'tanggal' => $validated['tanggal'],
+                'rekening_kas_bank_id' => $rekening->id,
+                'jenis' => $validated['jenis'],
+                'jumlah' => $validated['jumlah'],
+                'nama_pengirim_penerima' =>
+                    $validated['nama_pengirim_penerima'] ?? null,
+                'nomor_referensi_bank' =>
+                    $validated['nomor_referensi_bank'] ?? null,
+                'deskripsi_bank' =>
+                    $validated['deskripsi_bank'] ?? null,
+            ]);
 
-            'nama_pengirim_penerima' =>
-                $validated['nama_pengirim_penerima'] ?? null,
+            // import_hash sengaja dipertahankan sebagai fingerprint sumber asli.
+            // Mengubahnya setelah edit akan memungkinkan baris yang sama diimpor ulang.
+            return true;
+        });
 
-            'nomor_referensi_bank' =>
-                $validated['nomor_referensi_bank'] ?? null,
-
-            'deskripsi_bank' =>
-                $validated['deskripsi_bank'] ?? null,
-        ]);
+        if (!$updated) {
+            return redirect()
+                ->route('transaksi-belum-teridentifikasi.show', $transaksiBelumTeridentifikasi)
+                ->with('error', 'Transaksi sudah diproses oleh proses lain dan tidak dapat diubah.');
+        }
 
         return redirect()
-            ->route(
-                'transaksi-belum-teridentifikasi.show',
-                $transaksiBelumTeridentifikasi
-            )
-            ->with(
-                'success',
-                'Transaksi bank berhasil diperbarui.'
-            );
+            ->route('transaksi-belum-teridentifikasi.show', $transaksiBelumTeridentifikasi)
+            ->with('success', 'Transaksi bank berhasil diperbarui.');
     }
 
     public function destroy(
         TransaksiBelumTeridentifikasi $transaksiBelumTeridentifikasi
     ) {
-        if (
-            $transaksiBelumTeridentifikasi->status
-            !== 'BELUM_TERIDENTIFIKASI'
-        ) {
+        $deleted = DB::transaction(function () use (
+            $transaksiBelumTeridentifikasi
+        ): bool {
+            $transaksi = TransaksiBelumTeridentifikasi::query()
+                ->whereKey($transaksiBelumTeridentifikasi->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($transaksi->status !== 'BELUM_TERIDENTIFIKASI') {
+                return false;
+            }
+
+            // Baris impor harus tetap menyimpan fingerprint-nya agar import ulang
+            // tidak menciptakan transaksi duplikat. Gunakan aksi "Abaikan".
+            if (!empty($transaksi->import_hash)) {
+                return false;
+            }
+
+            $transaksi->delete();
+
+            return true;
+        });
+
+        if (!$deleted) {
             return redirect()
-                ->route(
-                    'transaksi-belum-teridentifikasi.show',
-                    $transaksiBelumTeridentifikasi
-                )
+                ->route('transaksi-belum-teridentifikasi.show', $transaksiBelumTeridentifikasi)
                 ->with(
                     'error',
-                    'Transaksi yang sudah diproses tidak dapat dihapus.'
+                    $transaksiBelumTeridentifikasi->import_hash
+                        ? 'Transaksi hasil impor tidak dapat dihapus permanen. Gunakan aksi Abaikan agar fingerprint sumber tetap mencegah impor duplikat.'
+                        : 'Transaksi sudah diproses oleh proses lain dan tidak dapat dihapus.'
                 );
         }
 
-        $transaksiBelumTeridentifikasi->delete();
-
         return redirect()
-            ->route(
-                'transaksi-belum-teridentifikasi.index'
-            )
-            ->with(
-                'success',
-                'Transaksi bank berhasil dihapus.'
-            );
+            ->route('transaksi-belum-teridentifikasi.index')
+            ->with('success', 'Transaksi bank berhasil dihapus.');
     }
 
     public function abaikan(
         TransaksiBelumTeridentifikasi $transaksiBelumTeridentifikasi
     ) {
-        if (
-            $transaksiBelumTeridentifikasi->status
-            !== 'BELUM_TERIDENTIFIKASI'
-        ) {
+        $ignored = DB::transaction(function () use (
+            $transaksiBelumTeridentifikasi
+        ): bool {
+            $transaksi = TransaksiBelumTeridentifikasi::query()
+                ->whereKey($transaksiBelumTeridentifikasi->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($transaksi->status !== 'BELUM_TERIDENTIFIKASI') {
+                return false;
+            }
+
+            $transaksi->update([
+                'status' => 'DIABAIKAN',
+                'identified_at' => now(),
+                'identified_by' => auth()->id(),
+            ]);
+
+            return true;
+        });
+
+        if (!$ignored) {
             return back()->with(
                 'error',
-                'Transaksi ini sudah diproses.'
+                'Transaksi sudah diproses oleh proses lain.'
             );
         }
 
-        $transaksiBelumTeridentifikasi->update([
-            'status' => 'DIABAIKAN',
-            'identified_at' => now(),
-            'identified_by' => auth()->id(),
-        ]);
-
         return redirect()
-            ->route(
-                'transaksi-belum-teridentifikasi.index'
-            )
-            ->with(
-                'success',
-                'Transaksi ditandai sebagai diabaikan.'
-            );
+            ->route('transaksi-belum-teridentifikasi.index')
+            ->with('success', 'Transaksi ditandai sebagai diabaikan.');
     }
 
     private function validateData(Request $request): array

@@ -6,6 +6,7 @@ use App\Models\MutasiKasBank;
 use App\Models\PembayaranSupplier;
 use App\Models\RekeningKasBank;
 use App\Models\RekonsiliasiBank;
+use App\Models\RekonsiliasiBankAudit;
 use App\Models\SupplierRekeningAlias;
 use App\Models\TransaksiBelumTeridentifikasi;
 use Carbon\Carbon;
@@ -276,6 +277,13 @@ class RekonsiliasiBankController extends Controller
             'identifier',
         ]);
 
+        $riwayatPembatalan = RekonsiliasiBankAudit::query()
+            ->with('actor')
+            ->where('transaksi_bank_id', $transaksiBank->id)
+            ->orderByDesc('dibatalkan_pada')
+            ->limit(10)
+            ->get();
+
 
         /*
         |--------------------------------------------------------------------------
@@ -338,7 +346,8 @@ class RekonsiliasiBankController extends Controller
                     'transaksiBank',
                     'rekonsiliasi',
                     'kandidatMutasis',
-                    'namaBankTerdeteksi'
+                    'namaBankTerdeteksi',
+                    'riwayatPembatalan'
                 )
             );
         }
@@ -485,7 +494,8 @@ class RekonsiliasiBankController extends Controller
                 'transaksiBank',
                 'rekonsiliasi',
                 'kandidatMutasis',
-                'namaBankTerdeteksi'
+                'namaBankTerdeteksi',
+                'riwayatPembatalan'
             )
         );
     }
@@ -950,105 +960,68 @@ class RekonsiliasiBankController extends Controller
     */
 
     public function batalkan(
+        Request $request,
         TransaksiBelumTeridentifikasi $transaksiBank
     ) {
-        DB::transaction(
-            function () use (
-                $transaksiBank
-            ) {
-                /*
-                |--------------------------------------------------------------------------
-                | LOCK BANK
-                |--------------------------------------------------------------------------
-                */
+        $validated = $request->validate([
+            'alasan' => ['nullable', 'string', 'max:1000'],
+        ]);
 
-                $bank =
-                    TransaksiBelumTeridentifikasi::query()
-                        ->whereKey(
-                            $transaksiBank->id
-                        )
-                        ->lockForUpdate()
-                        ->firstOrFail();
+        DB::transaction(function () use ($transaksiBank, $validated) {
+            $bank = TransaksiBelumTeridentifikasi::query()
+                ->whereKey($transaksiBank->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
+            $rekonsiliasi = RekonsiliasiBank::query()
+                ->where('transaksi_bank_id', $bank->id)
+                ->lockForUpdate()
+                ->first();
 
-                /*
-                |--------------------------------------------------------------------------
-                | REKONSILIASI
-                |--------------------------------------------------------------------------
-                */
-
-                $rekonsiliasi =
-                    RekonsiliasiBank::query()
-                        ->where(
-                            'transaksi_bank_id',
-                            $bank->id
-                        )
-                        ->lockForUpdate()
-                        ->first();
-
-
-                if (
-                    !$rekonsiliasi
-                ) {
-
-                    throw ValidationException::withMessages([
-                        'rekonsiliasi' =>
-                            'Data rekonsiliasi tidak ditemukan.',
-                    ]);
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | HAPUS
-                |--------------------------------------------------------------------------
-                */
-
-                $rekonsiliasi
-                    ->delete();
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | RESET BANK
-                |--------------------------------------------------------------------------
-                */
-
-                $bank->update([
-
-                    'status' =>
-                        'BELUM_TERIDENTIFIKASI',
-
-                    'matched_reference_type' =>
-                        null,
-
-                    'matched_reference_id' =>
-                        null,
-
-                    'identified_at' =>
-                        null,
-
-                    'identified_by' =>
-                        null,
+            if (!$rekonsiliasi) {
+                throw ValidationException::withMessages([
+                    'rekonsiliasi' => 'Data rekonsiliasi tidak ditemukan atau sudah dibatalkan.',
                 ]);
-
-
-                /*
-                 * Alias supplier sengaja tidak dihapus.
-                 */
             }
-        );
 
+            $rekonsiliasi->loadMissing('mutasiKasBank');
+            $mutasi = $rekonsiliasi->mutasiKasBank;
+
+            // Simpan snapshot sebelum menghapus pasangan rekonsiliasi.
+            // ID sumber tidak memakai FK di tabel audit agar histori permanen.
+            RekonsiliasiBankAudit::create([
+                'rekonsiliasi_id' => $rekonsiliasi->id,
+                'transaksi_bank_id' => $bank->id,
+                'mutasi_kas_bank_id' => $rekonsiliasi->mutasi_kas_bank_id,
+                'aksi' => 'DIBATALKAN',
+                'data_sebelum' => [
+                    'rekonsiliasi' => $rekonsiliasi->getAttributes(),
+                    'transaksi_bank' => $bank->getAttributes(),
+                    'mutasi_kas_bank' => $mutasi?->getAttributes(),
+                ],
+                'alasan' => isset($validated['alasan']) && trim($validated['alasan']) !== ''
+                    ? trim($validated['alasan'])
+                    : null,
+                'dibatalkan_oleh' => auth()->id(),
+                'dibatalkan_pada' => now(),
+            ]);
+
+            $rekonsiliasi->delete();
+
+            $bank->update([
+                'status' => 'BELUM_TERIDENTIFIKASI',
+                'matched_reference_type' => null,
+                'matched_reference_id' => null,
+                'identified_at' => null,
+                'identified_by' => null,
+            ]);
+
+            // Alias supplier sengaja tidak dihapus.
+        });
 
         return redirect()
-            ->route(
-                'rekonsiliasi-bank.show',
-                $transaksiBank
-            )
-            ->with(
-                'success',
-                'Rekonsiliasi berhasil dibatalkan.'
-            );
+            ->route('rekonsiliasi-bank.show', $transaksiBank)
+            ->with('success', 'Rekonsiliasi berhasil dibatalkan. Riwayat pembatalan tersimpan.');
     }
 
 

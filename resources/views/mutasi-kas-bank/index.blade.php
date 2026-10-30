@@ -122,10 +122,32 @@
                             <div class="mt-1 text-lg font-bold text-[#15235F]">
                                 Rp {{ number_format(
                                     (float) $rekening->saldo_saat_ini,
-                                    0,
+                                    2,
                                     ',',
                                     '.'
                                 ) }}
+                            </div>
+
+                            <div class="mt-3 border-t border-slate-200 pt-3">
+                                <div class="flex items-center justify-between gap-3 text-xs text-slate-500">
+                                    <span>Saldo Buku Besar (COA)</span>
+                                    @if ($rekening->saldo_coa_saat_ini === null)
+                                        <span class="font-semibold text-amber-700">COA belum terhubung</span>
+                                    @else
+                                        <span class="font-semibold {{ $rekening->saldo_sinkron_dengan_coa ? 'text-emerald-700' : 'text-red-700' }}">
+                                            {{ $rekening->saldo_sinkron_dengan_coa ? 'Cocok' : 'SELISIH' }}
+                                        </span>
+                                    @endif
+                                </div>
+
+                                @if ($rekening->saldo_coa_saat_ini !== null)
+                                    <div class="mt-1 text-sm font-semibold text-slate-800">
+                                        Rp {{ number_format((float) $rekening->saldo_coa_saat_ini, 2, ',', '.') }}
+                                    </div>
+                                    <div class="mt-1 text-xs {{ $rekening->saldo_sinkron_dengan_coa ? 'text-emerald-700' : 'text-red-700' }}">
+                                        Selisih subledger - COA: Rp {{ number_format((float) $rekening->selisih_saldo_coa, 2, ',', '.') }}
+                                    </div>
+                                @endif
                             </div>
                         </div>
 

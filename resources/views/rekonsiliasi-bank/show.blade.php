@@ -348,6 +348,23 @@
                     @csrf
                     @method('PATCH')
 
+                    <div class="mb-4">
+                        <label for="alasan-pembatalan" class="mb-1 block text-sm font-medium text-slate-700">
+                            Alasan Pembatalan <span class="font-normal text-slate-400">(opsional)</span>
+                        </label>
+                        <textarea
+                            id="alasan-pembatalan"
+                            name="alasan"
+                            rows="2"
+                            maxlength="1000"
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-100"
+                            placeholder="Contoh: salah mencocokkan transaksi rekening koran"
+                        >{{ old('alasan') }}</textarea>
+                        @error('alasan')
+                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
                     <button
                         type="submit"
                         class="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-100"
@@ -938,6 +955,36 @@
 
         </div>
 
+    @endif
+
+    {{-- RIWAYAT PEMBATALAN REKONSILIASI --}}
+    @if($riwayatPembatalan->isNotEmpty())
+        <div class="rounded-2xl border border-amber-200 bg-white p-6 shadow-sm">
+            <div class="mb-4">
+                <h3 class="text-sm font-semibold text-amber-800">Riwayat Pembatalan Rekonsiliasi</h3>
+                <p class="mt-1 text-xs text-slate-500">Maksimal 10 pembatalan terbaru ditampilkan. Snapshot transaksi disimpan untuk keperluan audit.</p>
+            </div>
+
+            <div class="space-y-4">
+                @foreach($riwayatPembatalan as $riwayat)
+                    <div class="border-l-2 border-amber-300 pl-4">
+                        <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                            <p class="text-sm font-medium text-slate-800">
+                                {{ $riwayat->actor?->name ?? 'Pengguna tidak tersedia' }}
+                                <span class="font-normal text-slate-500">membatalkan rekonsiliasi</span>
+                            </p>
+                            <p class="text-xs text-slate-500">
+                                {{ $riwayat->dibatalkan_pada?->format('d/m/Y H:i:s') ?? '-' }}
+                            </p>
+                        </div>
+                        @if($riwayat->alasan)
+                            <p class="mt-1 text-sm text-slate-600">Alasan: {{ $riwayat->alasan }}</p>
+                        @endif
+                        <p class="mt-1 text-xs text-slate-400">ID rekonsiliasi sebelumnya: {{ $riwayat->rekonsiliasi_id }}</p>
+                    </div>
+                @endforeach
+            </div>
+        </div>
     @endif
 
 </div>

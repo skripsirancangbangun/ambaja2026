@@ -153,9 +153,15 @@
             </h4>
             <div class="space-y-2 text-sm pl-4">
                 <div class="flex justify-between text-slate-700">
+                    <span>Penerimaan dari Penjualan Aset Tetap</span>
+                    <span class="font-semibold text-emerald-600">
+                        Rp {{ number_format($penerimaanPenjualanAset, 0, ',', '.') }}
+                    </span>
+                </div>
+                <div class="flex justify-between text-slate-700">
                     <span>Pembelian Aset Tetap / Peralatan</span>
                     <span class="font-semibold text-rose-600">
-                        {{ $arusKasInvestasi < 0 ? '-' : '' }} Rp {{ number_format(abs($arusKasInvestasi), 0, ',', '.') }}
+                        - Rp {{ number_format($pembelianAsetTetap, 0, ',', '.') }}
                     </span>
                 </div>
             </div>
@@ -178,8 +184,24 @@
                     <span class="font-semibold text-slate-800">Rp {{ number_format($setoranModal, 0, ',', '.') }}</span>
                 </div>
                 <div class="flex justify-between text-slate-700">
+                    <span>Penerimaan Pinjaman</span>
+                    <span class="font-semibold text-slate-800">Rp {{ number_format($penerimaanPinjaman, 0, ',', '.') }}</span>
+                </div>
+                <div class="flex justify-between text-slate-700">
+                    <span>Penerimaan Pendanaan Lainnya</span>
+                    <span class="font-semibold text-slate-800">Rp {{ number_format($penerimaanPendanaanLainnya, 0, ',', '.') }}</span>
+                </div>
+                <div class="flex justify-between text-slate-700">
                     <span>Pengambilan Prive Owner</span>
                     <span class="font-semibold text-rose-600">- Rp {{ number_format($penarikanPrive, 0, ',', '.') }}</span>
+                </div>
+                <div class="flex justify-between text-slate-700">
+                    <span>Pembayaran Pokok Pinjaman</span>
+                    <span class="font-semibold text-rose-600">- Rp {{ number_format($pembayaranPinjaman, 0, ',', '.') }}</span>
+                </div>
+                <div class="flex justify-between text-slate-700">
+                    <span>Pembayaran Pendanaan Lainnya</span>
+                    <span class="font-semibold text-rose-600">- Rp {{ number_format($pembayaranPendanaanLainnya, 0, ',', '.') }}</span>
                 </div>
             </div>
             <div class="flex justify-between border-t border-slate-200 pt-2 font-bold text-sm text-slate-800 pl-4">

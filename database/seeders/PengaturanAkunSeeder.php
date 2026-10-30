@@ -285,6 +285,21 @@ class PengaturanAkunSeeder extends Seeder
 
             [
                 'kunci' =>
+                    'AKUN_SALDO_AWAL',
+
+                'nama' =>
+                    'Akun Ekuitas Saldo Awal',
+
+                'ket' =>
+                    'Digunakan sebagai akun lawan untuk jurnal pembukaan persediaan dan saldo awal migrasi. Re-klasifikasi ke akun ekuitas riil setelah data pembukaan diverifikasi.',
+
+                'search' => [
+                    'Ekuitas Saldo Awal Sementara',
+                ],
+            ],
+
+            [
+                'kunci' =>
                     'AKUN_KAS_UTAMA',
 
                 'nama' =>

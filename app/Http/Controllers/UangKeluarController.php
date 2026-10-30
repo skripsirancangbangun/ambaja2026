@@ -305,14 +305,9 @@ class UangKeluarController extends Controller
         Request $request,
         UangKeluar $uangKeluar
     ) {
-        if (
-            $uangKeluar->status !== 'DRAFT'
-        ) {
+        if ($uangKeluar->status !== 'DRAFT') {
             return redirect()
-                ->route(
-                    'uang-keluar.show',
-                    $uangKeluar
-                )
+                ->route('uang-keluar.show', $uangKeluar)
                 ->with(
                     'error',
                     'Transaksi yang sudah tercatat tidak dapat diubah.'
@@ -324,113 +319,96 @@ class UangKeluarController extends Controller
             $this->validationMessages()
         );
 
-        DB::transaction(
-            function () use (
-                $validated,
-                $uangKeluar
-            ) {
-                $total = collect(
-                    $validated['details']
-                )->sum(
-                    fn ($detail) =>
-                        (float) $detail['jumlah']
-                );
+        // Lock the parent transaction before changing its header or details.
+        $updated = DB::transaction(function () use ($validated, $uangKeluar) {
+            $locked = UangKeluar::query()
+                ->lockForUpdate()
+                ->findOrFail($uangKeluar->id);
 
-                $uangKeluar->update([
-                    'tanggal' =>
-                        $validated['tanggal'],
-
-                    'rekening_kas_bank_id' =>
-                        $validated[
-                            'rekening_kas_bank_id'
-                        ],
-
-                    'jumlah' =>
-                        $total,
-
-                    'tujuan' =>
-                        count(
-                            $validated['details']
-                        ) === 1
-                            ? $validated[
-                                'details'
-                            ][0]['tujuan']
-                            : 'Beberapa pengeluaran',
-
-                    'referensi' =>
-                        $validated[
-                            'referensi'
-                        ] ?? null,
-
-                    'keterangan' =>
-                        $validated[
-                            'keterangan'
-                        ] ?? null,
-                ]);
-
-                $uangKeluar
-                    ->details()
-                    ->delete();
-
-                foreach (
-                    $validated['details']
-                    as $detail
-                ) {
-                    $uangKeluar
-                        ->details()
-                        ->create([
-                            'akun_id' =>
-                                $detail['akun_id'],
-
-                            'tujuan' =>
-                                $detail['tujuan'],
-
-                            'jumlah' =>
-                                $detail['jumlah'],
-                        ]);
-                }
+            if ($locked->status !== 'DRAFT') {
+                return false;
             }
-        );
+
+            $total = collect($validated['details'])
+                ->sum(fn ($detail) => (float) $detail['jumlah']);
+
+            $locked->update([
+                'tanggal' => $validated['tanggal'],
+                'rekening_kas_bank_id' => $validated['rekening_kas_bank_id'],
+                'jumlah' => $total,
+                'tujuan' => count($validated['details']) === 1
+                    ? $validated['details'][0]['tujuan']
+                    : 'Beberapa pengeluaran',
+                'referensi' => $validated['referensi'] ?? null,
+                'keterangan' => $validated['keterangan'] ?? null,
+            ]);
+
+            $locked->details()->delete();
+            foreach ($validated['details'] as $detail) {
+                $locked->details()->create([
+                    'akun_id' => $detail['akun_id'],
+                    'tujuan' => $detail['tujuan'],
+                    'jumlah' => $detail['jumlah'],
+                ]);
+            }
+
+            return true;
+        });
+
+        if (!$updated) {
+            return redirect()
+                ->route('uang-keluar.show', $uangKeluar)
+                ->with(
+                    'error',
+                    'Transaksi sudah tercatat oleh proses lain dan tidak dapat diubah.'
+                );
+        }
 
         return redirect()
-            ->route(
-                'uang-keluar.show',
-                $uangKeluar
-            )
-            ->with(
-                'success',
-                'Draft Uang Keluar berhasil diperbarui.'
-            );
+            ->route('uang-keluar.show', $uangKeluar)
+            ->with('success', 'Draft Uang Keluar berhasil diperbarui.');
     }
 
     public function destroy(
         UangKeluar $uangKeluar
     ) {
-        if (
-            $uangKeluar->status !== 'DRAFT'
-        ) {
+        if ($uangKeluar->status !== 'DRAFT') {
             return redirect()
-                ->route(
-                    'uang-keluar.show',
-                    $uangKeluar
-                )
+                ->route('uang-keluar.show', $uangKeluar)
                 ->with(
                     'error',
                     'Transaksi yang sudah tercatat tidak dapat dihapus.'
                 );
         }
 
-        $uangKeluar->delete();
+        $deleted = DB::transaction(function () use ($uangKeluar) {
+            $locked = UangKeluar::query()
+                ->lockForUpdate()
+                ->findOrFail($uangKeluar->id);
+
+            if ($locked->status !== 'DRAFT') {
+                return false;
+            }
+
+            $locked->delete();
+            return true;
+        });
+
+        if (!$deleted) {
+            return redirect()
+                ->route('uang-keluar.show', $uangKeluar)
+                ->with(
+                    'error',
+                    'Transaksi sudah tercatat oleh proses lain dan tidak dapat dihapus.'
+                );
+        }
 
         return redirect()
-            ->route(
-                'uang-keluar.index'
-            )
-            ->with(
-                'success',
-                'Draft Uang Keluar berhasil dihapus.'
-            );
+            ->route('uang-keluar.index')
+            ->with('success', 'Draft Uang Keluar berhasil dihapus.');
     }
+
+
 
     public function catat(
         UangKeluar $uangKeluar,

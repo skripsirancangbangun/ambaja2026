@@ -54,10 +54,12 @@
     <div class="section-title">2. ARUS KAS DARI AKTIVITAS INVESTASI</div>
     <table class="data">
         <tr>
+            <td>Penerimaan dari Penjualan Aset Tetap</td>
+            <td class="right" style="color: #059669;">Rp {{ number_format($penerimaanPenjualanAset, 0, ',', '.') }}</td>
+        </tr>
+        <tr>
             <td>Pembelian Aset Tetap / Peralatan</td>
-            <td class="right" style="color: #e11d48;">
-                {{ $arusKasInvestasi < 0 ? '-' : '' }} Rp {{ number_format(abs($arusKasInvestasi), 0, ',', '.') }}
-            </td>
+            <td class="right" style="color: #e11d48;">- Rp {{ number_format($pembelianAsetTetap, 0, ',', '.') }}</td>
         </tr>
         <tr class="total-row">
             <td>Arus Kas Bersih Investasi</td>
@@ -74,8 +76,24 @@
             <td class="right">Rp {{ number_format($setoranModal, 0, ',', '.') }}</td>
         </tr>
         <tr>
+            <td>Penerimaan Pinjaman</td>
+            <td class="right">Rp {{ number_format($penerimaanPinjaman, 0, ',', '.') }}</td>
+        </tr>
+        <tr>
+            <td>Penerimaan Pendanaan Lainnya</td>
+            <td class="right">Rp {{ number_format($penerimaanPendanaanLainnya, 0, ',', '.') }}</td>
+        </tr>
+        <tr>
             <td>Pengambilan Prive Owner</td>
             <td class="right" style="color: #e11d48;">- Rp {{ number_format($penarikanPrive, 0, ',', '.') }}</td>
+        </tr>
+        <tr>
+            <td>Pembayaran Pokok Pinjaman</td>
+            <td class="right" style="color: #e11d48;">- Rp {{ number_format($pembayaranPinjaman, 0, ',', '.') }}</td>
+        </tr>
+        <tr>
+            <td>Pembayaran Pendanaan Lainnya</td>
+            <td class="right" style="color: #e11d48;">- Rp {{ number_format($pembayaranPendanaanLainnya, 0, ',', '.') }}</td>
         </tr>
         <tr class="total-row">
             <td>Arus Kas Bersih Pendanaan</td>

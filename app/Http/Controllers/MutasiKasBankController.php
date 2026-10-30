@@ -11,6 +11,7 @@ class MutasiKasBankController extends Controller
     public function index(Request $request)
     {
         $rekeningKasBanks = RekeningKasBank::query()
+            ->with('akun')
             ->orderBy('jenis')
             ->orderBy('nama_rekening')
             ->get();
@@ -185,6 +186,17 @@ class MutasiKasBankController extends Controller
 
                 $rekening->total_debit_mutasi = $totalDebit;
                 $rekening->total_kredit_mutasi = $totalKredit;
+
+                // Bandingkan saldo subledger Kas/Bank dengan saldo COA dari jurnal posted.
+                $saldoCoa = $rekening->akun?->saldo_saat_ini;
+                $rekening->saldo_coa_saat_ini = $saldoCoa === null
+                    ? null
+                    : round((float) $saldoCoa, 2);
+                $rekening->selisih_saldo_coa = $rekening->saldo_coa_saat_ini === null
+                    ? null
+                    : round((float) $rekening->saldo_saat_ini - $rekening->saldo_coa_saat_ini, 2);
+                $rekening->saldo_sinkron_dengan_coa = $rekening->selisih_saldo_coa !== null
+                    && abs($rekening->selisih_saldo_coa) <= 0.01;
 
                 return $rekening;
             }

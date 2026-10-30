@@ -2511,243 +2511,84 @@ class ImportRekeningKoranController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    private function parseNominal(
-        $value
-    ): float {
-
-        if (
-            $value === null
-            ||
-            $value === ''
-        ) {
-
-            return 0;
+    private function parseNominal($value): float
+    {
+        if ($value === null || $value === '') {
+            return 0.0;
         }
 
-
-        /*
-         * Numeric langsung.
-         */
-
-        if (
-            is_numeric(
-                $value
-            )
-        ) {
-
-            return round(
-                abs(
-                    (float) $value
-                ),
-                2
-            );
+        // Spreadsheet numeric cells are already numeric; do not reinterpret
+        // them using locale-specific thousands separators.
+        if (is_int($value) || is_float($value)) {
+            return round(abs((float) $value), 2);
         }
 
-
-        $value =
-            trim(
-                (string) $value
-            );
-
-
-        if (
-            $value === ''
-            ||
-            $value === '-'
-        ) {
-
-            return 0;
+        $value = trim((string) $value);
+        if ($value === '' || $value === '-') {
+            return 0.0;
         }
 
+        // Remove common bank debit/credit markers and currency text.
+        $value = preg_replace('/\b(DB|CR)\b/i', '', $value) ?? '';
+        $value = preg_replace('/[^\d,.\-]/u', '', $value) ?? '';
+        $value = trim($value);
 
-        /*
-         * DB / CR.
-         */
-
-        $value =
-            preg_replace(
-                '/\b(DB|CR)\b/i',
-                '',
-                $value
-            );
-
-
-        /*
-         * Hanya angka/koma/titik/minus.
-         */
-
-        $value =
-            preg_replace(
-                '/[^\d,\.\-]/',
-                '',
-                $value
-            );
-
-
-        if (
-            $value === null
-            ||
-            $value === ''
-        ) {
-
-            return 0;
+        if ($value === '' || $value === '-') {
+            return 0.0;
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | KOMA + TITIK
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            str_contains(
-                $value,
-                ','
-            )
-            &&
-            str_contains(
-                $value,
-                '.'
-            )
-        ) {
-
-            /*
-             * Format:
-             *
-             * 22,735,000.00
-             */
-
-            if (
-                strrpos(
-                    $value,
-                    '.'
-                )
-                >
-                strrpos(
-                    $value,
-                    ','
-                )
-            ) {
-
-                $value =
-                    str_replace(
-                        ',',
-                        '',
-                        $value
-                    );
-
-            }
-
-            /*
-             * Format:
-             *
-             * 22.735.000,00
-             */
-
-            else {
-
-                $value =
-                    str_replace(
-                        '.',
-                        '',
-                        $value
-                    );
-
-
-                $value =
-                    str_replace(
-                        ',',
-                        '.',
-                        $value
-                    );
-            }
+        // A minus sign is only valid at the beginning. The importer stores
+        // the amount as an absolute value and derives direction separately.
+        if (substr_count($value, '-') > 1 || (str_contains($value, '-') && !str_starts_with($value, '-'))) {
+            return 0.0;
+        }
+        $value = ltrim($value, '-');
+        if ($value === '') {
+            return 0.0;
         }
 
+        $hasComma = str_contains($value, ',');
+        $hasDot = str_contains($value, '.');
 
-        /*
-        |--------------------------------------------------------------------------
-        | HANYA KOMA
-        |--------------------------------------------------------------------------
-        */
-
-        elseif (
-            str_contains(
-                $value,
-                ','
-            )
-        ) {
-
-            $parts =
-                explode(
-                    ',',
-                    $value
-                );
-
-
-            if (
-                count($parts) === 2
-                &&
-                strlen(
-                    $parts[1]
-                ) <= 2
-            ) {
-
-                /*
-                 * 5000,50
-                 */
-
-                $value =
-                    str_replace(
-                        ',',
-                        '.',
-                        $value
-                    );
-
+        if ($hasComma && $hasDot) {
+            // The last separator is the decimal separator:
+            // 1,234,567.89 (international) or 1.234.567,89 (Indonesian).
+            if (strrpos($value, '.') > strrpos($value, ',')) {
+                $value = str_replace(',', '', $value);
             } else {
-
-                /*
-                 * 5,000,000
-                 */
-
-                $value =
-                    str_replace(
-                        ',',
-                        '',
-                        $value
-                    );
+                $value = str_replace('.', '', $value);
+                $value = str_replace(',', '.', $value);
             }
+        } elseif ($hasComma) {
+            // Commas in complete 3-digit groups are thousands separators.
+            if (preg_match('/^\d{1,3}(,\d{3})+$/', $value)) {
+                $value = str_replace(',', '', $value);
+            } elseif (preg_match('/^\d+,\d{1,2}$/', $value)) {
+                $value = str_replace(',', '.', $value);
+            } else {
+                // Ambiguous/invalid currency precision must not silently
+                // become a materially different amount.
+                return 0.0;
+            }
+        } elseif ($hasDot) {
+            // Treat 5.000 and 1.234.567 as Indonesian-style grouping, not
+            // decimal numbers; native Excel numeric cells are handled above.
+            if (preg_match('/^\d{1,3}(\.\d{3})+$/', $value)) {
+                $value = str_replace('.', '', $value);
+            } elseif (preg_match('/^\d+(\.\d{1,2})?$/', $value)) {
+                // Decimal point with up to two fractional digits.
+            } else {
+                return 0.0;
+            }
+        } elseif (!preg_match('/^\d+$/', $value)) {
+            return 0.0;
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | BANYAK TITIK
-        |--------------------------------------------------------------------------
-        */
-
-        elseif (
-            substr_count(
-                $value,
-                '.'
-            ) > 1
-        ) {
-
-            $value =
-                str_replace(
-                    '.',
-                    '',
-                    $value
-                );
+        if (!is_numeric($value)) {
+            return 0.0;
         }
 
-
-        return round(
-            abs(
-                (float) $value
-            ),
-            2
-        );
+        return round(abs((float) $value), 2);
     }
 
 

@@ -4,6 +4,8 @@ namespace Database\Seeders;
 
 use App\Models\Akun;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 class CoaSeeder extends Seeder
 {
@@ -19,7 +21,7 @@ class CoaSeeder extends Seeder
 
             [
                 'kode_akun' => '1101',
-                'nama_akun' => 'Kas Toko',
+                'nama_akun' => 'Kas Kecil',
                 'kategori_akun' => 'Aset',
                 'sub_kategori' => 'Aset Lancar',
                 'saldo_normal' => 'DEBIT',
@@ -41,7 +43,8 @@ class CoaSeeder extends Seeder
                 'kategori_akun' => 'Aset',
                 'sub_kategori' => 'Aset Lancar',
                 'saldo_normal' => 'DEBIT',
-                'saldo_awal' => 72500000,
+                'saldo_awal' => 0,
+                'is_active' => false,
             ],
 
             [
@@ -50,7 +53,8 @@ class CoaSeeder extends Seeder
                 'kategori_akun' => 'Aset',
                 'sub_kategori' => 'Aset Lancar',
                 'saldo_normal' => 'DEBIT',
-                'saldo_awal' => 41200000,
+                'saldo_awal' => 0,
+                'is_active' => false,
             ],
 
             [
@@ -59,7 +63,7 @@ class CoaSeeder extends Seeder
                 'kategori_akun' => 'Aset',
                 'sub_kategori' => 'Aset Lancar',
                 'saldo_normal' => 'DEBIT',
-                'saldo_awal' => 42750000,
+                'saldo_awal' => 0,
             ],
 
             [
@@ -68,7 +72,7 @@ class CoaSeeder extends Seeder
                 'kategori_akun' => 'Aset',
                 'sub_kategori' => 'Aset Lancar',
                 'saldo_normal' => 'DEBIT',
-                'saldo_awal' => 472300000,
+                'saldo_awal' => 0,
             ],
 
             [
@@ -106,7 +110,7 @@ class CoaSeeder extends Seeder
                 'kategori_akun' => 'Aset',
                 'sub_kategori' => 'Aset Tetap',
                 'saldo_normal' => 'DEBIT',
-                'saldo_awal' => 85000000,
+                'saldo_awal' => 0,
             ],
 
             [
@@ -115,7 +119,7 @@ class CoaSeeder extends Seeder
                 'kategori_akun' => 'Aset',
                 'sub_kategori' => 'Aset Tetap',
                 'saldo_normal' => 'KREDIT',
-                'saldo_awal' => 15000000,
+                'saldo_awal' => 0,
             ],
 
             [
@@ -124,7 +128,7 @@ class CoaSeeder extends Seeder
                 'kategori_akun' => 'Aset',
                 'sub_kategori' => 'Aset Tetap',
                 'saldo_normal' => 'DEBIT',
-                'saldo_awal' => 150000000,
+                'saldo_awal' => 0,
             ],
 
             [
@@ -133,7 +137,7 @@ class CoaSeeder extends Seeder
                 'kategori_akun' => 'Aset',
                 'sub_kategori' => 'Aset Tetap',
                 'saldo_normal' => 'KREDIT',
-                'saldo_awal' => 30000000,
+                'saldo_awal' => 0,
             ],
 
 
@@ -149,7 +153,7 @@ class CoaSeeder extends Seeder
                 'kategori_akun' => 'Kewajiban',
                 'sub_kategori' => 'Kewajiban Lancar',
                 'saldo_normal' => 'KREDIT',
-                'saldo_awal' => 68400000,
+                'saldo_awal' => 0,
             ],
 
             [
@@ -199,7 +203,7 @@ class CoaSeeder extends Seeder
                 'kategori_akun' => 'Ekuitas',
                 'sub_kategori' => 'Ekuitas',
                 'saldo_normal' => 'KREDIT',
-                'saldo_awal' => 900000000,
+                'saldo_awal' => 0,
             ],
 
             [
@@ -208,7 +212,7 @@ class CoaSeeder extends Seeder
                 'kategori_akun' => 'Ekuitas',
                 'sub_kategori' => 'Ekuitas',
                 'saldo_normal' => 'KREDIT',
-                'saldo_awal' => 31100000,
+                'saldo_awal' => 0,
             ],
 
             [
@@ -218,6 +222,15 @@ class CoaSeeder extends Seeder
                 'sub_kategori' => 'Ekuitas',
                 'saldo_normal' => 'DEBIT',
                 'saldo_awal' => 0,
+            ],
+
+            [
+                'kode_akun' => '3104',
+                'nama_akun' => 'Ekuitas Saldo Awal Sementara',
+                'kategori_akun' => 'Ekuitas',
+                'sub_kategori' => 'Ekuitas',
+                'saldo_normal' => 'KREDIT',
+                'saldo_awal' => 205750000,
             ],
 
 
@@ -398,14 +411,57 @@ class CoaSeeder extends Seeder
             ],
         ];
 
-        foreach ($akuns as $akun) {
-            Akun::updateOrCreate(
-                [
-                    'kode_akun' =>
-                        $akun['kode_akun'],
-                ],
-                $akun
-            );
-        }
+        DB::transaction(function () use ($akuns): void {
+            // Do not silently seed over an already-unbalanced chart of accounts.
+            // A clean development reset starts with an empty `akuns` table.
+            if (Akun::query()->exists()) {
+                $debitBefore = (float) Akun::query()
+                    ->where('saldo_normal', 'DEBIT')
+                    ->sum('saldo_awal');
+                $creditBefore = (float) Akun::query()
+                    ->where('saldo_normal', 'KREDIT')
+                    ->sum('saldo_awal');
+
+                if (abs($debitBefore - $creditBefore) > 0.01) {
+                    throw new RuntimeException(
+                        'Saldo awal COA yang sudah ada tidak seimbang. Seeder dibatalkan tanpa mengubah data. '
+                        .'Backup database dan gunakan prosedur reset development yang terdokumentasi.'
+                    );
+                }
+            }
+
+            foreach ($akuns as $akun) {
+                $existing = Akun::query()
+                    ->where('kode_akun', $akun['kode_akun'])
+                    ->first();
+
+                if (!$existing) {
+                    Akun::create($akun);
+                    continue;
+                }
+
+                // Re-running seeders must not overwrite a manually maintained opening balance.
+                $metadata = $akun;
+                unset($metadata['saldo_awal']);
+
+                $existing->fill($metadata);
+                $existing->save();
+            }
+
+            $debitAfter = (float) Akun::query()
+                ->where('saldo_normal', 'DEBIT')
+                ->sum('saldo_awal');
+            $creditAfter = (float) Akun::query()
+                ->where('saldo_normal', 'KREDIT')
+                ->sum('saldo_awal');
+
+            if (abs($debitAfter - $creditAfter) > 0.01) {
+                throw new RuntimeException(sprintf(
+                    'Saldo awal COA hasil seeding tidak seimbang (debit %.2f, kredit %.2f). Seluruh perubahan dibatalkan.',
+                    $debitAfter,
+                    $creditAfter,
+                ));
+            }
+        });
     }
 }

@@ -210,49 +210,48 @@ class TransferKasBankController extends Controller
     ) {
         if ($transferKasBank->status !== 'DRAFT') {
             return redirect()
-                ->route(
-                    'transfer-kas-bank.show',
-                    $transferKasBank
-                )
+                ->route('transfer-kas-bank.show', $transferKasBank)
                 ->with(
                     'error',
-                    'Transfer yang sudah tercatat tidak dapat diubah.'
+                    'Transfer yang sudah tercatat tidak dapat diedit.'
                 );
         }
 
-        $validated = $this->validateData(
-            $request
-        );
+        $validated = $this->validateData($request);
 
-        $transferKasBank->update([
-            'tanggal' =>
-                $validated['tanggal'],
+        $updated = DB::transaction(function () use ($validated, $transferKasBank) {
+            $locked = TransferKasBank::query()
+                ->lockForUpdate()
+                ->findOrFail($transferKasBank->id);
 
-            'rekening_asal_id' =>
-                $validated['rekening_asal_id'],
+            if ($locked->status !== 'DRAFT') {
+                return false;
+            }
 
-            'rekening_tujuan_id' =>
-                $validated['rekening_tujuan_id'],
+            $locked->update([
+                'tanggal' => $validated['tanggal'],
+                'rekening_asal_id' => $validated['rekening_asal_id'],
+                'rekening_tujuan_id' => $validated['rekening_tujuan_id'],
+                'jumlah' => $validated['jumlah'],
+                'referensi' => $validated['referensi'] ?? null,
+                'keterangan' => $validated['keterangan'] ?? null,
+            ]);
 
-            'jumlah' =>
-                $validated['jumlah'],
+            return true;
+        });
 
-            'referensi' =>
-                $validated['referensi'] ?? null,
-
-            'keterangan' =>
-                $validated['keterangan'] ?? null,
-        ]);
+        if (!$updated) {
+            return redirect()
+                ->route('transfer-kas-bank.show', $transferKasBank)
+                ->with(
+                    'error',
+                    'Transfer sudah tercatat oleh proses lain dan tidak dapat diubah.'
+                );
+        }
 
         return redirect()
-            ->route(
-                'transfer-kas-bank.show',
-                $transferKasBank
-            )
-            ->with(
-                'success',
-                'Draft transfer berhasil diperbarui.'
-            );
+            ->route('transfer-kas-bank.show', $transferKasBank)
+            ->with('success', 'Draft transfer berhasil diperbarui.');
     }
 
     public function destroy(
@@ -260,27 +259,41 @@ class TransferKasBankController extends Controller
     ) {
         if ($transferKasBank->status !== 'DRAFT') {
             return redirect()
-                ->route(
-                    'transfer-kas-bank.show',
-                    $transferKasBank
-                )
+                ->route('transfer-kas-bank.show', $transferKasBank)
                 ->with(
                     'error',
                     'Transfer yang sudah tercatat tidak dapat dihapus.'
                 );
         }
 
-        $transferKasBank->delete();
+        $deleted = DB::transaction(function () use ($transferKasBank) {
+            $locked = TransferKasBank::query()
+                ->lockForUpdate()
+                ->findOrFail($transferKasBank->id);
+
+            if ($locked->status !== 'DRAFT') {
+                return false;
+            }
+
+            $locked->delete();
+            return true;
+        });
+
+        if (!$deleted) {
+            return redirect()
+                ->route('transfer-kas-bank.show', $transferKasBank)
+                ->with(
+                    'error',
+                    'Transfer sudah tercatat oleh proses lain dan tidak dapat dihapus.'
+                );
+        }
 
         return redirect()
-            ->route(
-                'transfer-kas-bank.index'
-            )
-            ->with(
-                'success',
-                'Draft transfer berhasil dihapus.'
-            );
+            ->route('transfer-kas-bank.index')
+            ->with('success', 'Draft transfer berhasil dihapus.');
     }
+
+
 
     public function catat(
         TransferKasBank $transferKasBank,

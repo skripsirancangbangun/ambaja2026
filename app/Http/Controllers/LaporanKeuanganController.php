@@ -3,14 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Akun;
-use App\Models\MutasiKasBank;
+use App\Models\Jurnal;
 use App\Models\JurnalDetail;
-use App\Models\InvoicePenjualan;
-use App\Models\PenerimaanPiutang;
-use App\Models\UangMasuk;
-use App\Models\UangKeluar;
-use App\Models\PembayaranSupplier;
+use App\Models\RekeningKasBank;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -631,12 +628,17 @@ class LaporanKeuanganController extends Controller
             ['Arus Kas Bersih dari Aktivitas Operasional', (float) $data['arusKasOperasional']],
             ['', ''],
             ['ARUS KAS DARI AKTIVITAS INVESTASI', ''],
+            ['  Penerimaan dari Penjualan Aset Tetap', (float) $data['penerimaanPenjualanAset']],
             ['  Pembelian Aset Tetap / Peralatan', -(float) $data['pembelianAsetTetap']],
             ['Arus Kas Bersih dari Aktivitas Investasi', (float) $data['arusKasInvestasi']],
             ['', ''],
             ['ARUS KAS DARI AKTIVITAS PENDANAAN', ''],
             ['  Setoran Modal Owner', (float) $data['setoranModal']],
+            ['  Penerimaan Pinjaman', (float) $data['penerimaanPinjaman']],
+            ['  Penerimaan Pendanaan Lainnya', (float) $data['penerimaanPendanaanLainnya']],
             ['  Pengambilan Prive Owner', -(float) $data['penarikanPrive']],
+            ['  Pembayaran Pokok Pinjaman', -(float) $data['pembayaranPinjaman']],
+            ['  Pembayaran Pendanaan Lainnya', -(float) $data['pembayaranPendanaanLainnya']],
             ['Arus Kas Bersih dari Aktivitas Pendanaan', (float) $data['arusKasPendanaan']],
             ['', ''],
             ['Kenaikan / (Penurunan) Bersih Kas & Bank', (float) $data['kenaikanBersihKas']],
@@ -666,128 +668,161 @@ class LaporanKeuanganController extends Controller
 
     private function getArusKasDirectData(Request $request): array
     {
-        $tanggalMulai = $request->input('tanggal_mulai', date('Y-01-01'));
-        $tanggalSelesai = $request->input('tanggal_selesai', date('Y-m-d'));
+        $dates = Validator::make([
+            'tanggal_mulai' => $request->input('tanggal_mulai') ?: now()->startOfYear()->toDateString(),
+            'tanggal_selesai' => $request->input('tanggal_selesai') ?: now()->toDateString(),
+        ], [
+            'tanggal_mulai' => ['required', 'date'],
+            'tanggal_selesai' => ['required', 'date', 'after_or_equal:tanggal_mulai'],
+        ])->validate();
 
-        // Active Cash & Bank COAs
-        $kasAkuns = Akun::where('is_active', true)
-            ->where(function ($q) {
-                $q->whereIn('kode_akun', ['1.1.01', '1.1.02'])
-                  ->orWhere('nama_akun', 'like', '%Kas%')
-                  ->orWhere('nama_akun', 'like', '%Bank%');
+        $tanggalMulai = $dates['tanggal_mulai'];
+        $tanggalSelesai = $dates['tanggal_selesai'];
+
+        /*
+         * Laporan arus kas harus memakai jurnal yang sudah diposting sebagai
+         * sumber angka. Menggabungkan invoice/pembayaran/mutasi dengan jurnal
+         * otomatis membuat transaksi yang sama berpotensi dihitung dua kali.
+         *
+         * Akun Kas/Bank diambil dari mapping rekening dan nama akun COA agar
+         * tetap kompatibel dengan data lama yang belum seluruhnya dimapping.
+         */
+        $mappedCashBankAccountIds = RekeningKasBank::query()
+            ->whereNotNull('akun_id')
+            ->pluck('akun_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $kasAkuns = Akun::query()
+            ->where(function ($query) use ($mappedCashBankAccountIds) {
+                if ($mappedCashBankAccountIds !== []) {
+                    $query->whereIn('id', $mappedCashBankAccountIds)
+                        ->orWhere(function ($accountQuery) {
+                            $accountQuery
+                                ->whereRaw('LOWER(kategori_akun) = ?', ['aset'])
+                                ->where(function ($nameQuery) {
+                                    $nameQuery
+                                        ->where('nama_akun', 'like', '%kas%')
+                                        ->orWhere('nama_akun', 'like', '%bank%');
+                                });
+                        });
+                } else {
+                    $query
+                        ->whereRaw('LOWER(kategori_akun) = ?', ['aset'])
+                        ->where(function ($nameQuery) {
+                            $nameQuery
+                                ->where('nama_akun', 'like', '%kas%')
+                                ->orWhere('nama_akun', 'like', '%bank%');
+                        });
+                }
             })
+            ->orderBy('kode_akun')
             ->get();
-        $kasIds = $kasAkuns->pluck('id')->toArray();
 
-        // 1. OPERASIONAL
-        $penjualanTunai = (float) InvoicePenjualan::whereDate('tanggal_invoice', '>=', $tanggalMulai)
-            ->whereDate('tanggal_invoice', '<=', $tanggalSelesai)
-            ->where('tipe_pembayaran', 'Tunai')
-            ->where('status_pembayaran', '!=', 'DIBATALKAN')
-            ->sum('total');
+        $kasIds = $kasAkuns->pluck('id')->map(fn ($id) => (int) $id)->all();
 
-        $pelunasanPiutang = (float) PenerimaanPiutang::whereDate('tanggal', '>=', $tanggalMulai)
-            ->whereDate('tanggal', '<=', $tanggalSelesai)
-            ->sum('total_dibayar');
+        $totals = [
+            'customer_receipt' => 0.0,
+            'other_receipt' => 0.0,
+            'supplier_payment' => 0.0,
+            'operating_payment' => 0.0,
+            'asset_sale' => 0.0,
+            'asset_purchase' => 0.0,
+            'capital' => 0.0,
+            'prive' => 0.0,
+            'loan_receipt' => 0.0,
+            'loan_payment' => 0.0,
+            'other_financing_receipt' => 0.0,
+            'other_financing_payment' => 0.0,
+        ];
 
-        $jurnalPenerimaanPlg = (float) JurnalDetail::whereIn('akun_id', $kasIds)
-            ->where('debit', '>', 0)
-            ->whereHas('jurnal', fn($q) => $q->whereDate('tanggal', '>=', $tanggalMulai)->whereDate('tanggal', '<=', $tanggalSelesai)->whereNull('sumber'))
-            ->whereHas('jurnal.details', function($q) use ($kasIds) {
-                $q->whereNotIn('akun_id', $kasIds)
-                  ->whereHas('akun', fn($ak) => $ak->where('kode_akun', 'like', '4.%')->orWhere('kode_akun', '1.1.03'));
-            })
-            ->sum('debit');
+        if ($kasIds !== []) {
+            $jurnals = Jurnal::query()
+                ->with(['details.akun'])
+                ->where('is_posted', true)
+                ->whereDate('tanggal', '>=', $tanggalMulai)
+                ->whereDate('tanggal', '<=', $tanggalSelesai)
+                ->whereHas('details', fn ($query) => $query->whereIn('akun_id', $kasIds))
+                ->orderBy('tanggal')
+                ->orderBy('id')
+                ->get();
 
-        $penerimaanPelanggan = $penjualanTunai + $pelunasanPiutang + $jurnalPenerimaanPlg;
+            foreach ($jurnals as $jurnal) {
+                $cashDetails = $jurnal->details->filter(
+                    fn ($detail) => in_array((int) $detail->akun_id, $kasIds, true)
+                );
 
-        $penerimaanLainnya = (float) UangMasuk::whereDate('tanggal', '>=', $tanggalMulai)
-            ->whereDate('tanggal', '<=', $tanggalSelesai)
-            ->sum('nominal');
+                $cashDebit = (float) $cashDetails->sum('debit');
+                $cashCredit = (float) $cashDetails->sum('kredit');
+                $netCash = round($cashDebit - $cashCredit, 2);
 
-        $pembayaranSupplier = (float) PembayaranSupplier::whereDate('tanggal', '>=', $tanggalMulai)
-            ->whereDate('tanggal', '<=', $tanggalSelesai)
-            ->sum('total_dibayar');
+                // Transfer antar Kas/Bank tidak mengubah saldo kas agregat.
+                if (abs($netCash) < 0.01) {
+                    continue;
+                }
 
-        $pembayaranBeban = (float) UangKeluar::whereDate('tanggal', '>=', $tanggalMulai)
-            ->whereDate('tanggal', '<=', $tanggalSelesai)
-            ->sum('total');
+                $isCashIn = $netCash > 0;
+                $amount = abs($netCash);
+                $category = $this->classifyArusKasJournal($jurnal, $kasIds, $isCashIn);
+                $totals[$category] += $amount;
+            }
+        }
 
-        $jurnalPembayaranBeban = (float) JurnalDetail::whereIn('akun_id', $kasIds)
-            ->where('kredit', '>', 0)
-            ->whereHas('jurnal', fn($q) => $q->whereDate('tanggal', '>=', $tanggalMulai)->whereDate('tanggal', '<=', $tanggalSelesai)->whereNull('sumber'))
-            ->whereHas('jurnal.details', function($q) use ($kasIds) {
-                $q->whereNotIn('akun_id', $kasIds)
-                  ->whereHas('akun', fn($ak) => $ak->where('kode_akun', 'like', '5.%')->orWhere('kode_akun', 'like', '6.%')->orWhere('kode_akun', 'like', '8.%')->orWhere('kode_akun', 'like', '9.%'));
-            })
-            ->sum('kredit');
-
-        $pembayaranBeban += $jurnalPembayaranBeban;
+        $penerimaanPelanggan = round($totals['customer_receipt'], 2);
+        $penerimaanLainnya = round($totals['other_receipt'], 2);
+        $pembayaranSupplier = round($totals['supplier_payment'], 2);
+        $pembayaranBeban = round($totals['operating_payment'], 2);
+        $penerimaanPenjualanAset = round($totals['asset_sale'], 2);
+        $pembelianAsetTetap = round($totals['asset_purchase'], 2);
+        $setoranModal = round($totals['capital'], 2);
+        $penarikanPrive = round($totals['prive'], 2);
+        $penerimaanPinjaman = round($totals['loan_receipt'], 2);
+        $pembayaranPinjaman = round($totals['loan_payment'], 2);
+        $penerimaanPendanaanLainnya = round($totals['other_financing_receipt'], 2);
+        $pembayaranPendanaanLainnya = round($totals['other_financing_payment'], 2);
 
         $totalPenerimaanOperasional = $penerimaanPelanggan + $penerimaanLainnya;
         $totalPengeluaranOperasional = $pembayaranSupplier + $pembayaranBeban;
-        $arusKasOperasional = $totalPenerimaanOperasional - $totalPengeluaranOperasional;
+        $arusKasOperasional = round($totalPenerimaanOperasional - $totalPengeluaranOperasional, 2);
+        $arusKasInvestasi = round($penerimaanPenjualanAset - $pembelianAsetTetap, 2);
+        $arusKasPendanaan = round(
+            $setoranModal
+            + $penerimaanPinjaman
+            + $penerimaanPendanaanLainnya
+            - $penarikanPrive
+            - $pembayaranPinjaman
+            - $pembayaranPendanaanLainnya,
+            2
+        );
 
-        // 2. INVESTASI
-        $pembelianAsetTetap = (float) MutasiKasBank::whereDate('tanggal', '>=', $tanggalMulai)
-            ->whereDate('tanggal', '<=', $tanggalSelesai)
-            ->where('kredit', '>', 0)
-            ->where('reference_type', 'INVESTASI')
-            ->sum('kredit');
+        $kenaikanBersihKas = round(
+            $arusKasOperasional + $arusKasInvestasi + $arusKasPendanaan,
+            2
+        );
 
-        $jurnalPembelianAset = (float) JurnalDetail::whereIn('akun_id', $kasIds)
-            ->where('kredit', '>', 0)
-            ->whereHas('jurnal', fn($q) => $q->whereDate('tanggal', '>=', $tanggalMulai)->whereDate('tanggal', '<=', $tanggalSelesai)->whereNull('sumber'))
-            ->whereHas('jurnal.details', function($q) use ($kasIds) {
-                $q->whereNotIn('akun_id', $kasIds)
-                  ->whereHas('akun', fn($ak) => $ak->where('kode_akun', 'like', '1.2.%'));
-            })
-            ->sum('kredit');
+        // Saldo awal mengikuti COA/buku besar agar konsisten dengan neraca.
+        $saldoAwalJurnal = collect();
+        if ($kasIds !== []) {
+            $saldoAwalJurnal = JurnalDetail::query()
+                ->selectRaw('akun_id, COALESCE(SUM(debit), 0) AS total_debit, COALESCE(SUM(kredit), 0) AS total_kredit')
+                ->whereIn('akun_id', $kasIds)
+                ->whereHas('jurnal', fn ($query) => $query
+                    ->where('is_posted', true)
+                    ->whereDate('tanggal', '<', $tanggalMulai))
+                ->groupBy('akun_id')
+                ->get()
+                ->keyBy('akun_id');
+        }
 
-        $pembelianAsetTetap += $jurnalPembelianAset;
-        $arusKasInvestasi = -$pembelianAsetTetap;
+        $saldoKasAwal = round($kasAkuns->sum(function ($akun) use ($saldoAwalJurnal) {
+            $mutasiAwal = $saldoAwalJurnal->get($akun->id);
 
-        // 3. PENDANAAN
-        $setoranModal = (float) MutasiKasBank::whereDate('tanggal', '>=', $tanggalMulai)
-            ->whereDate('tanggal', '<=', $tanggalSelesai)
-            ->where('debit', '>', 0)
-            ->where('reference_type', 'MODAL_SETOR')
-            ->sum('debit');
+            return (float) $akun->saldo_awal
+                + (float) ($mutasiAwal?->total_debit ?? 0)
+                - (float) ($mutasiAwal?->total_kredit ?? 0);
+        }), 2);
 
-        $penarikanPrive = (float) MutasiKasBank::whereDate('tanggal', '>=', $tanggalMulai)
-            ->whereDate('tanggal', '<=', $tanggalSelesai)
-            ->where('kredit', '>', 0)
-            ->where('reference_type', 'PRIVE')
-            ->sum('kredit');
-
-        $jurnalPrive = (float) JurnalDetail::whereIn('akun_id', $kasIds)
-            ->where('kredit', '>', 0)
-            ->whereHas('jurnal', fn($q) => $q->whereDate('tanggal', '>=', $tanggalMulai)->whereDate('tanggal', '<=', $tanggalSelesai)->whereNull('sumber'))
-            ->whereHas('jurnal.details', function($q) use ($kasIds) {
-                $q->whereNotIn('akun_id', $kasIds)
-                  ->whereHas('akun', fn($ak) => $ak->where('nama_akun', 'like', '%Prive%'));
-            })
-            ->sum('kredit');
-
-        $penarikanPrive += $jurnalPrive;
-        $arusKasPendanaan = $setoranModal - $penarikanPrive;
-
-        // SUMMARY KAS & BANK
-        $kenaikanBersihKas = $arusKasOperasional + $arusKasInvestasi + $arusKasPendanaan;
-
-        $saldoKasAwal = $kasAkuns->sum(function ($akun) use ($tanggalMulai) {
-            $debit = JurnalDetail::where('akun_id', $akun->id)
-                ->whereHas('jurnal', fn($q) => $q->whereDate('tanggal', '<', $tanggalMulai))
-                ->sum('debit');
-
-            $kredit = JurnalDetail::where('akun_id', $akun->id)
-                ->whereHas('jurnal', fn($q) => $q->whereDate('tanggal', '<', $tanggalMulai))
-                ->sum('kredit');
-
-            return (float) $akun->saldo_awal + ($debit - $kredit);
-        });
-
-        $saldoKasAkhir = $saldoKasAwal + $kenaikanBersihKas;
+        $saldoKasAkhir = round($saldoKasAwal + $kenaikanBersihKas, 2);
 
         return compact(
             'tanggalMulai',
@@ -799,15 +834,133 @@ class LaporanKeuanganController extends Controller
             'totalPenerimaanOperasional',
             'totalPengeluaranOperasional',
             'arusKasOperasional',
+            'penerimaanPenjualanAset',
             'pembelianAsetTetap',
             'arusKasInvestasi',
             'setoranModal',
             'penarikanPrive',
+            'penerimaanPinjaman',
+            'pembayaranPinjaman',
+            'penerimaanPendanaanLainnya',
+            'pembayaranPendanaanLainnya',
             'arusKasPendanaan',
             'kenaikanBersihKas',
             'saldoKasAwal',
             'saldoKasAkhir'
         );
+    }
+
+    /**
+     * Classify a posted journal's net cash movement by its non-cash accounts.
+     * The journal is counted once, never once per source document and again per
+     * journal detail. Unclassified movements fall back to operating activity so
+     * the report still reconciles to the posted cash/bank ledger.
+     */
+    private function classifyArusKasJournal(Jurnal $jurnal, array $kasIds, bool $isCashIn): string
+    {
+        $accounts = $jurnal->details
+            ->filter(fn ($detail) => !in_array((int) $detail->akun_id, $kasIds, true))
+            ->map(fn ($detail) => $detail->akun)
+            ->filter();
+
+        $hasAccount = fn (callable $predicate): bool => $accounts->contains($predicate);
+
+        $accountName = fn (Akun $akun): string => strtolower(trim((string) $akun->nama_akun));
+        $accountCategory = fn (Akun $akun): string => strtolower(trim((string) $akun->kategori_akun));
+        $accountSubCategory = fn (Akun $akun): string => strtolower(trim((string) $akun->sub_kategori));
+        $accountCode = fn (Akun $akun): string => preg_replace('/\D+/', '', (string) $akun->kode_akun) ?? '';
+
+        $isFixedAsset = fn (Akun $akun): bool => $accountSubCategory($akun) === 'aset tetap'
+            || ($accountCategory($akun) === 'aset' && str_starts_with($accountCode($akun), '12'));
+
+        $isLoanAccount = fn (Akun $akun): bool => $accountCategory($akun) === 'kewajiban'
+            && (
+                str_contains($accountName($akun), 'utang bank')
+                || str_contains($accountName($akun), 'hutang bank')
+                || str_contains($accountName($akun), 'pinjaman')
+                || str_contains($accountSubCategory($akun), 'jangka panjang')
+            );
+
+        $isPrive = fn (Akun $akun): bool => $accountCategory($akun) === 'ekuitas'
+            && str_contains($accountName($akun), 'prive');
+
+        $isCapital = fn (Akun $akun): bool => $accountCategory($akun) === 'ekuitas'
+            && !str_contains($accountName($akun), 'prive')
+            && (
+                str_contains($accountName($akun), 'modal')
+                || str_contains($accountName($akun), 'setoran')
+            );
+
+        $isOtherEquity = fn (Akun $akun): bool => $accountCategory($akun) === 'ekuitas'
+            && !str_contains($accountName($akun), 'prive')
+            && !str_contains($accountName($akun), 'modal')
+            && !str_contains($accountName($akun), 'setoran');
+
+        $isSupplierAccount = fn (Akun $akun): bool => (
+                $accountCategory($akun) === 'kewajiban'
+                && (
+                    str_contains($accountName($akun), 'utang dagang')
+                    || str_contains($accountName($akun), 'hutang dagang')
+                    || str_contains($accountName($akun), 'utang supplier')
+                    || str_contains($accountName($akun), 'utang usaha')
+                    || str_contains($accountName($akun), 'hutang usaha')
+                )
+            ) || (
+                $accountCategory($akun) === 'aset'
+                && (
+                    str_contains($accountName($akun), 'uang muka pembelian')
+                    || str_contains($accountName($akun), 'persediaan barang dagang')
+                )
+            ) || (
+                str_contains($accountSubCategory($akun), 'pembelian')
+                || str_contains($accountName($akun), 'harga pokok penjualan')
+            );
+
+        $isCustomerAccount = fn (Akun $akun): bool => (
+                $accountCategory($akun) === 'pendapatan'
+                && (
+                    str_contains($accountSubCategory($akun), 'penjualan')
+                    || str_starts_with($accountCode($akun), '41')
+                    || str_contains($accountName($akun), 'penjualan')
+                )
+            ) || (
+                $accountCategory($akun) === 'aset'
+                && str_contains($accountName($akun), 'piutang')
+            );
+
+        if ($hasAccount($isFixedAsset)) {
+            return $isCashIn ? 'asset_sale' : 'asset_purchase';
+        }
+
+        if ($hasAccount($isLoanAccount)) {
+            return $isCashIn ? 'loan_receipt' : 'loan_payment';
+        }
+
+        if (!$isCashIn && $hasAccount($isPrive)) {
+            return 'prive';
+        }
+
+        if ($isCashIn && $hasAccount($isCapital)) {
+            return 'capital';
+        }
+
+        if ($hasAccount($isOtherEquity)) {
+            return $isCashIn ? 'other_financing_receipt' : 'other_financing_payment';
+        }
+
+        if (!$isCashIn && $hasAccount($isCapital)) {
+            return 'other_financing_payment';
+        }
+
+        if (!$isCashIn && $hasAccount($isSupplierAccount)) {
+            return 'supplier_payment';
+        }
+
+        if ($isCashIn && $hasAccount($isCustomerAccount)) {
+            return 'customer_receipt';
+        }
+
+        return $isCashIn ? 'other_receipt' : 'operating_payment';
     }
 
     /*

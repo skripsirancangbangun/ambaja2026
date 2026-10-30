@@ -28,13 +28,20 @@ class Akun extends Model
 
     public function getSaldoSaatIniAttribute(): float
     {
-        $debit = $this->jurnalDetails()->sum('debit');
-        $kredit = $this->jurnalDetails()->sum('kredit');
+        // Hanya jurnal yang sudah diposting boleh memengaruhi saldo buku besar.
+        // Draft tidak boleh mengubah saldo COA, neraca saldo, atau rekonsiliasi Kas/Bank.
+        $postedDetails = $this->jurnalDetails()
+            ->whereHas('jurnal', static function ($query) {
+                $query->where('is_posted', true);
+            });
+
+        $debit = (float) (clone $postedDetails)->sum('debit');
+        $kredit = (float) (clone $postedDetails)->sum('kredit');
 
         if ($this->saldo_normal === 'DEBIT') {
-            return (float) $this->saldo_awal + ($debit - $kredit);
-        } else {
-            return (float) $this->saldo_awal + ($kredit - $debit);
+            return round((float) $this->saldo_awal + $debit - $kredit, 2);
         }
+
+        return round((float) $this->saldo_awal + $kredit - $debit, 2);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Akun;
 use App\Models\Jurnal;
 use App\Models\JurnalDetail;
+use App\Models\RekeningKasBank;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -55,6 +56,17 @@ class JurnalUmumController extends Controller
             'items.*.kredit' => 'nullable|numeric|min:0',
             'items.*.keterangan' => 'nullable|string',
         ]);
+
+        $cashBankAccountIds = $this->getCashBankAccountIds();
+        $usesCashBankAccount = collect($validated['items'])->contains(
+            fn ($item) => in_array((int) $item['akun_id'], $cashBankAccountIds, true)
+        );
+
+        if ($usesCashBankAccount) {
+            return back()
+                ->withInput()
+                ->with('error', 'Jurnal manual tidak boleh menggunakan akun Kas/Bank. Catat transaksi melalui modul Kas/Bank agar mutasi rekening dan jurnal otomatis tetap sinkron.');
+        }
 
         $totalDebit = 0;
         $totalKredit = 0;
@@ -118,11 +130,70 @@ class JurnalUmumController extends Controller
 
     public function destroy(Jurnal $jurnalUmum)
     {
-        $jurnalUmum->details()->delete();
-        $jurnalUmum->delete();
+        try {
+            DB::transaction(function () use ($jurnalUmum) {
+                $jurnal = Jurnal::query()
+                    ->lockForUpdate()
+                    ->findOrFail($jurnalUmum->id);
+
+                // referensi_type juga dipakai sebagai pengaman untuk jurnal otomatis lama
+                // yang mungkin belum memiliki flag is_system_generated = true.
+                if ($jurnal->is_system_generated || filled($jurnal->referensi_type)) {
+                    throw new \RuntimeException(
+                        'Jurnal otomatis tidak dapat dihapus dari menu Jurnal Umum. Batalkan atau koreksi transaksi sumber melalui modul terkait.'
+                    );
+                }
+
+                if ($jurnal->is_posted) {
+                    throw new \RuntimeException(
+                        'Jurnal yang sudah diposting tidak boleh dihapus. Catat jurnal pembalik atau koreksi sesuai prosedur akuntansi.'
+                    );
+                }
+
+                $cashBankAccountIds = $this->getCashBankAccountIds();
+                if ($jurnal->details()->whereIn('akun_id', $cashBankAccountIds)->exists()) {
+                    throw new \RuntimeException(
+                        'Jurnal yang menyentuh akun Kas/Bank tidak dapat dihapus dari menu ini.'
+                    );
+                }
+
+                $jurnal->details()->delete();
+                $jurnal->delete();
+            });
+        } catch (\RuntimeException $exception) {
+            return redirect()
+                ->route('jurnal-umum.index')
+                ->with('error', $exception->getMessage());
+        }
 
         return redirect()
             ->route('jurnal-umum.index')
-            ->with('success', 'Jurnal Umum berhasil dihapus.');
+            ->with('success', 'Jurnal draft berhasil dihapus.');
+    }
+
+    /**
+     * Resolve COA accounts that represent cash/bank ledgers.
+     * Use explicit account mappings first, plus legacy asset accounts named Kas/Bank.
+     */
+    private function getCashBankAccountIds(): array
+    {
+        $mappedIds = RekeningKasBank::query()
+            ->whereNotNull('akun_id')
+            ->pluck('akun_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $legacyIds = Akun::query()
+            ->whereRaw('LOWER(kategori_akun) = ?', ['aset'])
+            ->where(function ($query) {
+                $query
+                    ->where('nama_akun', 'like', '%kas%')
+                    ->orWhere('nama_akun', 'like', '%bank%');
+            })
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return array_values(array_unique(array_merge($mappedIds, $legacyIds)));
     }
 }
