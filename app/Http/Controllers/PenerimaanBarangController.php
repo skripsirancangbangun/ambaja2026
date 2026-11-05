@@ -7,6 +7,8 @@ use App\Models\PenerimaanBarang;
 use App\Models\PenerimaanBarangItem;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
+use App\Models\PermintaanPembelian;
+use App\Notifications\PermintaanPembelianNotification;
 use App\Services\InventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -807,6 +809,24 @@ class PenerimaanBarangController extends Controller
                 'status' =>
                     'Selesai',
             ]);
+
+            $permintaanPembelian = PermintaanPembelian::query()
+                ->where('purchase_order_id', $purchaseOrder->id)
+                ->where('status', PermintaanPembelian::STATUS_PO_DIBUAT)
+                ->first();
+
+            if ($permintaanPembelian) {
+                $permintaanPembelian->update([
+                    'status' => PermintaanPembelian::STATUS_SELESAI,
+                ]);
+
+                $permintaanPembelian->creator?->notify(new PermintaanPembelianNotification(
+                    $permintaanPembelian->id,
+                    $permintaanPembelian->nomor_permintaan,
+                    'selesai',
+                    "PO {$purchaseOrder->nomor_po} untuk permintaan {$permintaanPembelian->nomor_permintaan} sudah ditutup: seluruh jumlah telah diterima atau sisa jumlah dibatalkan.",
+                ));
+            }
 
             return;
         }

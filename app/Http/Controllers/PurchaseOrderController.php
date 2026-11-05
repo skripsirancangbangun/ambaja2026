@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Barang;
 use App\Models\PurchaseOrder;
+use App\Models\PermintaanPembelian;
+use App\Notifications\PermintaanPembelianNotification;
 use App\Models\Supplier;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -141,8 +143,35 @@ class PurchaseOrderController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    public function create()
+    public function create(Request $request)
     {
+        $permintaanPembelian = null;
+        $initialItems = [];
+
+        if ($request->filled('permintaan_pembelian_id')) {
+            $permintaanPembelian = PermintaanPembelian::query()
+                ->with(['details.barang.satuan'])
+                ->where('status', PermintaanPembelian::STATUS_DISETUJUI)
+                ->whereNull('purchase_order_id')
+                ->findOrFail($request->integer('permintaan_pembelian_id'));
+
+            $initialItems = $permintaanPembelian->details
+                ->filter(fn ($detail): bool => (float) $detail->qty_disetujui > 0)
+                ->map(fn ($detail): array => [
+                    'barang_id' => $detail->barang_id,
+                    'qty' => (float) $detail->qty_disetujui,
+                    'harga_satuan' => (float) ($detail->barang?->harga_beli_default ?? 0),
+                    'diskon' => 0,
+                    'keterangan' => 'Dari ' . $permintaanPembelian->nomor_permintaan,
+                ])
+                ->values()
+                ->all();
+
+            if ($initialItems === []) {
+                abort(422, 'Permintaan yang disetujui tidak memiliki jumlah barang untuk dibuatkan PO.');
+            }
+        }
+
         $suppliers =
             Supplier::query()
                 ->where('is_active', true)
@@ -180,7 +209,9 @@ class PurchaseOrderController extends Controller
             compact(
                 'suppliers',
                 'barangs',
-                'previewNomorPO'
+                'previewNomorPO',
+                'permintaanPembelian',
+                'initialItems'
             )
         );
     }
@@ -202,6 +233,51 @@ class PurchaseOrderController extends Controller
         $purchaseOrder =
             DB::transaction(
                 function () use ($validated) {
+                    $permintaanPembelian = null;
+
+                    if (!empty($validated['permintaan_pembelian_id'])) {
+                        $permintaanPembelian = PermintaanPembelian::query()
+                            ->whereKey($validated['permintaan_pembelian_id'])
+                            ->lockForUpdate()
+                            ->firstOrFail();
+
+                        if (
+                            $permintaanPembelian->status !== PermintaanPembelian::STATUS_DISETUJUI
+                            || $permintaanPembelian->purchase_order_id !== null
+                        ) {
+                            throw ValidationException::withMessages([
+                                'permintaan_pembelian_id' => 'Permintaan sudah diproses atau sudah memiliki PO.',
+                            ]);
+                        }
+
+                        $approvedDetails = $permintaanPembelian->details()
+                            ->lockForUpdate()
+                            ->get()
+                            ->filter(fn ($detail): bool => (float) $detail->qty_disetujui > 0)
+                            ->keyBy('barang_id');
+
+                        $submittedItems = collect($validated['items'])->keyBy(fn ($item): int => (int) $item['barang_id']);
+
+                        if ($approvedDetails->count() !== $submittedItems->count()) {
+                            throw ValidationException::withMessages([
+                                'items' => 'Detail PO harus sama dengan barang dan jumlah yang telah disetujui.',
+                            ]);
+                        }
+
+                        foreach ($approvedDetails as $barangId => $detail) {
+                            $submitted = $submittedItems->get((int) $barangId);
+
+                            if (
+                                !$submitted
+                                || round((float) $submitted['qty'], 2) !== round((float) $detail->qty_disetujui, 2)
+                            ) {
+                                throw ValidationException::withMessages([
+                                    'items' => 'Kuantitas PO harus sama dengan kuantitas yang disetujui Pembelian.',
+                                ]);
+                            }
+                        }
+                    }
+
                     /*
                     |--------------------------------------------------------------------------
                     | HITUNG DETAIL + HEADER
@@ -300,6 +376,20 @@ class PurchaseOrderController extends Controller
                             ->create(
                                 $detail
                             );
+                    }
+
+                    if ($permintaanPembelian) {
+                        $permintaanPembelian->update([
+                            'purchase_order_id' => $purchaseOrder->id,
+                            'status' => PermintaanPembelian::STATUS_PO_DIBUAT,
+                        ]);
+
+                        $permintaanPembelian->creator?->notify(new PermintaanPembelianNotification(
+                            $permintaanPembelian->id,
+                            $permintaanPembelian->nomor_permintaan,
+                            'po_dibuat',
+                            "PO {$purchaseOrder->nomor_po} sudah dibuat dari permintaan {$permintaanPembelian->nomor_permintaan}.",
+                        ));
                     }
 
                     return $purchaseOrder;
@@ -408,6 +498,12 @@ class PurchaseOrderController extends Controller
                 );
         }
 
+        if (PermintaanPembelian::query()->where('purchase_order_id', $purchaseOrder->id)->exists()) {
+            return redirect()
+                ->route('purchase-order.show', $purchaseOrder)
+                ->with('error', 'PO ini berasal dari permintaan Gudang yang telah disetujui. Jika perlu mengubah detail, hapus PO Draft lalu buat ulang dari permintaan yang sama.');
+        }
+
         $purchaseOrder->load([
             'supplier',
             'items.barang',
@@ -504,6 +600,10 @@ class PurchaseOrderController extends Controller
                     throw new RuntimeException(
                         'Purchase Order sudah tidak berstatus Draft.'
                     );
+                }
+
+                if (PermintaanPembelian::query()->where('purchase_order_id', $purchaseOrder->id)->exists()) {
+                    throw new RuntimeException('PO yang berasal dari permintaan Gudang tidak dapat diedit langsung. Hapus PO Draft dan buat ulang dari permintaan yang disetujui.');
                 }
 
                 /*
@@ -866,6 +966,31 @@ class PurchaseOrderController extends Controller
 
                     /*
                     |--------------------------------------------------------------------------
+                    | KEMBALIKAN PERMINTAAN JIKA PO DRAFT DIHAPUS
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $linkedRequest = PermintaanPembelian::query()
+                        ->where('purchase_order_id', $purchaseOrder->id)
+                        ->where('status', PermintaanPembelian::STATUS_PO_DIBUAT)
+                        ->first();
+
+                    if ($linkedRequest) {
+                        $linkedRequest->update([
+                            'purchase_order_id' => null,
+                            'status' => PermintaanPembelian::STATUS_DISETUJUI,
+                        ]);
+
+                        $linkedRequest->creator?->notify(new PermintaanPembelianNotification(
+                            $linkedRequest->id,
+                            $linkedRequest->nomor_permintaan,
+                            'po_draft_dihapus',
+                            "Draft PO {$purchaseOrder->nomor_po} dihapus. Permintaan {$linkedRequest->nomor_permintaan} kembali disetujui dan dapat dibuatkan PO ulang.",
+                        ));
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
                     | DELETE ITEM + HEADER
                     |--------------------------------------------------------------------------
                     */
@@ -911,6 +1036,12 @@ class PurchaseOrderController extends Controller
         array
     {
         return [
+            'permintaan_pembelian_id' => [
+                'nullable',
+                'integer',
+                'exists:permintaan_pembelians,id',
+            ],
+
             'supplier_id' => [
                 'required',
                 'exists:suppliers,id,is_active,1',

@@ -10,6 +10,7 @@ use App\Http\Controllers\BarangController;
 use App\Http\Controllers\BarangImportController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\PermintaanPembelianController;
 use App\Http\Controllers\PenerimaanBarangController;
 use App\Http\Controllers\StokBarangController;
 use App\Http\Controllers\KartuStokController;
@@ -380,6 +381,30 @@ Route::middleware(['auth', 'user.active', 'module.access'])->group(function () {
     | PEMBELIAN
     |--------------------------------------------------------------------------
     */
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PERMINTAAN PEMBELIAN DARI GUDANG
+    |--------------------------------------------------------------------------
+    */
+
+    Route::prefix('permintaan-pembelian')->name('permintaan-pembelian.')->group(function () {
+        Route::middleware('role:Gudang,Pembelian,Admin,Owner')->group(function () {
+            Route::get('/', [PermintaanPembelianController::class, 'index'])->name('index');
+            Route::get('/{permintaanPembelian}', [PermintaanPembelianController::class, 'show'])->name('show');
+        });
+
+        Route::middleware('role:Gudang,Admin,Owner')->group(function () {
+            Route::get('/buat/baru', [PermintaanPembelianController::class, 'create'])->name('create');
+            Route::post('/', [PermintaanPembelianController::class, 'store'])->name('store');
+        });
+
+        Route::middleware('role:Pembelian,Admin,Owner')->group(function () {
+            Route::patch('/{permintaanPembelian}/setujui', [PermintaanPembelianController::class, 'approve'])->name('approve');
+            Route::patch('/{permintaanPembelian}/tolak', [PermintaanPembelianController::class, 'reject'])->name('reject');
+        });
+    });
 
 
     /*

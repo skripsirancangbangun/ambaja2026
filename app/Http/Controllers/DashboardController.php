@@ -9,6 +9,7 @@ use App\Models\ReturPembelianAllocation;
 use App\Models\RekeningKasBank;
 use App\Models\MutasiKasBank;
 use App\Models\StokGudang;
+use App\Models\PermintaanPembelian;
 use App\Models\TransaksiBelumTeridentifikasi;
 use Illuminate\View\View;
 
@@ -98,13 +99,77 @@ class DashboardController extends Controller
 
         $inventoryValue = StokGudang::query()->sum('nilai_persediaan');
         $activeItemsCount = Barang::query()->where('is_active', true)->count();
-        $lowStockCount = Barang::query()
-            ->where('is_active', true)
-            ->where('minimum_stok', '>', 0)
-            ->whereRaw(
-                '(SELECT COALESCE(SUM(stok_gudangs.qty), 0) FROM stok_gudangs WHERE stok_gudangs.barang_id = barangs.id) <= barangs.minimum_stok'
-            )
-            ->count();
+
+        // Ambang minimum disimpan di master barang, sehingga stok dibandingkan
+        // berdasarkan akumulasi saldo barang dari seluruh gudang.
+        $stockTotalsByItem = StokGudang::query()
+            ->select('barang_id')
+            ->selectRaw('SUM(qty) AS total_stok')
+            ->groupBy('barang_id');
+
+        $stockMonitoringQuery = Barang::query()
+            ->leftJoinSub($stockTotalsByItem, 'stok_per_barang', function ($join): void {
+                $join->on('stok_per_barang.barang_id', '=', 'barangs.id');
+            })
+            ->where('barangs.is_active', true)
+            ->where('barangs.minimum_stok', '>', 0);
+
+        $totalStockSql = 'COALESCE(stok_per_barang.total_stok, 0)';
+
+        $lowStockCount = (clone $stockMonitoringQuery)
+            ->whereRaw("{$totalStockSql} <= barangs.minimum_stok")
+            ->count('barangs.id');
+
+        // Detail monitoring hanya dimuat untuk role Gudang agar dashboard role
+        // lain tidak melakukan query relasi stok yang tidak mereka perlukan.
+        $showWarehouseMonitoring = auth()->user()->role === 'Gudang';
+        $pendingPurchaseRequestsCount = auth()->user()->role === 'Pembelian'
+            ? PermintaanPembelian::query()->where('status', PermintaanPembelian::STATUS_DIAJUKAN)->count()
+            : 0;
+        $outOfStockCount = 0;
+        $stockAlertItems = collect();
+
+        if ($showWarehouseMonitoring) {
+            $outOfStockCount = (clone $stockMonitoringQuery)
+                ->whereRaw("{$totalStockSql} <= 0")
+                ->count('barangs.id');
+
+            $stockAlertItems = (clone $stockMonitoringQuery)
+                ->select([
+                    'barangs.id',
+                    'barangs.kode_barang',
+                    'barangs.nama_barang',
+                    'barangs.satuan_id',
+                    'barangs.minimum_stok',
+                ])
+                ->selectRaw("{$totalStockSql} AS total_stok")
+                ->whereRaw("{$totalStockSql} <= barangs.minimum_stok")
+                ->with([
+                    'satuan:id,nama_satuan',
+                    'stokGudangs' => function ($query): void {
+                        $query
+                            ->where('qty', '!=', 0)
+                            ->with('gudang:id,nama_gudang')
+                            ->orderBy('gudang_id');
+                    },
+                ])
+                ->orderByRaw("CASE WHEN {$totalStockSql} <= 0 THEN 0 ELSE 1 END")
+                ->orderByRaw("({$totalStockSql} / NULLIF(barangs.minimum_stok, 0)) ASC")
+                ->orderByRaw("{$totalStockSql} ASC")
+                ->orderBy('barangs.nama_barang')
+                ->limit(10)
+                ->get()
+                ->map(function (Barang $barang): Barang {
+                    $totalStok = (float) $barang->total_stok;
+                    $status = $totalStok < 0
+                        ? 'Negatif'
+                        : ($totalStok == 0.0 ? 'Habis' : 'Menipis');
+
+                    $barang->setAttribute('status_monitoring_stok', $status);
+
+                    return $barang;
+                });
+        }
 
         $unidentifiedBankTransactions = TransaksiBelumTeridentifikasi::query()
             ->where('status', 'BELUM_TERIDENTIFIKASI');
@@ -136,6 +201,10 @@ class DashboardController extends Controller
             'inventoryValue',
             'activeItemsCount',
             'lowStockCount',
+            'showWarehouseMonitoring',
+            'pendingPurchaseRequestsCount',
+            'outOfStockCount',
+            'stockAlertItems',
             'unidentifiedBankCount',
             'unidentifiedBankTotal',
             'latestInvoices',

@@ -124,25 +124,36 @@ class LaporanPersediaanController extends Controller
 
     public function pdf(Request $request)
     {
-        // Gunakan query/filter yang sama dengan halaman posisi persediaan.
+        // PDF dapat memuat ribuan baris. Jangan batasi waktu eksekusi request.
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(0);
+        }
+
         $query = $this->basePosisiQuery();
         $this->applyPosisiFilters($query, $request);
 
-        $stokBarangs = $query
-            ->orderBy('gudang_id')
-            ->orderBy('barang_id')
-            ->get();
-
-        // Semua ringkasan dihitung dari kumpulan data yang sama dengan tabel PDF.
-        $totalJenisStok = $stokBarangs
+        // Ringkasan dihitung langsung oleh database agar seluruh model stok
+        // tidak perlu ditampung di memori hanya untuk menghitung total.
+        $totalJenisStok = (clone $query)
             ->where('qty', '>', 0)
             ->count();
 
-        $totalQty = (float) $stokBarangs->sum('qty');
-        $totalNilai = (float) $stokBarangs->sum('nilai_persediaan');
-        $stokHabis = $stokBarangs
+        $totalQty = (float) (clone $query)->sum('qty');
+        $totalNilai = (float) (clone $query)->sum('nilai_persediaan');
+
+        $stokHabis = (clone $query)
             ->where('qty', '<=', 0)
             ->count();
+
+        $totalRows = (clone $query)->count();
+
+        // lazy(250) mengambil data bertahap dan tetap menjalankan eager loading
+        // relasi barang, kategori, satuan, dan gudang pada setiap batch.
+        $stokBarangs = (clone $query)
+            ->orderBy('gudang_id')
+            ->orderBy('barang_id')
+            ->orderBy('id')
+            ->lazy(250);
 
         $pdf = Pdf::loadView('laporan.persediaan-pdf', [
             'stokBarangs' => $stokBarangs,
@@ -150,17 +161,19 @@ class LaporanPersediaanController extends Controller
             'totalQty' => $totalQty,
             'totalNilai' => $totalNilai,
             'stokHabis' => $stokHabis,
+            'totalRows' => $totalRows,
             'filterSearch' => trim((string) $request->query('search', '')),
             'filterGudang' => $request->query('gudang_id'),
             'filterStatus' => $request->query('status', ''),
             'printedAt' => now(),
         ])
-        ->setPaper('a4', 'landscape')
-        ->setOptions([
-            'isHtml5ParserEnabled' => true,
-            'isRemoteEnabled' => false,
-            'defaultFont' => 'DejaVu Sans',
-        ]);
+            ->setPaper('a4', 'landscape')
+            ->setOptions([
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => false,
+                'defaultFont' => 'DejaVu Sans Mono',
+                'dpi' => 96,
+            ]);
 
         return $pdf->download(
             'laporan-persediaan-' . now()->format('Y-m-d-His') . '.pdf'

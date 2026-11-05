@@ -45,6 +45,12 @@
         class="space-y-6"
     >
         @csrf
+        @if($permintaanPembelian)
+            <input type="hidden" name="permintaan_pembelian_id" value="{{ old('permintaan_pembelian_id', $permintaanPembelian->id) }}">
+            <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                PO ini dibuat dari permintaan <strong>{{ $permintaanPembelian->nomor_permintaan }}</strong>. Barang dan kuantitas sudah dikunci sesuai persetujuan Pembelian; pilih supplier dan lengkapi harga.
+            </div>
+        @endif
 
 
         {{-- HEADER PO --}}
@@ -199,7 +205,8 @@
                 <button
                     type="button"
                     id="add-item"
-                    class="inline-flex items-center justify-center gap-2 rounded-lg bg-teal-50 px-3 py-2 text-xs font-semibold text-[#15235F] transition hover:bg-teal-100"
+                    @disabled($permintaanPembelian)
+                    class="inline-flex items-center justify-center gap-2 rounded-lg bg-teal-50 px-3 py-2 text-xs font-semibold text-[#15235F] transition hover:bg-teal-100 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                     <span class="text-base leading-none">+</span>
                     Tambah Barang
@@ -500,7 +507,8 @@
     |--------------------------------------------------------------------------
     */
 
-    $oldItems = old('items', []);
+    $isRequestBasedPO = $permintaanPembelian !== null;
+    $oldItems = old('items', $initialItems ?? []);
 
 @endphp
 
@@ -514,6 +522,7 @@
     const oldItems =
         @json($oldItems);
 
+    const isRequestBasedPO = @json($isRequestBasedPO);
 
     let itemIndex = 0;
 
@@ -731,6 +740,7 @@
                     min="0.01"
                     step="0.01"
                     value="${escapeHtml(qty)}"
+                    ${isRequestBasedPO ? 'readonly' : ''}
                     class="item-qty w-24 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-[#32AAA6] focus:ring-2 focus:ring-teal-100"
                     required
                 >
@@ -803,7 +813,7 @@
 
                 <button
                     type="button"
-                    class="remove-item rounded-lg px-3 py-2 text-xs font-medium text-red-500 transition hover:bg-red-50"
+                    class="remove-item rounded-lg px-3 py-2 text-xs font-medium text-red-500 transition hover:bg-red-50 ${isRequestBasedPO ? 'hidden' : ''}"
                 >
                     Hapus
                 </button>
@@ -1276,14 +1286,10 @@
     |--------------------------------------------------------------------------
     */
 
-    document
-        .getElementById(
-            'add-item'
-        )
-        .addEventListener(
-            'click',
-            () => addItem()
-        );
+    const addItemButton = document.getElementById('add-item');
+    if (addItemButton) {
+        addItemButton.addEventListener('click', () => addItem());
+    }
 
 
     document

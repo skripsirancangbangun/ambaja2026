@@ -5,7 +5,9 @@
 @section('content')
 @php
     $formatRupiah = fn ($amount) => 'Rp ' . number_format((float) $amount, 0, ',', '.');
+    $formatQty = fn ($qty) => number_format((float) $qty, 2, ',', '.');
     $user = auth()->user();
+    $lowStockOnlyCount = max((int) $lowStockCount - (int) $outOfStockCount, 0);
 @endphp
 
 <div class="space-y-6">
@@ -14,7 +16,20 @@
             <p class="text-sm font-medium text-teal-600">AMBAJA 2026</p>
             <h2 class="mt-1 text-2xl font-semibold text-slate-800">Selamat datang, {{ $user->name }}</h2>
             <p class="mt-1 text-sm text-slate-500">
-                @if($user->role === 'Owner')
+                @if($user->role === 'Pembelian')
+        <section class="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-amber-700">Tindak lanjut Gudang</p>
+                    <h3 class="mt-1 text-lg font-semibold text-amber-950">{{ number_format($pendingPurchaseRequestsCount, 0, ',', '.') }} permintaan menunggu pemeriksaan</h3>
+                    <p class="mt-1 text-sm text-amber-800">Periksa jumlah yang diminta dan setujui sebelum membuat Purchase Order.</p>
+                </div>
+                <a href="{{ route('permintaan-pembelian.index') }}" class="inline-flex w-fit items-center rounded-lg bg-[#15235F] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0F8B8D]">Periksa Permintaan</a>
+            </div>
+        </section>
+    @endif
+
+    @if($user->role === 'Owner')
                     Ringkasan keuangan dan operasional perusahaan.
                 @else
                     Ringkasan operasional dan akuntansi sesuai hak akses akun Anda.
@@ -123,6 +138,118 @@
                         <p class="text-sm font-semibold text-indigo-900">Bank belum teridentifikasi</p>
                         <p class="mt-2 text-lg font-bold text-indigo-900">{{ number_format($unidentifiedBankCount, 0, ',', '.') }} transaksi</p>
                         <p class="mt-1 text-xs text-indigo-700">{{ $formatRupiah($unidentifiedBankTotal) }}</p>
+                    </div>
+                @endif
+            </div>
+        </section>
+    @endif
+
+    @if($showWarehouseMonitoring)
+        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div class="flex flex-col gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h3 class="text-base font-semibold text-slate-800">Monitoring Stok Menipis</h3>
+                    <p class="mt-1 text-xs text-slate-500">
+                        Pemantauan barang aktif berdasarkan batas minimum pada master barang.
+                        Total stok merupakan akumulasi seluruh gudang.
+                    </p>
+                </div>
+                <a href="{{ route('stok-barang.index') }}" class="inline-flex w-fit items-center rounded-lg bg-[#15235F] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0F8B8D]">
+                    Lihat data persediaan
+                </a>
+                @if($user->role === 'Gudang')
+                    <a href="{{ route('permintaan-pembelian.create') }}" class="inline-flex w-fit items-center rounded-lg border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-800 transition hover:bg-teal-100">
+                        Ajukan Permintaan Pembelian
+                    </a>
+                    <a href="{{ route('permintaan-pembelian.index') }}" class="inline-flex w-fit items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                        Riwayat Permintaan
+                    </a>
+                @endif
+            </div>
+
+            <div class="grid grid-cols-1 gap-3 p-5 sm:grid-cols-3">
+                <div class="rounded-xl border border-rose-100 bg-rose-50 p-4">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-rose-700">Stok habis / minus</p>
+                    <p class="mt-2 text-2xl font-bold text-rose-900">{{ number_format($outOfStockCount, 0, ',', '.') }}</p>
+                    <p class="mt-1 text-xs text-rose-700">Saldo total nol atau negatif</p>
+                </div>
+                <div class="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-amber-700">Stok menipis</p>
+                    <p class="mt-2 text-2xl font-bold text-amber-900">{{ number_format($lowStockOnlyCount, 0, ',', '.') }}</p>
+                    <p class="mt-1 text-xs text-amber-700">Saldo di atas nol sampai batas minimum</p>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-600">Total perlu restock</p>
+                    <p class="mt-2 text-2xl font-bold text-[#15235F]">{{ number_format($lowStockCount, 0, ',', '.') }}</p>
+                    <p class="mt-1 text-xs text-slate-500">Termasuk stok habis dan menipis</p>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-100">
+                <div class="flex items-center justify-between gap-3 px-5 py-4">
+                    <div>
+                        <h4 class="text-sm font-semibold text-slate-800">Barang paling kritis</h4>
+                        <p class="mt-1 text-xs text-slate-500">Menampilkan maksimal 10 barang dengan persentase stok terendah terhadap batas minimum.</p>
+                    </div>
+                    <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{{ number_format($stockAlertItems->count(), 0, ',', '.') }} ditampilkan</span>
+                </div>
+
+                @if($stockAlertItems->isEmpty())
+                    <div class="px-5 pb-6">
+                        <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800">
+                            Tidak ada barang aktif yang berada pada atau di bawah batas minimum stok.
+                        </div>
+                    </div>
+                @else
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-100 text-sm">
+                            <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                                <tr>
+                                    <th class="px-5 py-3 font-medium">Kode</th>
+                                    <th class="px-5 py-3 font-medium">Nama barang</th>
+                                    <th class="whitespace-nowrap px-5 py-3 text-right font-medium">Stok tersedia</th>
+                                    <th class="whitespace-nowrap px-5 py-3 text-right font-medium">Minimum stok</th>
+                                    <th class="px-5 py-3 font-medium">Status</th>
+                                    <th class="min-w-52 px-5 py-3 font-medium">Sebaran gudang</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @foreach($stockAlertItems as $item)
+                                    <tr class="align-top hover:bg-slate-50">
+                                        <td class="whitespace-nowrap px-5 py-3 font-medium text-slate-700">{{ $item->kode_barang }}</td>
+                                        <td class="min-w-56 px-5 py-3 text-slate-800">
+                                            <div class="font-semibold">{{ $item->nama_barang }}</div>
+                                            <div class="mt-1 text-xs text-slate-500">{{ $item->satuan?->nama_satuan ?? '-' }}</div>
+                                        </td>
+                                        <td class="whitespace-nowrap px-5 py-3 text-right font-semibold text-slate-800">
+                                            {{ $formatQty($item->total_stok) }} {{ $item->satuan?->nama_satuan ?? '' }}
+                                        </td>
+                                        <td class="whitespace-nowrap px-5 py-3 text-right text-slate-600">
+                                            {{ $formatQty($item->minimum_stok) }} {{ $item->satuan?->nama_satuan ?? '' }}
+                                        </td>
+                                        <td class="whitespace-nowrap px-5 py-3">
+                                            @if($item->status_monitoring_stok === 'Negatif')
+                                                <span class="inline-flex rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-800">Saldo negatif</span>
+                                            @elseif($item->status_monitoring_stok === 'Habis')
+                                                <span class="inline-flex rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-800">Habis</span>
+                                            @else
+                                                <span class="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">Menipis</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-5 py-3 text-xs text-slate-600">
+                                            @forelse($item->stokGudangs as $stok)
+                                                <div class="mb-1 last:mb-0">
+                                                    {{ $stok->gudang?->nama_gudang ?? 'Gudang tidak diketahui' }}:
+                                                    <span class="font-semibold">{{ $formatQty($stok->qty) }}</span>
+                                                </div>
+                                            @empty
+                                                <span class="text-slate-400">Tidak ada saldo non-nol di gudang</span>
+                                            @endforelse
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
                 @endif
             </div>

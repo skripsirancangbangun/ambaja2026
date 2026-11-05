@@ -34,6 +34,7 @@ final class RolePermissions
             'dashboard',
             'profile',
             'purchases',
+            'stock.requests',
             'suppliers',
             'payables',
             'reports.purchases',
@@ -43,6 +44,7 @@ final class RolePermissions
             'dashboard',
             'profile',
             'inventory',
+            'stock.requests',
             'reports.inventory',
         ],
         'Accounting' => [
@@ -103,6 +105,8 @@ final class RolePermissions
         'retur-penjualan.' => 'sales',
         'piutang.' => 'receivables',
 
+        'permintaan-pembelian.' => 'stock.requests',
+
         'purchase-order.' => 'purchases',
         'purchase-order-item.' => 'purchases',
         'penerimaan-barang.' => 'purchases',
@@ -134,8 +138,14 @@ final class RolePermissions
     ): bool {
         // Owner dan Admin memiliki akses ke seluruh modul,
         // termasuk User Management.
-        if (in_array($role, ['Owner', 'Admin'], true)) {
+        if (self::isPrivilegedRole($role)) {
             return true;
+        }
+
+        // Master Data is a global administration menu. Operational users
+        // receive only the specific master-data links embedded in their module.
+        if ($module === 'master-data') {
+            return false;
         }
 
         $modules = self::ROLE_MODULES[$role ?? ''] ?? [];
@@ -143,24 +153,6 @@ final class RolePermissions
         if ($module === 'reports') {
             foreach ($modules as $allowedModule) {
                 if (str_starts_with($allowedModule, 'reports.')) {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        if ($module === 'master-data') {
-            foreach ([
-                'inventory',
-                'customers',
-                'suppliers',
-                'cashbank',
-                'accounting',
-                'users',
-                'company.settings',
-            ] as $candidate) {
-                if (self::allowsModule($role, $candidate)) {
                     return true;
                 }
             }
@@ -200,7 +192,7 @@ final class RolePermissions
     ): bool {
         // Owner dan Admin diizinkan mengakses seluruh route
         // yang dilindungi module.access.
-        if (in_array($role, ['Owner', 'Admin'], true)) {
+        if (self::isPrivilegedRole($role)) {
             return true;
         }
 
@@ -216,11 +208,17 @@ final class RolePermissions
         return true;
     }
 
+    public static function isPrivilegedRole(?string $role): bool
+    {
+        return in_array($role, ['Owner', 'Admin'], true);
+    }
+
     /** @return list<string> */
     public static function rolesAvailableTo(
-        ?string $actorRole
+        ?string $actorRole,
+        bool $allowOwnerBootstrap = false
     ): array {
-        if ($actorRole === 'Owner') {
+        if ($actorRole === 'Owner' || $allowOwnerBootstrap) {
             return self::ROLES;
         }
 
