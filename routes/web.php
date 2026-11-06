@@ -325,6 +325,14 @@ Route::middleware(['auth', 'user.active', 'module.access'])->group(function () {
         ]
     )->name('invoice-penjualan.kirim-email');
 
+    Route::post(
+        'invoice-penjualan/{invoicePenjualan}/konfirmasi-pembayaran',
+        [
+            InvoicePenjualanController::class,
+            'konfirmasiPembayaran',
+        ]
+    )->name('invoice-penjualan.konfirmasi-pembayaran');
+
 
     Route::resource(
         'invoice-penjualan',

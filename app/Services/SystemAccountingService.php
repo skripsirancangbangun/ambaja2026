@@ -3086,6 +3086,24 @@ class SystemAccountingService
             );
         }
 
+        if (
+            empty($invoice->tipe_pembayaran)
+            || $invoice->status_pembayaran === 'Menunggu Pembayaran'
+        ) {
+            $catatanLama = trim((string) ($invoice->catatan ?? ''));
+            $catatanPembatalan = '[PEMBATALAN RESMI]: ' . $alasan;
+
+            $invoice->update([
+                'status_invoice' => 'DIBATALKAN',
+                'sisa_piutang' => 0,
+                'catatan' => $catatanLama !== ''
+                    ? $catatanLama . "\n" . $catatanPembatalan
+                    : $catatanPembatalan,
+            ]);
+
+            return;
+        }
+
         $invoice->loadMissing([
             'customer',
             'rekeningKasBank.akun',

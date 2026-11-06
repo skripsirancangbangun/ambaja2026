@@ -139,6 +139,9 @@ class InvoicePenjualanController extends Controller
 
         $barangs = Barang::with([
             'stokGudangs',
+            'suppliers',
+            'satuan',
+            'kategori',
         ])
             ->where(
                 'is_active',
@@ -285,10 +288,10 @@ class InvoicePenjualanController extends Controller
                 'nullable|date',
 
             'tipe_pembayaran' =>
-                'required|in:Tunai,Kredit',
+                'nullable|in:Tunai,Kredit',
 
             'rekening_kas_bank_id' =>
-                'nullable|required_if:tipe_pembayaran,Tunai|exists:rekening_kas_banks,id',
+                'nullable|exists:rekening_kas_banks,id',
 
             'catatan' =>
                 'nullable|string',
@@ -335,9 +338,15 @@ class InvoicePenjualanController extends Controller
                 );
         }
 
-        $isTunai =
+        $tipePembayaran =
             $validated['tipe_pembayaran']
-            === 'Tunai';
+            ?? null;
+
+        $isTunai =
+            $tipePembayaran === 'Tunai';
+
+        $isKredit =
+            $tipePembayaran === 'Kredit';
 
         /*
         |--------------------------------------------------------------------------
@@ -346,6 +355,15 @@ class InvoicePenjualanController extends Controller
         */
 
         if ($isTunai) {
+            if (empty($validated['rekening_kas_bank_id'])) {
+                return back()
+                    ->withInput()
+                    ->with(
+                        'error',
+                        'Pilih Kas/Rekening Bank untuk pembayaran Tunai.'
+                    );
+            }
+
             $rekening = RekeningKasBank::query()
                 ->where(
                     'id',
@@ -373,7 +391,7 @@ class InvoicePenjualanController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        if (!$isTunai) {
+        if ($isKredit) {
             if (
                 empty(
                     $validated['tanggal_jatuh_tempo']
@@ -685,11 +703,11 @@ class InvoicePenjualanController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | Limit Piutang
+            | Limit Piutang (jika langsung dipilih Kredit)
             |--------------------------------------------------------------------------
             */
 
-            if (!$isTunai) {
+            if ($isKredit) {
                 $customer = Customer::query()
                     ->lockForUpdate()
                     ->findOrFail(
@@ -769,7 +787,7 @@ class InvoicePenjualanController extends Controller
             $statusPembayaran =
                 $isTunai
                     ? 'Lunas'
-                    : 'Belum Lunas';
+                    : ($isKredit ? 'Belum Lunas' : 'Menunggu Pembayaran');
 
             /*
             |--------------------------------------------------------------------------
@@ -818,16 +836,16 @@ class InvoicePenjualanController extends Controller
                     $validated['tanggal_invoice'],
 
                 'tanggal_jatuh_tempo' =>
-                    $isTunai
-                        ? null
-                        : $validated['tanggal_jatuh_tempo'],
+                    $isKredit
+                        ? $validated['tanggal_jatuh_tempo']
+                        : null,
 
                 'tipe_pembayaran' =>
-                    $validated['tipe_pembayaran'],
+                    $tipePembayaran,
 
                 'rekening_kas_bank_id' =>
                     $isTunai
-                        ? $validated['rekening_kas_bank_id']
+                        ? ($validated['rekening_kas_bank_id'] ?? null)
                         : null,
 
                 'subtotal' =>
@@ -1125,16 +1143,22 @@ class InvoicePenjualanController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | Auto Journal
+            | Auto Journal (hanya jika cara pembayaran langsung ditentukan)
             |--------------------------------------------------------------------------
             */
 
-            $systemAccountingService
-                ->autoJournalInvoicePenjualan(
-                    $invoice
-                );
+            if ($tipePembayaran !== null) {
+                $systemAccountingService
+                    ->autoJournalInvoicePenjualan(
+                        $invoice
+                    );
+            }
 
             DB::commit();
+
+            $pesanSukses = $tipePembayaran === null
+                ? 'Invoice Penjualan #' . $invoice->nomor_invoice . ' berhasil diterbitkan dan stok gudang telah diperbarui. Silakan tetapkan cara pembayaran (Tunai atau Kredit) pada halaman ini.'
+                : 'Invoice Penjualan #' . $invoice->nomor_invoice . ' berhasil diterbitkan, stok diperbarui, dan jurnal otomatis telah dibuat.';
 
             return redirect()
                 ->route(
@@ -1143,7 +1167,7 @@ class InvoicePenjualanController extends Controller
                 )
                 ->with(
                     'success',
-                    'Invoice Penjualan berhasil diterbitkan, stok diperbarui, dan jurnal otomatis telah dibuat.'
+                    $pesanSukses
                 );
 
         } catch (\Throwable $e) {
@@ -1195,8 +1219,184 @@ class InvoicePenjualanController extends Controller
 
         return view(
             'invoice-penjualan.show',
-            compact('invoicePenjualan')
+            [
+                'invoicePenjualan' => $invoicePenjualan,
+                'rekeningKasBanks' => RekeningKasBank::query()
+                    ->where('is_active', true)
+                    ->orderBy('nama_rekening')
+                    ->get(),
+            ]
         );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | KONFIRMASI PEMBAYARAN (STEP 2: TUNAI ATAU KREDIT)
+    |--------------------------------------------------------------------------
+    */
+
+    public function konfirmasiPembayaran(
+        Request $request,
+        InvoicePenjualan $invoicePenjualan,
+        KasBankService $kasBankService,
+        SystemAccountingService $systemAccountingService
+    ) {
+        if ($invoicePenjualan->status_invoice === 'DIBATALKAN') {
+            return back()->with(
+                'error',
+                'Invoice yang dibatalkan tidak dapat dikonfirmasi pembayarannya.'
+            );
+        }
+
+        if (
+            $invoicePenjualan->status_pembayaran !== 'Menunggu Pembayaran'
+            && !empty($invoicePenjualan->tipe_pembayaran)
+        ) {
+            return back()->with(
+                'error',
+                'Cara pembayaran untuk invoice ini sudah pernah ditetapkan ('
+                . $invoicePenjualan->tipe_pembayaran
+                . ').'
+            );
+        }
+
+        $validated = $request->validate([
+            'tipe_pembayaran' =>
+                'required|in:Tunai,Kredit',
+
+            'rekening_kas_bank_id' =>
+                'nullable|required_if:tipe_pembayaran,Tunai|exists:rekening_kas_banks,id',
+
+            'tanggal_jatuh_tempo' =>
+                'nullable|required_if:tipe_pembayaran,Kredit|date',
+        ]);
+
+        $tipe = $validated['tipe_pembayaran'];
+        $total = (float) $invoicePenjualan->total;
+
+        DB::beginTransaction();
+        try {
+            $invoice = InvoicePenjualan::query()
+                ->whereKey($invoicePenjualan->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($tipe === 'Tunai') {
+                $rekening = RekeningKasBank::findOrFail(
+                    $validated['rekening_kas_bank_id']
+                );
+
+                $invoice->update([
+                    'tipe_pembayaran' => 'Tunai',
+                    'rekening_kas_bank_id' => $rekening->id,
+                    'tanggal_jatuh_tempo' => null,
+                    'status_pembayaran' => 'Lunas',
+                    'sudah_dibayar' => $total,
+                    'sisa_piutang' => 0,
+                ]);
+
+                if ($total > 0) {
+                    $customer = Customer::find(
+                        $invoice->customer_id
+                    );
+
+                    $kasBankService->uangMasuk(
+                        $rekening->id,
+                        $total,
+                        'INVOICE_PENJUALAN',
+                        $invoice->id,
+                        $invoice->nomor_invoice,
+                        'Penjualan Tunai '
+                            . $invoice->nomor_invoice
+                            . ' - '
+                            . ($customer->nama_customer ?? ''),
+                        $invoice->tanggal_invoice
+                    );
+                }
+
+                $systemAccountingService
+                    ->autoJournalInvoicePenjualan($invoice);
+
+                DB::commit();
+
+                return redirect()
+                    ->route('invoice-penjualan.show', $invoice)
+                    ->with(
+                        'success',
+                        'Cara pembayaran berhasil ditetapkan sebagai TUNAI (Lunas). Kas/Bank dan Jurnal Penjualan otomatis telah dibukukan.'
+                    );
+            }
+
+            if ($tipe === 'Kredit') {
+                if (empty($validated['tanggal_jatuh_tempo'])) {
+                    throw new \RuntimeException(
+                        'Tanggal jatuh tempo wajib diisi untuk penjualan kredit.'
+                    );
+                }
+
+                if ($validated['tanggal_jatuh_tempo'] < $invoice->tanggal_invoice) {
+                    throw new \RuntimeException(
+                        'Tanggal jatuh tempo tidak boleh mendahului tanggal invoice.'
+                    );
+                }
+
+                $customer = Customer::query()
+                    ->lockForUpdate()
+                    ->findOrFail($invoice->customer_id);
+
+                $limitPiutang = (float) ($customer->limit_piutang ?? 0);
+                if ($limitPiutang > 0) {
+                    $totalPiutangBerjalan = (float) InvoicePenjualan::query()
+                        ->where('customer_id', $customer->id)
+                        ->where('status_invoice', 'AKTIF')
+                        ->where('status_pembayaran', '!=', 'Lunas')
+                        ->where('id', '!=', $invoice->id)
+                        ->sum('sisa_piutang');
+
+                    if (($totalPiutangBerjalan + $total) > $limitPiutang) {
+                        throw new \RuntimeException(
+                            'Total piutang customer ('
+                            . number_format($totalPiutangBerjalan + $total, 0, ',', '.')
+                            . ') melebihi limit kredit ('
+                            . number_format($limitPiutang, 0, ',', '.')
+                            . ').'
+                        );
+                    }
+                }
+
+                $invoice->update([
+                    'tipe_pembayaran' => 'Kredit',
+                    'tanggal_jatuh_tempo' => $validated['tanggal_jatuh_tempo'],
+                    'rekening_kas_bank_id' => null,
+                    'status_pembayaran' => 'Belum Lunas',
+                    'sudah_dibayar' => 0,
+                    'sisa_piutang' => $total,
+                ]);
+
+                $systemAccountingService
+                    ->autoJournalInvoicePenjualan($invoice);
+
+                DB::commit();
+
+                return redirect()
+                    ->route('invoice-penjualan.show', $invoice)
+                    ->with(
+                        'success',
+                        'Cara pembayaran berhasil ditetapkan sebagai KREDIT (Belum Lunas). Piutang dan Jurnal Penjualan otomatis telah dibukukan.'
+                    );
+            }
+
+            throw new \RuntimeException('Tipe pembayaran tidak valid.');
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            report($e);
+
+            return back()->with(
+                'error',
+                'Gagal menetapkan cara pembayaran: ' . $e->getMessage()
+            );
+        }
     }
 
     /*
@@ -1642,6 +1842,7 @@ class InvoicePenjualanController extends Controller
     */
 
     public function pdf(
+        Request $request,
         InvoicePenjualan $invoicePenjualan
     ) {
         $invoicePenjualan->load([
@@ -1671,13 +1872,15 @@ class InvoicePenjualanController extends Controller
                 compact(
                     'invoicePenjualan'
                 )
-            );
+            )->setPaper('a5', 'landscape');
 
-            return $pdf->stream(
-                'Invoice-'
-                    . $safeNumber
-                    . '.pdf'
-            );
+            $filename = 'Invoice-' . $safeNumber . '.pdf';
+
+            if ($request->has('download') || $request->input('download') == '1') {
+                return $pdf->download($filename);
+            }
+
+            return $pdf->stream($filename);
         }
 
         return view(

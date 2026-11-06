@@ -24,11 +24,18 @@
 
         <div class="flex items-center gap-2">
             <a
+                href="{{ route('retur-penjualan.pdf', ['returPenjualan' => $returPenjualan, 'download' => 1]) }}"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 shadow-sm"
+                title="Download file PDF Nota Retur"
+            >
+                <x-icon name="download" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Download PDF
+            </a>
+            <a
                 href="{{ route('retur-penjualan.pdf', $returPenjualan) }}"
                 target="_blank"
                 class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 shadow-sm"
             >
-                <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Cetak Nota Retur PDF
+                <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Cetak PDF
             </a>
         </div>
     </div>
@@ -140,15 +147,28 @@
 
         {{-- SUMMARY FOOTER --}}
         <div class="border-t border-slate-200 bg-slate-50/50 p-6">
-            <div class="ml-auto max-w-xs space-y-2 text-sm">
+            <div class="ml-auto max-w-sm space-y-2 text-sm">
+                @php
+                    $bruto = $returPenjualan->items->sum('subtotal');
+                @endphp
                 <div class="flex justify-between text-slate-500">
-                    <span>Subtotal Barang Retur:</span>
-                    <span class="font-medium text-slate-800">Rp {{ number_format($returPenjualan->subtotal, 0, ',', '.') }}</span>
+                    <span>Nilai Barang (Bruto):</span>
+                    <span class="font-medium text-slate-800">Rp {{ number_format($bruto, 0, ',', '.') }}</span>
+                </div>
+                @if($returPenjualan->nominal_potongan > 0 || $returPenjualan->potongan_persen > 0)
+                    <div class="flex justify-between text-rose-600">
+                        <span>Potongan Retur ({{ number_format($returPenjualan->potongan_persen, 0) }}%):</span>
+                        <span class="font-medium">- Rp {{ number_format($returPenjualan->nominal_potongan, 0, ',', '.') }}</span>
+                    </div>
+                @endif
+                <div class="flex justify-between text-slate-700 font-semibold border-t border-slate-200/80 pt-1">
+                    <span>Subtotal Netto:</span>
+                    <span>Rp {{ number_format($returPenjualan->subtotal, 0, ',', '.') }}</span>
                 </div>
                 @if($returPenjualan->pajak > 0)
                     <div class="flex justify-between text-slate-500">
                         <span>PPN Retur:</span>
-                        <span class="font-medium text-rose-600">Rp {{ number_format($returPenjualan->pajak, 0, ',', '.') }}</span>
+                        <span class="font-medium text-slate-700">Rp {{ number_format($returPenjualan->pajak, 0, ',', '.') }}</span>
                     </div>
                 @endif
                 <div class="flex justify-between border-t border-slate-200 pt-2 text-base font-bold text-rose-600">

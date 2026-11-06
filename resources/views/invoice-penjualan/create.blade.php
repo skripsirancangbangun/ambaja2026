@@ -77,6 +77,7 @@
         action="{{ route('invoice-penjualan.store') }}"
         method="POST"
         class="space-y-6"
+        @submit="handleSubmit($event)"
     >
         @csrf
 
@@ -245,101 +246,6 @@
                 </div>
 
                 {{-- ================================================= --}}
-                {{-- TIPE PEMBAYARAN --}}
-                {{-- ================================================= --}}
-
-                <div>
-                    <label
-                        class="block text-xs font-semibold uppercase tracking-wider text-slate-600"
-                    >
-                        Tipe Pembayaran
-                        <span class="text-rose-500">*</span>
-                    </label>
-
-                    <select
-                        name="tipe_pembayaran"
-                        x-model="tipePembayaran"
-                        required
-                        class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 focus:border-[#32AAA6] focus:bg-white focus:outline-none"
-                    >
-                        <option value="Tunai">
-                            Tunai (Cash - Langsung Lunas)
-                        </option>
-
-                        <option value="Kredit">
-                            Kredit / Tempo (Piutang Dagang)
-                        </option>
-                    </select>
-                </div>
-
-                {{-- ================================================= --}}
-                {{-- REKENING KAS/BANK --}}
-                {{-- ================================================= --}}
-
-                <div
-                    x-show="tipePembayaran === 'Tunai'"
-                    x-cloak
-                >
-                    <label
-                        class="block text-xs font-semibold uppercase tracking-wider text-slate-600"
-                    >
-                        Terima ke Kas / Rekening Bank
-                        <span class="text-rose-500">*</span>
-                    </label>
-
-                    <select
-                        name="rekening_kas_bank_id"
-                        :required="tipePembayaran === 'Tunai'"
-                        class="mt-2 w-full rounded-xl border border-teal-300 bg-teal-50/50 px-4 py-2.5 text-sm text-slate-800 focus:border-[#32AAA6] focus:bg-white focus:outline-none"
-                    >
-                        <option value="">
-                            -- Pilih Rekening Kas/Bank --
-                        </option>
-
-                        @foreach($rekeningKasBanks as $rek)
-                            <option
-                                value="{{ $rek->id }}"
-                                {{ old('rekening_kas_bank_id') == $rek->id ? 'selected' : '' }}
-                            >
-                                {{ $rek->nama_rekening }}
-                                ({{ $rek->nama_bank ?? 'Kas' }})
-                            </option>
-                        @endforeach
-                    </select>
-
-                    <p class="mt-1 text-[11px] text-teal-600">
-                        Saldo kas/bank akan bertambah otomatis saat disimpan.
-                    </p>
-                </div>
-
-                {{-- ================================================= --}}
-                {{-- JATUH TEMPO --}}
-                {{-- ================================================= --}}
-
-                <div
-                    x-show="tipePembayaran === 'Kredit'"
-                    x-cloak
-                >
-                    <label
-                        class="block text-xs font-semibold uppercase tracking-wider text-slate-600"
-                    >
-                        Tanggal Jatuh Tempo
-                        <span class="text-rose-500">*</span>
-                    </label>
-
-                    <input
-                        type="date"
-                        name="tanggal_jatuh_tempo"
-                        value="{{ old(
-                            'tanggal_jatuh_tempo',
-                            date('Y-m-d', strtotime('+30 days'))
-                        ) }}"
-                        :required="tipePembayaran === 'Kredit'"
-                        class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:border-[#32AAA6] focus:bg-white focus:outline-none"
-                    >
-                </div>
-
-                {{-- ================================================= --}}
                 {{-- PAJAK --}}
                 {{-- ================================================= --}}
 
@@ -361,6 +267,17 @@
                     >
                 </div>
 
+            </div>
+
+            {{-- ===================================================== --}}
+            {{-- ALUR PEMBAYARAN NOTICE --}}
+            {{-- ===================================================== --}}
+
+            <div class="mt-4 rounded-xl border border-sky-200 bg-sky-50/80 p-3.5 text-xs text-sky-800 flex items-start gap-2.5">
+                <span class="inline-block p-1 bg-sky-100 rounded-lg text-sky-700 font-bold">ℹ️</span>
+                <div class="leading-relaxed">
+                    <strong class="font-semibold text-sky-900">Alur 2 Langkah:</strong> Pada tahap ini faktur penjualan akan disimpan dan stok barang di gudang otomatis dikurangi. Penetapan cara pembayaran (apakah <span class="font-semibold text-emerald-800">Tunai / Langsung Lunas</span> atau <span class="font-semibold text-amber-800">Kredit / Piutang Tempo</span>) serta pembuatan jurnal penjualan akan dilakukan pada langkah selanjutnya di halaman detail invoice.
+                </div>
             </div>
 
             {{-- ===================================================== --}}
@@ -491,81 +408,84 @@
 
                                 <td class="px-4 py-3 align-top">
 
-                                    <select
+                                    <input
+                                        type="hidden"
                                         :name="`items[${index}][barang_id]`"
                                         x-model="item.barang_id"
-                                        @change="onBarangChange(index)"
                                         required
-                                        class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 focus:border-[#32AAA6] focus:bg-white focus:outline-none"
-                                    >
-                                        <option value="">
-                                            -- Pilih Barang --
-                                        </option>
-
-                                        @foreach($barangs as $barang)
-                                            <option
-                                                value="{{ $barang->id }}"
-                                            >
-                                                {{ $barang->kode_barang }}
-                                                -
-                                                {{ $barang->nama_barang }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-
-                                    {{-- ===================================== --}}
-                                    {{-- STOK GUDANG --}}
-                                    {{-- ===================================== --}}
-
-                                    <div
-                                        class="mt-1.5 text-[11px]"
-                                        x-show="item.barang_id"
                                     >
 
-                                        <template x-if="!gudangId">
-                                            <span class="text-amber-600">
-                                                Pilih gudang terlebih dahulu.
-                                            </span>
-                                        </template>
+                                    {{-- JIKA SUDAH PILIH BARANG --}}
+                                    <template x-if="item.barang_id && barangsData[item.barang_id]">
+                                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-2.5 shadow-sm">
+                                            <div class="flex items-start justify-between gap-2">
+                                                <div class="min-w-0">
+                                                    <span class="inline-block rounded bg-[#15235F]/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#15235F]" x-text="barangsData[item.barang_id].kode_barang"></span>
+                                                    <div class="mt-0.5 font-semibold text-slate-800 text-xs truncate" x-text="barangsData[item.barang_id].nama_barang"></div>
+                                                    <div class="text-[11px] text-slate-400 mt-0.5 space-x-1">
+                                                        <span x-text="barangsData[item.barang_id].kategori?.nama_kategori || 'Tanpa Kategori'"></span>
+                                                        <span>•</span>
+                                                        <span>Supplier: <strong class="text-slate-600" x-text="getSupplierNames(barangsData[item.barang_id])"></strong></span>
+                                                    </div>
+                                                </div>
 
-                                        <template x-if="gudangId">
-                                            <div>
-                                                <span
-                                                    :class="
-                                                        getStokBarang(item.barang_id)
-                                                        >= parseFloat(item.qty || 0)
-                                                            ? 'text-emerald-600'
-                                                            : 'text-rose-600'
-                                                    "
+                                                <button
+                                                    type="button"
+                                                    @click="openBarangModal(index)"
+                                                    class="shrink-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 shadow-sm hover:bg-slate-100 hover:text-[#15235F] transition"
                                                 >
-                                                    Stok gudang:
-
-                                                    <span
-                                                        class="font-semibold"
-                                                        x-text="formatQty(
-                                                            getStokBarang(
-                                                                item.barang_id
-                                                            )
-                                                        )"
-                                                    ></span>
-                                                </span>
-
-                                                <span
-                                                    x-show="
-                                                        parseFloat(item.qty || 0)
-                                                        >
-                                                        getStokBarang(
-                                                            item.barang_id
-                                                        )
-                                                    "
-                                                    class="ml-1 font-semibold text-rose-600"
-                                                >
-                                                    — Stok tidak mencukupi
-                                                </span>
+                                                    ⇄ Ganti
+                                                </button>
                                             </div>
-                                        </template>
 
-                                    </div>
+                                            {{-- STOK INFO --}}
+                                            <div class="mt-2 pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
+                                                <span class="text-slate-500">Stok Gudang:</span>
+                                                <template x-if="!gudangId">
+                                                    <span class="text-amber-600 font-medium">Pilih gudang</span>
+                                                </template>
+                                                <template x-if="gudangId">
+                                                    <div>
+                                                        <template x-if="getStokBarang(item.barang_id) <= 0">
+                                                            <span class="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded text-[10px] bg-rose-100 text-rose-700">
+                                                                <svg class="h-3 w-3 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                                <span>0 (Stok Kosong - Tidak Valid)</span>
+                                                            </span>
+                                                        </template>
+                                                        <template x-if="getStokBarang(item.barang_id) > 0">
+                                                            <div class="inline-flex items-center">
+                                                                <span
+                                                                    class="font-semibold px-1.5 py-0.5 rounded text-[10px]"
+                                                                    :class="getStokBarang(item.barang_id) >= parseFloat(item.qty || 0) ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'"
+                                                                    x-text="formatQty(getStokBarang(item.barang_id)) + ' ' + (barangsData[item.barang_id].satuan?.nama_satuan || '')"
+                                                                ></span>
+                                                                <span
+                                                                    x-show="parseFloat(item.qty || 0) > getStokBarang(item.barang_id)"
+                                                                    class="ml-1 text-[10px] font-bold text-rose-600"
+                                                                >
+                                                                    Kurang!
+                                                                </span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    {{-- JIKA BELUM PILIH BARANG --}}
+                                    <template x-if="!item.barang_id || !barangsData[item.barang_id]">
+                                        <button
+                                            type="button"
+                                            @click="openBarangModal(index)"
+                                            class="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-teal-300 bg-teal-50/40 px-3 py-3 text-xs font-semibold text-[#15235F] transition hover:border-[#32AAA6] hover:bg-teal-50"
+                                        >
+                                            <svg class="h-4 w-4 text-[#32AAA6]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
+                                            <span>🔍 Pilih Barang (Pop-up)</span>
+                                        </button>
+                                    </template>
 
                                 </td>
 
@@ -586,12 +506,11 @@
                                         :class="
                                             item.barang_id
                                             && gudangId
-                                            && parseFloat(item.qty || 0)
-                                                >
-                                                getStokBarang(
-                                                    item.barang_id
-                                                )
-                                                ? 'border-rose-300 bg-rose-50'
+                                            && (
+                                                getStokBarang(item.barang_id) <= 0
+                                                || parseFloat(item.qty || 0) > getStokBarang(item.barang_id)
+                                            )
+                                                ? 'border-rose-300 bg-rose-50 text-rose-700'
                                                 : ''
                                         "
                                     >
@@ -784,13 +703,15 @@
             x-cloak
             class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
         >
-            <div class="font-semibold">
-                Stok tidak mencukupi
+            <div class="font-semibold flex items-center gap-1.5">
+                <svg class="h-4 w-4 text-rose-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>Stok Tidak Mencukupi atau Kosong (0)</span>
             </div>
 
             <div class="mt-1 text-xs">
-                Ada barang dengan jumlah penjualan yang melebihi stok
-                pada gudang yang dipilih.
+                Terdapat barang dengan stok 0 atau kuantitas penjualan melebihi stok yang tersedia di gudang terpilih. Barang dengan stok 0 tidak dapat diproses ke invoice.
             </div>
         </div>
 
@@ -833,6 +754,180 @@
         </div>
 
     </form>
+
+    {{-- ========================================================= --}}
+    {{-- MODAL POP-UP PILIH BARANG (CENTER OVERLAY) --}}
+    {{-- ========================================================= --}}
+    <div
+        x-show="showBarangModal"
+        x-cloak
+        class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        @keydown.escape.window="closeBarangModal()"
+    >
+        <div
+            class="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] border border-slate-100"
+            @click.away="closeBarangModal()"
+        >
+            {{-- MODAL HEADER --}}
+            <div class="px-6 py-4 bg-gradient-to-r from-[#15235F] to-[#1e348a] text-white flex items-center justify-between">
+                <div>
+                    <h3 class="text-base font-bold flex items-center gap-2">
+                        <span>📦</span>
+                        <span>Pilih Data Barang</span>
+                    </h3>
+                    <p class="text-xs text-slate-200 mt-0.5">
+                        Cari barang berdasarkan nama, kode, kategori, atau supplier. Stok disesuaikan dengan gudang terpilih.
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    @click="closeBarangModal()"
+                    class="rounded-xl p-1.5 text-white/80 hover:bg-white/10 hover:text-white transition"
+                    title="Tutup"
+                >
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            {{-- MODAL SEARCH & FILTER BAR --}}
+            <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+                <div class="relative flex-1">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                    <input
+                        type="text"
+                        x-ref="searchInput"
+                        x-model="searchBarang"
+                        placeholder="Ketik nama barang, kode, merk, supplier..."
+                        class="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-[#32AAA6] focus:ring-1 focus:ring-[#32AAA6] focus:outline-none"
+                    >
+                </div>
+
+                <div class="w-full md:w-48 shrink-0">
+                    <select
+                        x-model="filterKategori"
+                        class="w-full py-2 px-3 bg-white border border-slate-200 rounded-xl text-sm focus:border-[#32AAA6] focus:outline-none"
+                    >
+                        <option value="">-- Semua Kategori --</option>
+                        <template x-for="kat in getKategoriList()" :key="kat">
+                            <option :value="kat" x-text="kat"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <label class="flex items-center gap-2 text-xs font-medium text-slate-700 shrink-0 cursor-pointer select-none bg-white px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 transition">
+                    <input type="checkbox" x-model="hanyaTersedia" class="rounded border-slate-300 text-[#32AAA6] focus:ring-[#32AAA6]">
+                    <span>Hanya Stok > 0</span>
+                </label>
+
+                <div class="shrink-0 text-xs px-3 py-2 rounded-xl bg-teal-50 border border-teal-200 text-teal-800 font-medium">
+                    Gudang: <span class="font-bold" x-text="getGudangNama()"></span>
+                </div>
+            </div>
+
+            {{-- MODAL BODY (TABLE) --}}
+            <div class="overflow-y-auto flex-1 p-4">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-100 text-xs uppercase text-slate-600 sticky top-0 z-10 shadow-sm">
+                        <tr>
+                            <th class="px-3 py-2.5 rounded-l-lg">Kode</th>
+                            <th class="px-3 py-2.5">Nama Barang & Kategori</th>
+                            <th class="px-3 py-2.5">Supplier</th>
+                            <th class="px-3 py-2.5 text-center">Stok Gudang</th>
+                            <th class="px-3 py-2.5 text-right">Harga Jual</th>
+                            <th class="px-3 py-2.5 text-center rounded-r-lg">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <template x-for="barang in getFilteredBarangs()" :key="barang.id">
+                            <tr
+                                :class="getStokBarang(barang.id) > 0 ? 'hover:bg-teal-50/40 cursor-pointer' : 'bg-slate-50/70 opacity-60 cursor-not-allowed select-none'"
+                                @click="getStokBarang(barang.id) > 0 ? pilihBarang(barang) : null"
+                            >
+                                <td class="px-3 py-2.5 font-mono text-xs font-semibold" :class="getStokBarang(barang.id) > 0 ? 'text-[#15235F]' : 'text-slate-400'" x-text="barang.kode_barang"></td>
+                                <td class="px-3 py-2.5">
+                                    <div class="font-medium text-xs sm:text-sm" :class="getStokBarang(barang.id) > 0 ? 'text-slate-800' : 'text-slate-400'" x-text="barang.nama_barang"></div>
+                                    <div class="text-[11px] text-slate-400" x-text="barang.kategori?.nama_kategori || 'Tanpa Kategori'"></div>
+                                </td>
+                                <td class="px-3 py-2.5 text-xs text-slate-500">
+                                    <span x-text="getSupplierNames(barang)"></span>
+                                </td>
+                                <td class="px-3 py-2.5 text-center">
+                                    <template x-if="getStokBarang(barang.id) > 0">
+                                        <span
+                                            class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800"
+                                            x-text="formatQty(getStokBarang(barang.id)) + ' ' + (barang.satuan?.nama_satuan || '')"
+                                        ></span>
+                                    </template>
+                                    <template x-if="getStokBarang(barang.id) <= 0">
+                                        <span
+                                            class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-700"
+                                        >
+                                            0 (Stok Kosong)
+                                        </span>
+                                    </template>
+                                </td>
+                                <td class="px-3 py-2.5 text-right font-semibold text-xs sm:text-sm" :class="getStokBarang(barang.id) > 0 ? 'text-slate-800' : 'text-slate-400'" x-text="formatRupiah(barang.harga_jual || 0)"></td>
+                                <td class="px-3 py-2.5 text-center" @click.stop>
+                                    <template x-if="getStokBarang(barang.id) > 0">
+                                        <button
+                                            type="button"
+                                            @click="pilihBarang(barang)"
+                                            class="inline-flex items-center gap-1 rounded-lg bg-[#15235F] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#32AAA6] transition"
+                                        >
+                                            Pilih
+                                        </button>
+                                    </template>
+                                    <template x-if="getStokBarang(barang.id) <= 0">
+                                        <button
+                                            type="button"
+                                            disabled
+                                            class="inline-flex items-center gap-1 rounded-lg bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-400 cursor-not-allowed border border-slate-300 shadow-none"
+                                            title="Barang ini memiliki stok 0 di gudang yang dipilih dan tidak bisa dipilih"
+                                        >
+                                            Stok 0
+                                        </button>
+                                    </template>
+                                </td>
+                            </tr>
+                        </template>
+                        <template x-if="getFilteredBarangs().length === 0">
+                            <tr>
+                                <td colspan="6" class="px-4 py-8 text-center text-sm text-slate-400">
+                                    Tidak ada data barang yang sesuai dengan filter pencarian.
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            {{-- MODAL FOOTER --}}
+            <div class="px-6 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+                <div>
+                    Menampilkan <span class="font-bold text-slate-700" x-text="getFilteredBarangs().length"></span> barang
+                </div>
+                <button
+                    type="button"
+                    @click="closeBarangModal()"
+                    class="rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100 transition shadow-sm"
+                >
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
 
 </div>
 
@@ -877,14 +972,6 @@ function invoiceForm() {
                 )
             ),
 
-        tipePembayaran:
-            @json(
-                old(
-                    'tipe_pembayaran',
-                    'Tunai'
-                )
-            ),
-
         pajakPersen:
             @json(
                 (float) old(
@@ -918,6 +1005,105 @@ function invoiceForm() {
                 $barangs
                     ->keyBy('id')
             ),
+
+        gudangsData:
+            @json(
+                $gudangs
+                    ->keyBy('id')
+            ),
+
+        /*
+        |--------------------------------------------------------------------------
+        | POP-UP MODAL BARANG STATE
+        |--------------------------------------------------------------------------
+        */
+
+        showBarangModal: false,
+        activeItemIndex: null,
+        searchBarang: '',
+        filterKategori: '',
+        hanyaTersedia: false,
+
+        openBarangModal(index) {
+            if (!this.gudangId) {
+                alert('Silakan pilih Gudang terlebih dahulu sebelum memilih barang.');
+                return;
+            }
+            this.activeItemIndex = index;
+            this.searchBarang = '';
+            this.filterKategori = '';
+            this.showBarangModal = true;
+            this.$nextTick(() => {
+                this.$refs.searchInput?.focus();
+            });
+        },
+
+        closeBarangModal() {
+            this.showBarangModal = false;
+            this.activeItemIndex = null;
+        },
+
+        pilihBarang(barang) {
+            const stok = this.getStokBarang(barang.id);
+            if (stok <= 0) {
+                alert(`Barang "${barang.nama_barang}" memiliki stok 0 di gudang yang dipilih dan tidak dapat ditambahkan ke invoice.`);
+                return;
+            }
+            if (this.activeItemIndex !== null && this.items[this.activeItemIndex]) {
+                this.items[this.activeItemIndex].barang_id = String(barang.id);
+                this.onBarangChange(this.activeItemIndex);
+            }
+            this.closeBarangModal();
+        },
+
+        getSupplierNames(barang) {
+            if (!barang) return '-';
+            const sups = barang.suppliers || [];
+            if (Array.isArray(sups) && sups.length > 0) {
+                return sups.map(s => s.nama_supplier).filter(Boolean).join(', ');
+            }
+            return '-';
+        },
+
+        getGudangNama() {
+            if (!this.gudangId) return 'Belum dipilih';
+            return this.gudangsData[this.gudangId]?.nama_gudang || ('Gudang #' + this.gudangId);
+        },
+
+        getKategoriList() {
+            const list = new Set();
+            Object.values(this.barangsData).forEach(b => {
+                if (b.kategori && b.kategori.nama_kategori) {
+                    list.add(b.kategori.nama_kategori);
+                }
+            });
+            return Array.from(list).sort();
+        },
+
+        getFilteredBarangs() {
+            const q = (this.searchBarang || '').toLowerCase().trim();
+            const kat = (this.filterKategori || '').toLowerCase().trim();
+
+            return Object.values(this.barangsData).filter(b => {
+                if (this.hanyaTersedia && this.getStokBarang(b.id) <= 0) {
+                    return false;
+                }
+
+                if (kat) {
+                    const bKat = (b.kategori?.nama_kategori || '').toLowerCase();
+                    if (bKat !== kat) return false;
+                }
+
+                if (!q) return true;
+
+                const nama = (b.nama_barang || '').toLowerCase();
+                const kode = (b.kode_barang || '').toLowerCase();
+                const kategori = (b.kategori?.nama_kategori || '').toLowerCase();
+                const suppliers = (b.suppliers || []).map(s => (s.nama_supplier || '').toLowerCase()).join(' ');
+
+                return nama.includes(q) || kode.includes(q) || kategori.includes(q) || suppliers.includes(q);
+            });
+        },
 
         /*
         |--------------------------------------------------------------------------
@@ -1438,7 +1624,8 @@ function invoiceForm() {
                         );
 
                     return (
-                        qty > stok
+                        stok <= 0
+                        || qty > stok
                     );
                 }
             );
@@ -1528,6 +1715,46 @@ function invoiceForm() {
                     maximumFractionDigits: 4,
                 }
             );
+        },
+
+        /*
+        |--------------------------------------------------------------------------
+        | HANDLE SUBMIT VALIDATION
+        |--------------------------------------------------------------------------
+        */
+
+        handleSubmit(e) {
+            if (!this.gudangId) {
+                e.preventDefault();
+                alert('Silakan pilih Gudang terlebih dahulu sebelum menerbitkan invoice.');
+                return;
+            }
+
+            for (let i = 0; i < this.items.length; i++) {
+                const item = this.items[i];
+                if (!item.barang_id) {
+                    e.preventDefault();
+                    alert(`Baris ke-${i + 1} belum memilih barang.`);
+                    return;
+                }
+
+                const stok = this.getStokBarang(item.barang_id);
+                const b = this.barangsData[item.barang_id];
+                const nama = b ? b.nama_barang : ('Barang #' + item.barang_id);
+
+                if (stok <= 0) {
+                    e.preventDefault();
+                    alert(`Barang "${nama}" memiliki stok 0 di gudang yang dipilih. Barang dengan stok 0 tidak dapat diterbitkan ke invoice.`);
+                    return;
+                }
+
+                const qty = parseFloat(item.qty || 0);
+                if (qty > stok) {
+                    e.preventDefault();
+                    alert(`Kuantitas untuk "${nama}" (${qty}) melebihi stok yang tersedia (${stok}).`);
+                    return;
+                }
+            }
         },
     };
 }

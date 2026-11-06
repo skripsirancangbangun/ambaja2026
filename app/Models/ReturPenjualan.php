@@ -17,6 +17,8 @@ class ReturPenjualan extends Model
         'tanggal_retur',
         'tipe_retur',
         'subtotal',
+        'potongan_persen',
+        'nominal_potongan',
         'pajak',
         'total',
         'total_retur',
@@ -32,6 +34,8 @@ class ReturPenjualan extends Model
     protected $casts = [
         'tanggal_retur' => 'date',
         'subtotal' => 'decimal:2',
+        'potongan_persen' => 'decimal:2',
+        'nominal_potongan' => 'decimal:2',
         'pajak' => 'decimal:2',
         'total' => 'decimal:2',
         'potong_piutang' => 'decimal:2',

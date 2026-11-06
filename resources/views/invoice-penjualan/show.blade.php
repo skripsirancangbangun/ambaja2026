@@ -77,7 +77,9 @@
     x-data="{
         showEmailModal: false,
         showCancelModal: false,
-        alasanPembatalan: ''
+        showKonfirmasiModal: false,
+        alasanPembatalan: '',
+        tipePembayaran: 'Tunai'
     }"
 >
 
@@ -122,7 +124,15 @@
                     {{-- STATUS PEMBAYARAN --}}
                     {{-- ============================================= --}}
 
-                    @if($invoicePenjualan->status_pembayaran == 'Lunas')
+                    @if($invoicePenjualan->status_pembayaran === 'Menunggu Pembayaran' || empty($invoicePenjualan->tipe_pembayaran))
+
+                        <span
+                            class="inline-flex rounded-full bg-amber-100 text-amber-800 border border-amber-300 px-3 py-1 text-xs font-bold"
+                        >
+                            Menunggu Pembayaran
+                        </span>
+
+                    @elseif($invoicePenjualan->status_pembayaran == 'Lunas')
 
                         <span
                             class="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"
@@ -189,6 +199,22 @@
         <div class="flex flex-wrap items-center gap-2">
 
             {{-- ===================================================== --}}
+            {{-- TETAPKAN CARA PEMBAYARAN (STEP 2) --}}
+            {{-- ===================================================== --}}
+
+            @if(!$isCancelled && ($invoicePenjualan->status_pembayaran === 'Menunggu Pembayaran' || empty($invoicePenjualan->tipe_pembayaran)))
+
+                <button
+                    type="button"
+                    @click="showKonfirmasiModal = true"
+                    class="rounded-xl bg-gradient-to-r from-teal-600 to-[#15235F] px-4 py-2 text-sm font-bold text-white shadow-sm hover:from-teal-700 hover:to-[#101b4d] transition flex items-center gap-1.5"
+                >
+                    ⚡ Tetapkan Cara Pembayaran
+                </button>
+
+            @endif
+
+            {{-- ===================================================== --}}
             {{-- EMAIL --}}
             {{-- ===================================================== --}}
 
@@ -218,6 +244,17 @@
                 class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
                 <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Cetak PDF
+            </a>
+
+            <a
+                href="{{ route(
+                    'invoice-penjualan.pdf',
+                    ['invoicePenjualan' => $invoicePenjualan, 'download' => 1]
+                ) }}"
+                class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 inline-flex items-center gap-1.5"
+                title="Download PDF NCR (A5 Landscape)"
+            >
+                <x-icon name="download" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Download PDF
             </a>
 
 
@@ -321,6 +358,37 @@
             {{ session('error') }}
         </div>
 
+    @endif
+
+    {{-- ========================================================= --}}
+    {{-- STEP 2 BANNER: MENUNGGU PENETAPAN PEMBAYARAN --}}
+    {{-- ========================================================= --}}
+
+    @if(!$isCancelled && ($invoicePenjualan->status_pembayaran === 'Menunggu Pembayaran' || empty($invoicePenjualan->tipe_pembayaran)))
+        <div class="rounded-2xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 p-5 shadow-sm">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div class="flex items-start gap-3.5">
+                    <div class="rounded-xl bg-amber-200/80 p-2.5 text-amber-900 shrink-0 text-xl font-bold">
+                        ⚡
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-amber-900">
+                            Langkah 2: Tetapkan Cara Pembayaran (Tunai atau Kredit)
+                        </h3>
+                        <p class="mt-1 text-xs text-amber-800 leading-relaxed max-w-2xl">
+                            Barang pada invoice ini sudah berhasil dikeluarkan dari gudang. Silakan tetapkan apakah transaksi ini dibayar <strong>Tunai (Kas/Bank)</strong> atau <strong>Kredit (Piutang Dagang)</strong> untuk membukukan Jurnal Penjualan otomatis.
+                        </p>
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    @click="showKonfirmasiModal = true"
+                    class="shrink-0 rounded-xl bg-[#15235F] px-5 py-2.5 text-xs font-bold text-white shadow-md hover:bg-teal-700 transition"
+                >
+                    ⚡ Tetapkan Pembayaran
+                </button>
+            </div>
+        </div>
     @endif
 
 
@@ -1726,6 +1794,153 @@
 
         </div>
 
+    @endif
+
+    {{-- ========================================================= --}}
+    {{-- MODAL KONFIRMASI PEMBAYARAN (STEP 2: TUNAI / KREDIT) --}}
+    {{-- ========================================================= --}}
+    @if(!$isCancelled && ($invoicePenjualan->status_pembayaran === 'Menunggu Pembayaran' || empty($invoicePenjualan->tipe_pembayaran)))
+        <div
+            x-show="showKonfirmasiModal"
+            x-cloak
+            class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            @keydown.escape.window="showKonfirmasiModal = false"
+        >
+            <div
+                class="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-100"
+                @click.away="showKonfirmasiModal = false"
+            >
+                <div class="px-6 py-4 bg-gradient-to-r from-[#15235F] to-[#1e348a] text-white flex items-center justify-between">
+                    <div>
+                        <h3 class="text-base font-bold flex items-center gap-2">
+                            <span>⚡</span>
+                            <span>Tetapkan Cara Pembayaran</span>
+                        </h3>
+                        <p class="text-xs text-slate-200 mt-0.5">
+                            Invoice #{{ $invoicePenjualan->nomor_invoice }} • Total: Rp {{ number_format($invoicePenjualan->total, 0, ',', '.') }}
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        @click="showKonfirmasiModal = false"
+                        class="rounded-xl p-1.5 text-white/80 hover:bg-white/10 hover:text-white transition"
+                    >
+                        <x-icon name="x" class="h-5 w-5" />
+                    </button>
+                </div>
+
+                <form
+                    action="{{ route('invoice-penjualan.konfirmasi-pembayaran', $invoicePenjualan) }}"
+                    method="POST"
+                >
+                    @csrf
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
+                                Pilih Tipe Pembayaran <span class="text-rose-500">*</span>
+                            </label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <label
+                                    class="flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition"
+                                    :class="tipePembayaran === 'Tunai' ? 'border-teal-500 bg-teal-50/50 text-[#15235F]' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'"
+                                >
+                                    <input
+                                        type="radio"
+                                        name="tipe_pembayaran"
+                                        value="Tunai"
+                                        x-model="tipePembayaran"
+                                        class="text-teal-600 focus:ring-teal-500"
+                                    >
+                                    <div>
+                                        <div class="text-sm font-bold">Tunai (Cash)</div>
+                                        <div class="text-[11px] text-slate-500">Langsung Lunas</div>
+                                    </div>
+                                </label>
+
+                                <label
+                                    class="flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition"
+                                    :class="tipePembayaran === 'Kredit' ? 'border-amber-500 bg-amber-50/50 text-amber-900' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'"
+                                >
+                                    <input
+                                        type="radio"
+                                        name="tipe_pembayaran"
+                                        value="Kredit"
+                                        x-model="tipePembayaran"
+                                        class="text-amber-600 focus:ring-amber-500"
+                                    >
+                                    <div>
+                                        <div class="text-sm font-bold">Kredit (Tempo)</div>
+                                        <div class="text-[11px] text-slate-500">Piutang Dagang</div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        {{-- JIKA TUNAI: PILIH REKENING KAS/BANK --}}
+                        <div x-show="tipePembayaran === 'Tunai'" class="space-y-1.5">
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">
+                                Penerimaan Kas / Rekening Bank <span class="text-rose-500">*</span>
+                            </label>
+                            <select
+                                name="rekening_kas_bank_id"
+                                :required="tipePembayaran === 'Tunai'"
+                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:border-[#32AAA6] focus:bg-white focus:outline-none"
+                            >
+                                <option value="">-- Pilih Rekening Kas/Bank --</option>
+                                @foreach($rekeningKasBanks as $rek)
+                                    <option value="{{ $rek->id }}" {{ old('rekening_kas_bank_id') == $rek->id ? 'selected' : '' }}>
+                                        {{ $rek->nama_rekening }} ({{ $rek->nama_bank ?? 'Kas' }}) - Saldo: Rp {{ number_format($rek->saldo_saat_ini, 0, ',', '.') }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <p class="text-[11px] text-teal-600">
+                                Saldo kas/bank akan bertambah sebesar Rp {{ number_format($invoicePenjualan->total, 0, ',', '.') }} dan jurnal otomatis dicatat.
+                            </p>
+                        </div>
+
+                        {{-- JIKA KREDIT: TANGGAL JATUH TEMPO --}}
+                        <div x-show="tipePembayaran === 'Kredit'" class="space-y-1.5" x-cloak>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">
+                                Tanggal Jatuh Tempo <span class="text-rose-500">*</span>
+                            </label>
+                            <input
+                                type="date"
+                                name="tanggal_jatuh_tempo"
+                                value="{{ old('tanggal_jatuh_tempo', date('Y-m-d', strtotime('+30 days'))) }}"
+                                min="{{ $invoicePenjualan->tanggal_invoice ? $invoicePenjualan->tanggal_invoice->format('Y-m-d') : date('Y-m-d') }}"
+                                :required="tipePembayaran === 'Kredit'"
+                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:border-[#32AAA6] focus:bg-white focus:outline-none"
+                            >
+                            <p class="text-[11px] text-amber-700">
+                                Piutang customer akan dicatat sebesar Rp {{ number_format($invoicePenjualan->total, 0, ',', '.') }} dan jurnal otomatis dicatat.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+                        <button
+                            type="button"
+                            @click="showKonfirmasiModal = false"
+                            class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 transition shadow-sm"
+                        >
+                            Batal
+                        </button>
+                        <button
+                            type="submit"
+                            class="rounded-xl bg-[#15235F] px-5 py-2 text-sm font-bold text-white hover:bg-teal-700 transition shadow-sm"
+                        >
+                            Simpan & Terbitkan Jurnal
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     @endif
 
 </div>

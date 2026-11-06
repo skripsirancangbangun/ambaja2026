@@ -86,7 +86,7 @@
                                 Rp {{ number_format($r->total, 0, ',', '.') }}
                             </td>
                             <td class="px-6 py-4 text-right whitespace-nowrap">
-                                <div class="flex items-center justify-end gap-2">
+                                <div class="flex items-center justify-end gap-1.5">
                                     <a
                                         href="{{ route('retur-penjualan.show', $r) }}"
                                         class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
@@ -94,11 +94,18 @@
                                         <x-icon name="eye" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Detail
                                     </a>
                                     <a
+                                        href="{{ route('retur-penjualan.pdf', ['returPenjualan' => $r, 'download' => 1]) }}"
+                                        class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                                        title="Download Nota Retur PDF"
+                                    >
+                                        <x-icon name="download" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Download
+                                    </a>
+                                    <a
                                         href="{{ route('retur-penjualan.pdf', $r) }}"
                                         target="_blank"
                                         class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
                                     >
-                                        <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> PDF
+                                        <x-icon name="printer" class="inline-block h-[1em] w-[1em] align-[-0.125em] mr-1" /> Cetak
                                     </a>
                                 </div>
                             </td>

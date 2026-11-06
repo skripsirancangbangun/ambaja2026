@@ -49,7 +49,9 @@ class ReturPenjualanController extends Controller
         $rekeningKasBanks = RekeningKasBank::where('is_active', true)->orderBy('nama_rekening')->get();
         $nomorRetur = $this->accountingService->generateDocumentNumber('RETUR_PENJUALAN');
 
-        return view('retur-penjualan.create', compact('invoices', 'selectedInvoice', 'rekeningKasBanks', 'nomorRetur'));
+        $defaultPotonganPersen = 20.00;
+
+        return view('retur-penjualan.create', compact('invoices', 'selectedInvoice', 'rekeningKasBanks', 'nomorRetur', 'defaultPotonganPersen'));
     }
 
     public function store(Request $request, InventoryService $inventoryService, KasBankService $kasBankService)
@@ -59,6 +61,7 @@ class ReturPenjualanController extends Controller
             'invoice_penjualan_id' => 'required|exists:invoice_penjualans,id',
             'tanggal_retur' => 'required|date',
             'alasan_retur' => 'required|string|min:5',
+            'potongan_persen' => 'nullable|numeric|min:0|max:100',
             'rekening_kas_bank_id' => 'nullable|exists:rekening_kas_banks,id',
             'items' => 'required|array|min:1',
             'items.*.barang_id' => 'required|exists:barangs,id',
@@ -77,7 +80,7 @@ class ReturPenjualanController extends Controller
 
         DB::beginTransaction();
         try {
-            $subtotal = 0;
+            $bruto = 0;
             $itemsToProcess = [];
 
             foreach ($validated['items'] as $item) {
@@ -105,7 +108,7 @@ class ReturPenjualanController extends Controller
                 $itemSubtotal = $item['qty'] * $hargaSatuan;
                 $itemTotalHpp = $item['qty'] * $hppSatuan;
 
-                $subtotal += $itemSubtotal;
+                $bruto += $itemSubtotal;
 
                 $itemsToProcess[] = [
                     'barang_id' => $item['barang_id'],
@@ -120,6 +123,11 @@ class ReturPenjualanController extends Controller
             if (empty($itemsToProcess)) {
                 throw new \RuntimeException('Minimal harus ada 1 barang yang diretur dengan Qty lebih dari 0.');
             }
+
+            // Potongan retur dari harga jual (default 20%, bisa diubah)
+            $potonganPersen = isset($validated['potongan_persen']) ? (float) $validated['potongan_persen'] : 20.00;
+            $nominalPotongan = ($bruto * $potonganPersen) / 100;
+            $subtotal = max(0, $bruto - $nominalPotongan);
 
             // Hitung PPN Retur secara proporsional jika invoice asal ber-PPN
             $pajakPersen = $invoice->pajak > 0 && $invoice->subtotal > 0
@@ -155,6 +163,8 @@ class ReturPenjualanController extends Controller
                 'tanggal_retur' => $validated['tanggal_retur'],
                 'tipe_retur' => $tipeRetur,
                 'subtotal' => $subtotal,
+                'potongan_persen' => $potonganPersen,
+                'nominal_potongan' => $nominalPotongan,
                 'pajak' => $pajakRetur,
                 'total' => $totalRetur,
                 'total_retur' => $totalRetur,
@@ -225,7 +235,7 @@ class ReturPenjualanController extends Controller
             DB::commit();
 
             return redirect()->route('retur-penjualan.index')
-                ->with('success', 'Nota Retur Penjualan berhasil diterbitkan, barang di-restock berdasarkan HPP, dan Kas/Piutang & Jurnal telah diperbarui.');
+                ->with('success', 'Nota Retur Penjualan berhasil diterbitkan (Potongan Retur: ' . number_format($potonganPersen, 0) . '% = Rp ' . number_format($nominalPotongan, 0, ',', '.') . '), barang di-restock ke gudang, serta Kas/Piutang & Jurnal telah diperbarui.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withInput()->with('error', 'Gagal menyimpan retur penjualan: ' . $e->getMessage());
@@ -238,14 +248,20 @@ class ReturPenjualanController extends Controller
         return view('retur-penjualan.show', compact('returPenjualan'));
     }
 
-    public function pdf(ReturPenjualan $returPenjualan)
+    public function pdf(Request $request, ReturPenjualan $returPenjualan)
     {
         $returPenjualan->load(['invoicePenjualan', 'customer', 'gudang', 'creator', 'rekeningKasBank', 'items.barang.satuan']);
         $safeNumber = str_replace(['/', '\\'], '-', $returPenjualan->nomor_retur);
 
         if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
-            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('retur-penjualan.pdf', compact('returPenjualan'))->setPaper('a4');
-            return $pdf->stream('Nota-Retur-' . $safeNumber . '.pdf');
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('retur-penjualan.pdf', compact('returPenjualan'))->setPaper('a5', 'landscape');
+            $filename = 'Nota-Retur-' . $safeNumber . '.pdf';
+
+            if ($request->has('download') || $request->input('download') == '1') {
+                return $pdf->download($filename);
+            }
+
+            return $pdf->stream($filename);
         }
 
         return view('retur-penjualan.pdf', compact('returPenjualan'));
