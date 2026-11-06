@@ -50,6 +50,7 @@
                         <th class="px-6 py-3 font-medium">Telepon</th>
                         <th class="px-6 py-3 font-medium">Kota</th>
                         <th class="px-6 py-3 font-medium">Status</th>
+                        <th class="px-6 py-3 font-medium">Barang Terdaftar</th>
                         <th class="px-6 py-3 text-right font-medium">Aksi</th>
                     </tr>
                 </thead>
@@ -104,8 +105,22 @@
                                 @endif
                             </td>
 
+                            <td class="px-6 py-4 text-slate-600">
+                                {{ number_format($supplier->barangs_count) }} barang
+                            </td>
+
                             <td class="px-6 py-4">
                                 <div class="flex items-center justify-end gap-2">
+
+                                    @if($supplier->is_active)
+                                        <a
+                                            href="{{ route('supplier.barang.index', $supplier) }}"
+                                            class="inline-flex h-8 items-center justify-center rounded-lg border border-teal-200 px-2 text-xs font-medium text-teal-700 transition hover:bg-teal-50"
+                                            title="Kelola barang supplier"
+                                        >
+                                            Barang
+                                        </a>
+                                    @endif
 
                                     <a
                                         href="{{ route('supplier.edit', $supplier) }}"
@@ -138,7 +153,7 @@
                     @empty
 
                         <tr>
-                            <td colspan="8" class="px-6 py-12 text-center">
+                            <td colspan="9" class="px-6 py-12 text-center">
                                 <p class="text-sm font-medium text-slate-500">
                                     Belum ada data supplier.
                                 </p>

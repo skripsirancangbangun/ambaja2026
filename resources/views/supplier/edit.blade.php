@@ -19,6 +19,14 @@
         <p class="mt-1 text-sm text-slate-500">
             Perbarui data supplier.
         </p>
+        @if($supplier->is_active)
+            <a
+                href="{{ route('supplier.barang.index', $supplier) }}"
+                class="mt-3 inline-flex items-center gap-2 rounded-lg bg-teal-50 px-3 py-2 text-xs font-semibold text-[#15235F] transition hover:bg-teal-100"
+            >
+                Kelola Daftar Barang Supplier
+            </a>
+        @endif
     </div>
 
     <form

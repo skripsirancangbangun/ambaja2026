@@ -41,6 +41,12 @@ class Barang extends Model
         return $this->belongsTo(Satuan::class);
     }
 
+    public function suppliers()
+    {
+        return $this->belongsToMany(Supplier::class, 'barang_supplier')
+            ->withTimestamps();
+    }
+
     public function purchaseOrderItems()
     {
         return $this->hasMany(PurchaseOrderItem::class);

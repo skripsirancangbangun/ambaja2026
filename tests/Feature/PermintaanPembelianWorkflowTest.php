@@ -156,6 +156,7 @@ class PermintaanPembelianWorkflowTest extends TestCase
             'nama_supplier' => 'Supplier Uji',
             'is_active' => true,
         ]);
+        $supplier->barangs()->attach($barang->id);
 
         $this->actingAs($purchasingUser)->post(route('purchase-order.store'), [
             'permintaan_pembelian_id' => $permintaan->id,

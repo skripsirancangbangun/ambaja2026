@@ -180,20 +180,20 @@ class PurchaseOrderController extends Controller
                 )
                 ->get();
 
-        $barangs =
+        $itemsForDisplay = old('items', $initialItems);
+        $selectedBarangIds = collect($itemsForDisplay)
+            ->pluck('barang_id')
+            ->filter()
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        $selectedBarangData = $this->formatBarangPickerData(
             Barang::query()
-                ->with([
-                    'kategori',
-                    'satuan',
-                ])
-                ->where(
-                    'is_active',
-                    true
-                )
-                ->orderBy(
-                    'nama_barang'
-                )
-                ->get();
+                ->with(['satuan', 'stokGudangs.gudang'])
+                ->whereIn('id', $selectedBarangIds)
+                ->get()
+        );
 
         /*
          * Preview saja.
@@ -208,12 +208,111 @@ class PurchaseOrderController extends Controller
             'purchase-order.create',
             compact(
                 'suppliers',
-                'barangs',
+                'selectedBarangData',
                 'previewNomorPO',
                 'permintaanPembelian',
                 'initialItems'
             )
         );
+    }
+
+    /**
+     * Pencarian barang khusus untuk supplier yang sedang dipilih di form PO.
+     * Stok ditampilkan sebagai total dan rincian per gudang, tanpa hardcode gudang.
+     */
+    public function barangsBySupplier(Request $request, Supplier $supplier)
+    {
+        abort_unless($supplier->is_active, 404);
+
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $search = trim($validated['search'] ?? '');
+
+        $query = $supplier->barangs()
+            ->with([
+                'satuan',
+                'stokGudangs.gudang:id,kode_gudang,nama_gudang',
+            ])
+            ->where('barangs.is_active', true);
+
+        if ($search !== '') {
+            $query->where(function ($barangQuery) use ($search): void {
+                $like = '%' . $search . '%';
+                $barangQuery
+                    ->where('barangs.kode_barang', 'like', $like)
+                    ->orWhere('barangs.nama_barang', 'like', $like)
+                    ->orWhere('barangs.spesifikasi', 'like', $like)
+                    ->orWhere('barangs.merek', 'like', $like);
+            });
+        }
+
+        $barangs = $query
+            ->orderBy('barangs.nama_barang')
+            ->paginate(25);
+
+        $data = $barangs->getCollection()
+            ->map(function (Barang $barang): array {
+                $stokGudangs = $barang->stokGudangs;
+
+                return [
+                    'id' => $barang->id,
+                    'kode' => $barang->kode_barang,
+                    'nama' => $barang->nama_barang,
+                    'spesifikasi' => $barang->spesifikasi,
+                    'merek' => $barang->merek,
+                    'satuan' => $barang->satuan?->nama_satuan,
+                    'harga_beli_default' => (float) $barang->harga_beli_default,
+                    'stok_total' => (float) $stokGudangs->sum('qty'),
+                    'stok_by_warehouse' => $stokGudangs
+                        ->map(fn ($stok): array => [
+                            'kode' => $stok->gudang?->kode_gudang ?? '-',
+                            'nama' => $stok->gudang?->nama_gudang ?? 'Gudang tidak ditemukan',
+                            'qty' => (float) $stok->qty,
+                        ])
+                        ->values()
+                        ->all(),
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'data' => $data,
+            'meta' => [
+                'current_page' => $barangs->currentPage(),
+                'last_page' => $barangs->lastPage(),
+                'per_page' => $barangs->perPage(),
+                'total' => $barangs->total(),
+            ],
+        ]);
+    }
+
+    private function formatBarangPickerData($barangs): array
+    {
+        return $barangs->map(function (Barang $barang): array {
+            $stokGudangs = $barang->stokGudangs;
+
+            return [
+                'id' => $barang->id,
+                'kode' => $barang->kode_barang,
+                'nama' => $barang->nama_barang,
+                'spesifikasi' => $barang->spesifikasi,
+                'merek' => $barang->merek,
+                'satuan' => $barang->satuan?->nama_satuan,
+                'harga_beli_default' => (float) $barang->harga_beli_default,
+                'stok_total' => (float) $stokGudangs->sum('qty'),
+                'stok_by_warehouse' => $stokGudangs
+                    ->map(fn ($stok): array => [
+                        'kode' => $stok->gudang?->kode_gudang ?? '-',
+                        'nama' => $stok->gudang?->nama_gudang ?? 'Gudang tidak ditemukan',
+                        'qty' => (float) $stok->qty,
+                    ])
+                    ->values()
+                    ->all(),
+            ];
+        })->values()->all();
     }
 
     /*
@@ -517,27 +616,42 @@ class PurchaseOrderController extends Controller
                 )
                 ->get();
 
-        $barangs =
-            Barang::query()
-                ->with([
-                    'kategori',
-                    'satuan',
+        $poInitialItems = old('items');
+
+        if (!$poInitialItems) {
+            $poInitialItems = $purchaseOrder->items
+                ->map(fn ($item): array => [
+                    'barang_id' => $item->barang_id,
+                    'qty' => (float) $item->qty,
+                    'harga_satuan' => (float) $item->harga_satuan,
+                    'diskon' => (float) $item->diskon,
+                    'keterangan' => $item->keterangan,
                 ])
-                ->where(
-                    'is_active',
-                    true
-                )
-                ->orderBy(
-                    'nama_barang'
-                )
-                ->get();
+                ->values()
+                ->all();
+        }
+
+        $selectedBarangIds = collect($poInitialItems)
+            ->pluck('barang_id')
+            ->filter()
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        $selectedBarangData = $this->formatBarangPickerData(
+            Barang::query()
+                ->with(['satuan', 'stokGudangs.gudang'])
+                ->whereIn('id', $selectedBarangIds)
+                ->get()
+        );
 
         return view(
             'purchase-order.edit',
             compact(
                 'purchaseOrder',
                 'suppliers',
-                'barangs'
+                'selectedBarangData',
+                'poInitialItems'
             )
         );
     }
@@ -618,7 +732,8 @@ class PurchaseOrderController extends Controller
                 ] =
                     $this
                         ->buildPurchaseOrderData(
-                            $validated
+                            $validated,
+                            $purchaseOrder
                         );
 
                 /*
@@ -1120,7 +1235,8 @@ class PurchaseOrderController extends Controller
     */
 
     private function buildPurchaseOrderData(
-        array $validated
+        array $validated,
+        ?PurchaseOrder $existingPurchaseOrder = null
     ): array {
         /*
         |--------------------------------------------------------------------------
@@ -1151,6 +1267,43 @@ class PurchaseOrderController extends Controller
             throw ValidationException::withMessages([
                 'items' =>
                     'Barang yang sama tidak boleh dimasukkan lebih dari satu kali.',
+            ]);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | VALIDASI KEANGGOTAAN BARANG PADA SUPPLIER
+        |--------------------------------------------------------------------------
+        */
+
+        $uniqueBarangIds = $barangIds->unique()->values();
+
+        // Draft PO lama tetap dapat diedit untuk barang yang memang sudah
+        // tercatat di PO tersebut, walaupun relasi master supplier-barang
+        // baru diperkenalkan setelah PO dibuat.
+        $existingBarangIds = collect();
+        if (
+            $existingPurchaseOrder
+            && (int) $existingPurchaseOrder->supplier_id === (int) $validated['supplier_id']
+        ) {
+            $existingBarangIds = $existingPurchaseOrder->items()
+                ->pluck('barang_id')
+                ->map(fn ($id): int => (int) $id);
+        }
+
+        $barangIdsThatMustBeMapped = $uniqueBarangIds
+            ->diff($existingBarangIds)
+            ->values();
+
+        $mappedBarangIds = DB::table('barang_supplier')
+            ->where('supplier_id', (int) $validated['supplier_id'])
+            ->whereIn('barang_id', $barangIdsThatMustBeMapped->all())
+            ->pluck('barang_id')
+            ->map(fn ($id): int => (int) $id);
+
+        if ($mappedBarangIds->count() !== $barangIdsThatMustBeMapped->count()) {
+            throw ValidationException::withMessages([
+                'items' => 'Ada barang yang belum terdaftar pada daftar barang supplier terpilih. Periksa relasi barang pada menu Supplier.',
             ]);
         }
 

@@ -21,6 +21,12 @@ class Supplier extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+    public function barangs()
+    {
+        return $this->belongsToMany(Barang::class, 'barang_supplier')
+            ->withTimestamps();
+    }
+
     public function purchaseOrders()
 {
     return $this->hasMany(PurchaseOrder::class);

@@ -229,6 +229,21 @@ Route::middleware(['auth', 'user.active', 'module.access'])->group(function () {
     )->except('show');
 
 
+    Route::get(
+        'supplier/{supplier}/barang',
+        [SupplierController::class, 'barang']
+    )->name('supplier.barang.index');
+
+    Route::post(
+        'supplier/{supplier}/barang/{barang}',
+        [SupplierController::class, 'attachBarang']
+    )->name('supplier.barang.attach');
+
+    Route::delete(
+        'supplier/{supplier}/barang/{barang}',
+        [SupplierController::class, 'detachBarang']
+    )->name('supplier.barang.detach');
+
     Route::resource(
         'supplier',
         SupplierController::class
@@ -430,6 +445,11 @@ Route::middleware(['auth', 'user.active', 'module.access'])->group(function () {
         ]
     )->name('purchase-order.kirim');
 
+
+    Route::get(
+        'purchase-order/supplier/{supplier}/barangs',
+        [PurchaseOrderController::class, 'barangsBySupplier']
+    )->name('purchase-order.supplier-barangs');
 
     Route::resource(
         'purchase-order',
